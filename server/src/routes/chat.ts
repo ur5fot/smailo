@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory } from '../db/schema.js';
-import { chatWithClaude } from '../services/claude.js';
+import { chatWithClaude } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 
 export const chatRouter = Router();

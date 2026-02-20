@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory } from '../db/schema.js';
-import { chatWithClaude } from '../services/claude.js';
+import { chatWithClaude } from '../services/aiService.js';
 
 export const appRouter = Router();
 

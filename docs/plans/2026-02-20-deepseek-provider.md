@@ -41,8 +41,8 @@ DeepSeek совместим с OpenAI API, поэтому используем �
 - [x] экспортировать `chatWithClaude` как алиас `chatWithAI` для обратной совместимости
 
 ### Task 3: Обновить импорты в роутах
-- [ ] в `server/src/routes/chat.ts` — заменить импорт `chatWithClaude` из `./claude` на `./aiService`
-- [ ] в `server/src/routes/app.ts` — заменить импорт `chatWithClaude` из `./claude` на `./aiService`
+- [x] в `server/src/routes/chat.ts` — заменить импорт `chatWithClaude` из `./claude` на `./aiService`
+- [x] в `server/src/routes/app.ts` — заменить импорт `chatWithClaude` из `./claude` на `./aiService`
 
 ### Task 4: Обновить конфигурацию окружения
 - [ ] в `.env.example` добавить:
