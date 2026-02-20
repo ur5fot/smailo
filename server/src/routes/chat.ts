@@ -27,6 +27,9 @@ chatRouter.post('/', limiter, async (req, res) => {
     if (!sessionId || typeof sessionId !== 'string') {
       return res.status(400).json({ error: 'sessionId is required' });
     }
+    if (sessionId.length > 128) {
+      return res.status(400).json({ error: 'sessionId too long' });
+    }
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'message is required' });
     }

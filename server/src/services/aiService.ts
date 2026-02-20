@@ -207,19 +207,20 @@ async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Prom
   return content;
 }
 
-const AI_PROVIDER = process.env.AI_PROVIDER ?? 'anthropic';
-if (AI_PROVIDER !== 'anthropic' && AI_PROVIDER !== 'deepseek') {
-  throw new Error(`Unknown AI_PROVIDER: "${AI_PROVIDER}". Expected "anthropic" or "deepseek".`);
-}
-
 export async function chatWithAI(
   messages: ChatMessage[],
   phase: ClaudePhase
 ): Promise<ClaudeResponse> {
+  const provider = process.env.AI_PROVIDER ?? 'anthropic';
+  if (provider !== 'anthropic' && provider !== 'deepseek') {
+    throw new Error(`Unknown AI_PROVIDER: "${provider}". Expected "anthropic" or "deepseek".`);
+  }
   const systemPrompt = phase === 'chat' ? IN_APP_SYSTEM_PROMPT : BRAINSTORM_SYSTEM_PROMPT;
   const rawText =
-    AI_PROVIDER === 'deepseek'
+    provider === 'deepseek'
       ? await callDeepSeek(messages, systemPrompt)
       : await callAnthropic(messages, systemPrompt);
   return parseResponse(rawText, phase);
 }
+
+export const chatWithClaude = chatWithAI;
