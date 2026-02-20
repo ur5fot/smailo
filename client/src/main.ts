@@ -3,6 +3,8 @@ import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
 import Aura from '@primevue/themes/aura'
 import 'primeicons/primeicons.css'
+import { Chart, registerables } from 'chart.js'
+Chart.register(...registerables)
 
 import App from './App.vue'
 import router from './router'

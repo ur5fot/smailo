@@ -240,6 +240,12 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       phase: 'chat',
     } as any);
 
+    // If the AI returned an updated UI layout, persist it to apps.config
+    if (claudeResponse.uiUpdate) {
+      const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: claudeResponse.uiUpdate };
+      await db.update(apps).set({ config: updatedConfig } as any).where(eq(apps.id, row.id));
+    }
+
     return res.json({
       mood: claudeResponse.mood,
       message: claudeResponse.message,

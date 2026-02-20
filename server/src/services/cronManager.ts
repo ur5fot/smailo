@@ -38,10 +38,10 @@ function computeNextRun(expression: string): string | null {
   }
 
   const now = new Date();
-  // Start from the next minute
+  // Start from the next minute (UTC arithmetic throughout)
   const candidate = new Date(now);
-  candidate.setSeconds(0, 0);
-  candidate.setMinutes(candidate.getMinutes() + 1);
+  candidate.setUTCSeconds(0, 0);
+  candidate.setUTCMinutes(candidate.getUTCMinutes() + 1);
 
   const limit = new Date(now.getTime() + 366 * 24 * 60 * 60 * 1000);
   while (candidate <= limit) {
@@ -60,7 +60,7 @@ function computeNextRun(expression: string): string | null {
     ) {
       return candidate.toISOString();
     }
-    candidate.setMinutes(candidate.getMinutes() + 1);
+    candidate.setUTCMinutes(candidate.getUTCMinutes() + 1);
   }
   return null;
 }
@@ -255,7 +255,17 @@ class CronManager {
     }
 
     const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    const contentLength = response.headers.get('content-length');
+    const MAX_BODY_BYTES = 1_048_576; // 1 MB
+    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+      console.warn(`[CronManager] fetch_url response too large (${contentLength} bytes) for app ${appId}, skipping`);
+      return;
+    }
     const body = await response.text();
+    if (body.length > MAX_BODY_BYTES) {
+      console.warn(`[CronManager] fetch_url body exceeds 1 MB for app ${appId}, skipping`);
+      return;
+    }
     let value: unknown = body;
 
     try {
@@ -290,7 +300,7 @@ class CronManager {
     const dataKey = config.dataKey as string;
     const operation = (config.operation as string) ?? 'avg';
     const outputKey = (config.outputKey as string) ?? `${dataKey}_${operation}`;
-    const windowDays = (config.windowDays as number) ?? 7;
+    const windowDays = Math.min(Math.max(1, (config.windowDays as number) ?? 7), 365);
 
     if (!dataKey) {
       console.warn('[CronManager] aggregate_data action missing dataKey config');
@@ -344,6 +354,9 @@ class CronManager {
         case 'min':
           result = Math.min(...numbers);
           break;
+        default:
+          console.warn(`[CronManager] aggregate_data: unknown operation "${operation}" for app ${appId}`);
+          return;
       }
     }
 
