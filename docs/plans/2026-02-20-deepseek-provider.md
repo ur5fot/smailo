@@ -31,14 +31,14 @@ DeepSeek совместим с OpenAI API, поэтому используем �
 - [x] запустить `npm install` в папке server
 
 ### Task 2: Создать unified aiService.ts
-- [ ] создать `server/src/services/aiService.ts`
-- [ ] перенести все типы из `claude.ts`: `ClaudePhase`, `ClaudeResponse`, `AppConfig`, `CronJobConfig`, `UiComponent`, `ChatMessage`
-- [ ] перенести системные промпты `BRAINSTORM_SYSTEM_PROMPT` и `IN_APP_SYSTEM_PROMPT`
-- [ ] перенести функцию парсинга JSON ответа (strip markdown fences + validate fields)
-- [ ] добавить Anthropic-провайдер: инициализация `Anthropic` клиента, вызов `messages.create`, извлечение `response.content[0].text`
-- [ ] добавить DeepSeek-провайдер: инициализация `OpenAI` клиента с `baseURL: 'https://api.deepseek.com'` и `apiKey: process.env.DEEPSEEK_API_KEY`, вызов `chat.completions.create`, извлечение `response.choices[0].message.content`
-- [ ] экспортировать `chatWithAI(messages, phase)` — выбирает провайдер по `process.env.AI_PROVIDER` (default: `'anthropic'`)
-- [ ] экспортировать `chatWithClaude` как алиас `chatWithAI` для обратной совместимости
+- [x] создать `server/src/services/aiService.ts`
+- [x] перенести все типы из `claude.ts`: `ClaudePhase`, `ClaudeResponse`, `AppConfig`, `CronJobConfig`, `UiComponent`, `ChatMessage`
+- [x] перенести системные промпты `BRAINSTORM_SYSTEM_PROMPT` и `IN_APP_SYSTEM_PROMPT`
+- [x] перенести функцию парсинга JSON ответа (strip markdown fences + validate fields)
+- [x] добавить Anthropic-провайдер: инициализация `Anthropic` клиента, вызов `messages.create`, извлечение `response.content[0].text`
+- [x] добавить DeepSeek-провайдер: инициализация `OpenAI` клиента с `baseURL: 'https://api.deepseek.com'` и `apiKey: process.env.DEEPSEEK_API_KEY`, вызов `chat.completions.create`, извлечение `response.choices[0].message.content`
+- [x] экспортировать `chatWithAI(messages, phase)` — выбирает провайдер по `process.env.AI_PROVIDER` (default: `'anthropic'`)
+- [x] экспортировать `chatWithClaude` как алиас `chatWithAI` для обратной совместимости
 
 ### Task 3: Обновить импорты в роутах
 - [ ] в `server/src/routes/chat.ts` — заменить импорт `chatWithClaude` из `./claude` на `./aiService`
