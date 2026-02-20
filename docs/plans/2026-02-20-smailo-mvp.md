@@ -37,12 +37,12 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] create `server/drizzle.config.ts` pointing to DATABASE_URL
 
 ### Task 3: Database schema and connection
-- [ ] create `server/src/db/schema.ts` with all 4 tables: `apps`, `cronJobs`, `appData`, `chatHistory`
+- [x] create `server/src/db/schema.ts` with all 4 tables: `apps`, `cronJobs`, `appData`, `chatHistory`
   - `apps`: id, hash (unique 64-hex), passwordHash, appName, description, config (JSON), createdAt, lastVisit
   - `cronJobs`: id, appId (→apps.id), name, schedule, humanReadable, action, config (JSON), isActive, lastRun, nextRun
   - `appData`: id, appId (→apps.id), key, value (JSON), createdAt
   - `chatHistory`: id, appId (nullable→apps.id), sessionId, role, content, phase, createdAt
-- [ ] create `server/src/db/index.ts` — initialize better-sqlite3 + drizzle, export `db`
+- [x] create `server/src/db/index.ts` — initialize better-sqlite3 + drizzle, export `db`
 
 ### Task 4: Claude API service
 - [ ] create `server/src/services/claude.ts`
