@@ -45,12 +45,12 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] create `server/src/db/index.ts` — initialize better-sqlite3 + drizzle, export `db`
 
 ### Task 4: Claude API service
-- [ ] create `server/src/services/claude.ts`
-- [ ] implement `chatWithClaude(messages, phase)` function using `@anthropic-ai/sdk`
-- [ ] embed full brainstorm system prompt (mood, message, phase, appConfig JSON format)
-- [ ] embed full in-app system prompt for `phase === 'chat'`
-- [ ] parse and validate JSON response from Claude (handle malformed JSON gracefully)
-- [ ] export `ClaudeResponse` type: `{ mood, message, phase, appConfig? }`
+- [x] create `server/src/services/claude.ts`
+- [x] implement `chatWithClaude(messages, phase)` function using `@anthropic-ai/sdk`
+- [x] embed full brainstorm system prompt (mood, message, phase, appConfig JSON format)
+- [x] embed full in-app system prompt for `phase === 'chat'`
+- [x] parse and validate JSON response from Claude (handle malformed JSON gracefully)
+- [x] export `ClaudeResponse` type: `{ mood, message, phase, appConfig? }`
 
 ### Task 5: CronManager service
 - [ ] create `server/src/services/cronManager.ts`
