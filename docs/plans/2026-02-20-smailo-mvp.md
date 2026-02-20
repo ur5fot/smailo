@@ -61,12 +61,12 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] export singleton `cronManager` instance
 
 ### Task 6: API routes — /api/chat
-- [ ] create `server/src/routes/chat.ts`
-- [ ] `POST /api/chat`: accept `{ sessionId, message, appHash? }`, persist to `chatHistory`
-- [ ] load previous messages for session, call `chatWithClaude`
-- [ ] if `phase === 'created'`: generate hash via `crypto.randomBytes(32).toString('hex')`, insert into `apps`, call `cronManager.addJobs()`
-- [ ] return `{ mood, message, phase, appHash? }`
-- [ ] apply `express-rate-limit` (30 req/min) to this route
+- [x] create `server/src/routes/chat.ts`
+- [x] `POST /api/chat`: accept `{ sessionId, message, appHash? }`, persist to `chatHistory`
+- [x] load previous messages for session, call `chatWithClaude`
+- [x] if `phase === 'created'`: generate hash via `crypto.randomBytes(32).toString('hex')`, insert into `apps`, call `cronManager.addJobs()`
+- [x] return `{ mood, message, phase, appHash? }`
+- [x] apply `express-rate-limit` (30 req/min) to this route
 
 ### Task 7: API routes — /api/app/:hash
 - [ ] create `server/src/routes/app.ts`
