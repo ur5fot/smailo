@@ -30,11 +30,11 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] create `.env.example` with PORT, ANTHROPIC_API_KEY, JWT_SECRET, DATABASE_URL, CLIENT_URL
 
 ### Task 2: Server package setup
-- [ ] create `server/package.json` with all backend deps: express, drizzle-orm, better-sqlite3, node-cron, bcryptjs, jsonwebtoken, multer, @anthropic-ai/sdk, helmet, express-rate-limit
-- [ ] add dev deps: typescript, tsx, @types/node, @types/express, @types/better-sqlite3, @types/bcryptjs, @types/jsonwebtoken, drizzle-kit
-- [ ] create `server/tsconfig.json` (target ES2022, module NodeNext, strict false, outDir dist)
-- [ ] add server scripts: `dev` (tsx watch src/index.ts), `build` (tsc), `start` (node dist/index.js), `db:push` (drizzle-kit push)
-- [ ] create `server/drizzle.config.ts` pointing to DATABASE_URL
+- [x] create `server/package.json` with all backend deps: express, drizzle-orm, better-sqlite3, node-cron, bcryptjs, jsonwebtoken, multer, @anthropic-ai/sdk, helmet, express-rate-limit
+- [x] add dev deps: typescript, tsx, @types/node, @types/express, @types/better-sqlite3, @types/bcryptjs, @types/jsonwebtoken, drizzle-kit
+- [x] create `server/tsconfig.json` (target ES2022, module NodeNext, strict false, outDir dist)
+- [x] add server scripts: `dev` (tsx watch src/index.ts), `build` (tsc), `start` (node dist/index.js), `db:push` (drizzle-kit push)
+- [x] create `server/drizzle.config.ts` pointing to DATABASE_URL
 
 ### Task 3: Database schema and connection
 - [ ] create `server/src/db/schema.ts` with all 4 tables: `apps`, `cronJobs`, `appData`, `chatHistory`
