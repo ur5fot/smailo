@@ -107,14 +107,14 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] `watch(mood)` — kill previous timeline, start new one; `onUnmounted` kill all
 
 ### Task 12: InputBar.vue component
-- [ ] create `client/src/components/InputBar.vue`
-- [ ] PrimeVue `InputText` bound to local `text` ref
-- [ ] send button (PrimeVue `Button`) — emit `submit(text)` on click; clear input after
-- [ ] Enter keydown handler on input → same submit logic
-- [ ] microphone button using `window.SpeechRecognition || window.webkitSpeechRecognition`
-- [ ] mic button: red icon when recording, CSS pulse animation during active recording
-- [ ] on speech result: fill `text` ref with transcript
-- [ ] emit: `submit(message: string)`
+- [x] create `client/src/components/InputBar.vue`
+- [x] PrimeVue `InputText` bound to local `text` ref
+- [x] send button (PrimeVue `Button`) — emit `submit(text)` on click; clear input after
+- [x] Enter keydown handler on input → same submit logic
+- [x] microphone button using `window.SpeechRecognition || window.webkitSpeechRecognition`
+- [x] mic button: red icon when recording, CSS pulse animation during active recording
+- [x] on speech result: fill `text` ref with transcript
+- [x] emit: `submit(message: string)`
 
 ### Task 13: AppRenderer.vue component
 - [ ] create `client/src/components/AppRenderer.vue`
