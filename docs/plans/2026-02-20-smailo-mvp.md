@@ -76,11 +76,11 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] `POST /api/app/:hash/chat`: accept `{ message }`, call Claude with `phase=chat`, return `{ mood, message, uiUpdate? }`
 
 ### Task 8: Express server entry point
-- [ ] create `server/src/index.ts`
-- [ ] configure express: JSON body parser, CORS (CLIENT_URL from env), helmet
-- [ ] mount routes: `/api/chat`, `/api/app`
-- [ ] on startup: call `cronManager.loadAll()`
-- [ ] listen on PORT from env (default 3000)
+- [x] create `server/src/index.ts`
+- [x] configure express: JSON body parser, CORS (CLIENT_URL from env), helmet
+- [x] mount routes: `/api/chat`, `/api/app`
+- [x] on startup: call `cronManager.loadAll()`
+- [x] listen on PORT from env (default 3000)
 
 ### Task 9: Client package setup
 - [ ] scaffold `client/` with `npm create vite@latest . -- --template vue-ts` (or manual)
