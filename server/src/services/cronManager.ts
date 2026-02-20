@@ -87,9 +87,27 @@ class CronManager {
 
   private static readonly MAX_JOBS_PER_APP = 5;
 
+  private static readonly ALLOWED_ACTIONS = new Set(['log_entry', 'fetch_url', 'send_reminder', 'aggregate_data']);
+
   async addJobs(appId: number, jobs: CronJobConfig[]): Promise<void> {
     const capped = jobs.slice(0, CronManager.MAX_JOBS_PER_APP);
     for (const job of capped) {
+      // Validate action and schedule before inserting so we never persist inert jobs that
+      // would waste a slot and generate re-warnings on every server restart.
+      if (!CronManager.ALLOWED_ACTIONS.has(job.action)) {
+        console.warn(`[CronManager] Skipping job "${job.name}" with unknown action: ${job.action}`);
+        continue;
+      }
+      if (!validate(job.schedule)) {
+        console.warn(`[CronManager] Skipping job "${job.name}" with invalid cron expression: ${job.schedule}`);
+        continue;
+      }
+      const expressionParts = job.schedule.trim().split(/\s+/);
+      if (expressionParts.length !== 5) {
+        console.warn(`[CronManager] Skipping non-5-field cron expression for job "${job.name}": ${job.schedule}`);
+        continue;
+      }
+
       const [inserted] = await db
         .insert(cronJobs)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -214,7 +232,12 @@ class CronManager {
       entry[key] = type === 'number' ? 0 : '';
     }
 
-    await db.insert(appData).values({ appId, key: `log_entry_${jobId}`, value: entry } as any);
+    // Use config.outputKey if set so aggregate_data jobs can reference this data by name.
+    // Fall back to the job-id-based key for backwards compatibility.
+    const storageKey = typeof config.outputKey === 'string' && config.outputKey
+      ? config.outputKey.slice(0, 100)
+      : `log_entry_${jobId}`;
+    await db.insert(appData).values({ appId, key: storageKey, value: entry } as any);
   }
 
   private isPrivateHost(hostname: string): boolean {
@@ -344,9 +367,11 @@ class CronManager {
 
       const dataPath = config.dataPath as string | undefined;
       if (dataPath) {
+        const BLOCKED_PATH_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
         const parts = dataPath.replace(/^\$\./, '').split('.');
         let current: unknown = parsed;
         for (const part of parts) {
+          if (BLOCKED_PATH_KEYS.has(part)) { current = undefined; break; }
           if (current != null && typeof current === 'object') {
             current = (current as Record<string, unknown>)[part];
           }
@@ -357,7 +382,11 @@ class CronManager {
       // keep raw text as value
     }
 
-    await db.insert(appData).values({ appId, key: `fetch_url_${jobId}`, value: { url, result: value, fetchedAt: new Date().toISOString() } } as any);
+    // Use config.outputKey if set so aggregate_data jobs can reference this data by name.
+    const fetchStorageKey = typeof config.outputKey === 'string' && config.outputKey
+      ? config.outputKey.slice(0, 100)
+      : `fetch_url_${jobId}`;
+    await db.insert(appData).values({ appId, key: fetchStorageKey, value: { url, result: value, fetchedAt: new Date().toISOString() } } as any);
   }
 
   private async handleSendReminder(jobId: number, appId: number, config: ActionConfig): Promise<void> {

@@ -108,6 +108,21 @@ chatRouter.post('/', limiter, async (req, res) => {
       // configs are never written to apps.config (they live in the cronJobs table).
       const { cronJobs: _cj, ...appConfigToStore } = claudeResponse.appConfig as any;
 
+      // Validate uiComponents against the allowed component whitelist to match the same
+      // boundary enforced on in-app chat uiUpdate responses.
+      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar'];
+      if (Array.isArray(appConfigToStore.uiComponents)) {
+        appConfigToStore.uiComponents = (appConfigToStore.uiComponents as any[])
+          .filter(
+            (item: any) =>
+              item &&
+              typeof item.component === 'string' &&
+              ALLOWED_COMPONENTS.includes(item.component) &&
+              (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props)))
+          )
+          .slice(0, 20);
+      }
+
       const [inserted] = await db
         .insert(apps)
         .values({
