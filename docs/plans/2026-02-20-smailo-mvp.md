@@ -125,10 +125,10 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] pass relevant `appData[item.dataKey]` as `:value` or `:data` prop where applicable
 
 ### Task 14: Vue Router
-- [ ] create `client/src/router/index.ts`
-- [ ] route `/` → `HomeView` (lazy import)
-- [ ] route `/app/:hash` → `AppView` (lazy import)
-- [ ] history mode
+- [x] create `client/src/router/index.ts`
+- [x] route `/` → `HomeView` (lazy import)
+- [x] route `/app/:hash` → `AppView` (lazy import)
+- [x] history mode
 
 ### Task 15: HomeView.vue
 - [ ] create `client/src/views/HomeView.vue`
