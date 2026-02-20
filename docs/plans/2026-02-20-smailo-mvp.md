@@ -151,7 +151,7 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] polling or manual refresh button for appData
 
 ### Task 17: README
-- [ ] create `README.md` at root with: project description, prerequisites (Node 20+), setup steps (`cp .env.example .env`, `npm install`, `npm run db:push`, `npm run dev`), architecture overview
+- [x] create `README.md` at root with: project description, prerequisites (Node 20+), setup steps (`cp .env.example .env`, `npm install`, `npm run db:push`, `npm run dev`), architecture overview
 
 ## Technical Details
 
