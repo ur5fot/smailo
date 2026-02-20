@@ -139,7 +139,7 @@ class CronManager {
 
     const task = schedule(expression, async () => {
       await this.runJob(jobId, appId, action, config, expression);
-    });
+    }, { timezone: 'UTC' });
 
     this.tasks.set(jobId, task);
   }
@@ -217,7 +217,14 @@ class CronManager {
       if (a === 192 && b === 168) return true;
     }
     const bare = hostname.replace(/^\[|\]$/g, '');
-    if (bare === '::1' || bare.startsWith('fc') || bare.startsWith('fd')) return true;
+    if (
+      bare === '::1' ||
+      bare === '::' ||
+      bare.startsWith('fc') ||
+      bare.startsWith('fd') ||
+      bare.toLowerCase().startsWith('fe80') || // link-local
+      bare.toLowerCase().startsWith('ff')       // multicast
+    ) return true;
     // IPv4-mapped IPv6 (::ffff:a.b.c.d or ::ffff:aabb:ccdd)
     const ipv4MappedHex = bare.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
     if (ipv4MappedHex) {
@@ -277,7 +284,12 @@ class CronManager {
 
     const MAX_BODY_BYTES = 1_048_576; // 1 MB
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000), redirect: 'manual' });
+    // Block redirects entirely to prevent SSRF via redirect to a private/internal URL
+    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+      console.warn(`[CronManager] fetch_url rejected redirect response for app ${appId}: ${url}`);
+      return;
+    }
     const contentLength = response.headers.get('content-length');
     if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
       console.warn(`[CronManager] fetch_url response too large (${contentLength} bytes) for app ${appId}, skipping`);
@@ -380,28 +392,30 @@ class CronManager {
       })
       .filter((v): v is number => v !== null);
 
+    if (numbers.length === 0) {
+      return;
+    }
+
     let result: number | null = null;
-    if (numbers.length > 0) {
-      switch (operation) {
-        case 'avg':
-          result = numbers.reduce((a, b) => a + b, 0) / numbers.length;
-          break;
-        case 'sum':
-          result = numbers.reduce((a, b) => a + b, 0);
-          break;
-        case 'count':
-          result = numbers.length;
-          break;
-        case 'max':
-          result = Math.max(...numbers);
-          break;
-        case 'min':
-          result = Math.min(...numbers);
-          break;
-        default:
-          console.warn(`[CronManager] aggregate_data: unknown operation "${operation}" for app ${appId}`);
-          return;
-      }
+    switch (operation) {
+      case 'avg':
+        result = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+        break;
+      case 'sum':
+        result = numbers.reduce((a, b) => a + b, 0);
+        break;
+      case 'count':
+        result = numbers.length;
+        break;
+      case 'max':
+        result = Math.max(...numbers);
+        break;
+      case 'min':
+        result = Math.min(...numbers);
+        break;
+      default:
+        console.warn(`[CronManager] aggregate_data: unknown operation "${operation}" for app ${appId}`);
+        return;
     }
 
     await db.insert(appData).values({ appId, key: outputKey, value: { result, operation, dataKey, windowDays, sampleCount: numbers.length, computedAt: new Date().toISOString() } } as any);

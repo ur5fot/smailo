@@ -42,8 +42,19 @@ const componentMap: Record<string, any> = {
   Calendar: DatePicker,
 }
 
+// Strip event handler props (keys starting with 'on') from AI-controlled component
+// configs to prevent stored XSS via injected event handler bindings.
+const BLOCKED_PROP_PREFIXES = ['on']
+function isSafeProp(key: string): boolean {
+  const lower = key.toLowerCase()
+  return !BLOCKED_PROP_PREFIXES.some((prefix) => lower.startsWith(prefix))
+}
+
 function resolvedProps(item: UiConfigItem): Record<string, any> {
-  const resolved = { ...item.props }
+  const safeProps = Object.fromEntries(
+    Object.entries(item.props ?? {}).filter(([key]) => isSafeProp(key))
+  )
+  const resolved = { ...safeProps }
   if (item.dataKey && props.appData[item.dataKey] !== undefined) {
     const data = props.appData[item.dataKey]
     if (item.component === 'Chart') {

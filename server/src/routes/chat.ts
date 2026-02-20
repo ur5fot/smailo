@@ -77,8 +77,10 @@ chatRouter.post('/', limiter, async (req, res) => {
     let appHashResult: string | undefined;
     let creationTokenResult: string | undefined;
 
-    // If Claude says the app is created, persist the app and schedule cron jobs
-    if (claudeResponse.phase === 'created' && claudeResponse.appConfig) {
+    // If Claude says the app is created, persist the app and schedule cron jobs.
+    // Enforce server-side that creation can only follow confirmation — the AI cannot
+    // skip the confirm phase by returning phase='created' from brainstorm.
+    if (claudeResponse.phase === 'created' && claudeResponse.appConfig && (currentPhase as string) === 'confirm') {
       const hash = randomBytes(32).toString('hex');
       appHashResult = hash;
       // Generate a one-time creation token so the client can call set-password without

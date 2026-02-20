@@ -126,6 +126,10 @@ appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash:
     if (password.length < 8) {
       return res.status(400).json({ error: 'password must be at least 8 characters' });
     }
+    // bcrypt silently truncates at 72 bytes; reject longer inputs to prevent DoS via slow hashing
+    if (password.length > 72) {
+      return res.status(400).json({ error: 'password must be at most 72 characters' });
+    }
     if (!creationToken || typeof creationToken !== 'string') {
       return res.status(400).json({ error: 'creationToken is required' });
     }
@@ -169,6 +173,9 @@ appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: strin
 
     if (!password || typeof password !== 'string') {
       return res.status(400).json({ error: 'password is required' });
+    }
+    if (password.length > 72) {
+      return res.status(400).json({ error: 'password must be at most 72 characters' });
     }
 
     const [row] = await db.select().from(apps).where(eq(apps.hash, hash));
@@ -236,15 +243,6 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       content: r.content,
     }));
 
-    // Persist user message
-    await db.insert(chatHistory).values({
-      appId: row.id,
-      sessionId: `app-${row.hash}`,
-      role: 'user',
-      content: message,
-      phase: 'chat',
-    } as any);
-
     // Build app context for the AI (config + latest data)
     const latestData = await getLatestAppData(row.id);
     const appContext = {
@@ -254,6 +252,16 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
 
     const messages = [...previousMessages, { role: 'user' as const, content: message }];
     const claudeResponse = await chatWithAI(messages, 'chat', appContext);
+
+    // Persist user message only after a successful AI response so a failed AI call does
+    // not leave an orphaned user turn with no corresponding assistant reply in history.
+    await db.insert(chatHistory).values({
+      appId: row.id,
+      sessionId: `app-${row.hash}`,
+      role: 'user',
+      content: message,
+      phase: 'chat',
+    } as any);
 
     // Persist assistant response
     await db.insert(chatHistory).values({
