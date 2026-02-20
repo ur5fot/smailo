@@ -117,12 +117,12 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] emit: `submit(message: string)`
 
 ### Task 13: AppRenderer.vue component
-- [ ] create `client/src/components/AppRenderer.vue`
-- [ ] prop: `uiConfig: Array<{ component: string, props: object, dataKey?: string }>`
-- [ ] prop: `appData: Record<string, any>`
-- [ ] `componentMap`: Card, DataTable, Chart, Timeline, Carousel, Knob, Tag, ProgressBar, Calendar (all from PrimeVue)
-- [ ] render each item via `<component :is="componentMap[item.component]" v-bind="item.props" />`
-- [ ] pass relevant `appData[item.dataKey]` as `:value` or `:data` prop where applicable
+- [x] create `client/src/components/AppRenderer.vue`
+- [x] prop: `uiConfig: Array<{ component: string, props: object, dataKey?: string }>`
+- [x] prop: `appData: Record<string, any>`
+- [x] `componentMap`: Card, DataTable, Chart, Timeline, Carousel, Knob, Tag, ProgressBar, Calendar (all from PrimeVue)
+- [x] render each item via `<component :is="componentMap[item.component]" v-bind="item.props" />`
+- [x] pass relevant `appData[item.dataKey]` as `:value` or `:data` prop where applicable
 
 ### Task 14: Vue Router
 - [ ] create `client/src/router/index.ts`
