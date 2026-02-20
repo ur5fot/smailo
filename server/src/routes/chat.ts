@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { randomBytes, createHash } from 'crypto';
-import { eq, asc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory } from '../db/schema.js';
 import { chatWithAI } from '../services/aiService.js';
@@ -18,6 +18,10 @@ const limiter = rateLimit({
 
 chatRouter.post('/', limiter, async (req, res) => {
   try {
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({ error: 'Request body must be JSON' });
+    }
+
     const { sessionId, message } = req.body as {
       sessionId: string;
       message: string;
@@ -36,12 +40,15 @@ chatRouter.post('/', limiter, async (req, res) => {
       return res.status(400).json({ error: 'Message too long' });
     }
 
-    // Load previous messages for this session
-    const history = await db
-      .select()
-      .from(chatHistory)
-      .where(eq(chatHistory.sessionId, sessionId))
-      .orderBy(asc(chatHistory.createdAt));
+    // Load previous messages for this session (most recent 40, then reverse for chronological order)
+    const history = (
+      await db
+        .select()
+        .from(chatHistory)
+        .where(eq(chatHistory.sessionId, sessionId))
+        .orderBy(desc(chatHistory.createdAt))
+        .limit(40)
+    ).reverse();
 
     const previousMessages = history.slice(-20).map((row) => ({
       role: row.role as 'user' | 'assistant',
@@ -81,6 +88,12 @@ chatRouter.post('/', limiter, async (req, res) => {
     // Enforce server-side that creation can only follow confirmation — the AI cannot
     // skip the confirm phase by returning phase='created' from brainstorm.
     if (claudeResponse.phase === 'created' && claudeResponse.appConfig && (currentPhase as string) === 'confirm') {
+      const appName = claudeResponse.appConfig.appName;
+      if (!appName || typeof appName !== 'string' || appName.trim().length === 0) {
+        console.error('[/api/chat] AI returned created phase with missing appName');
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+
       const hash = randomBytes(32).toString('hex');
       appHashResult = hash;
       // Generate a one-time creation token so the client can call set-password without
@@ -93,8 +106,10 @@ chatRouter.post('/', limiter, async (req, res) => {
         .insert(apps)
         .values({
           hash,
-          appName: claudeResponse.appConfig.appName,
-          description: claudeResponse.appConfig.description,
+          appName: appName.trim().slice(0, 200),
+          description: typeof claudeResponse.appConfig.description === 'string'
+            ? claudeResponse.appConfig.description.slice(0, 500)
+            : '',
           config: claudeResponse.appConfig as any,
           creationToken: creationTokenHash,
         } as any)

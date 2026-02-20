@@ -24,6 +24,7 @@ function computeNextRun(expression: string): string | null {
       if (segment.includes('/')) {
         const [range, step] = segment.split('/');
         const s = parseInt(step, 10);
+        if (s <= 0) return false;
         const [lo, hi] = range === '*' ? [min, max] : range.split('-').map(Number);
         for (let v = lo; v <= (hi ?? lo); v += s) {
           if (v === value) return true;
@@ -121,9 +122,12 @@ class CronManager {
       return;
     }
 
-    // Reject expressions that fire every minute (minute field = '*')
+    // Reject expressions that fire every minute (minute field = '*' or '*/1')
     const minuteField = expression.trim().split(/\s+/)[0];
-    if (minuteField === '*') {
+    const isEveryMinute =
+      minuteField === '*' ||
+      (minuteField.startsWith('*/') && parseInt(minuteField.slice(2), 10) <= 1);
+    if (isEveryMinute) {
       console.warn(`[CronManager] Rejecting over-frequent cron expression for job ${jobId}: ${expression}`);
       return;
     }
