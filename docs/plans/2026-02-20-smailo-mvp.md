@@ -143,12 +143,12 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] loading state: Smailo shows `thinking` mood while awaiting response
 
 ### Task 16: AppView.vue
-- [ ] create `client/src/views/AppView.vue`
-- [ ] on mount: `appStore.fetchApp(hash)` — if 401 → show password form
-- [ ] password form: PrimeVue `Password` input + submit → `appStore.verifyPassword(hash, pwd)`; store JWT in localStorage
-- [ ] after auth: layout — small Smailo (40px) top-left, app name as `<h1>`, AppRenderer in main area, InputBar fixed bottom
-- [ ] InputBar submit → `appStore`-level chat action → update `mood` and optionally re-fetch data for `uiUpdate`
-- [ ] polling or manual refresh button for appData
+- [x] create `client/src/views/AppView.vue`
+- [x] on mount: `appStore.fetchApp(hash)` — if 401 → show password form
+- [x] password form: PrimeVue `Password` input + submit → `appStore.verifyPassword(hash, pwd)`; store JWT in localStorage
+- [x] after auth: layout — small Smailo (40px) top-left, app name as `<h1>`, AppRenderer in main area, InputBar fixed bottom
+- [x] InputBar submit → `appStore`-level chat action → update `mood` and optionally re-fetch data for `uiUpdate`
+- [x] polling or manual refresh button for appData
 
 ### Task 17: README
 - [ ] create `README.md` at root with: project description, prerequisites (Node 20+), setup steps (`cp .env.example .env`, `npm install`, `npm run db:push`, `npm run dev`), architecture overview
