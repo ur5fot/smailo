@@ -69,11 +69,11 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] apply `express-rate-limit` (30 req/min) to this route
 
 ### Task 7: API routes — /api/app/:hash
-- [ ] create `server/src/routes/app.ts`
-- [ ] `GET /api/app/:hash`: if `passwordHash` set, require `Authorization: Bearer <token>` JWT; return app config + latest appData
-- [ ] `POST /api/app/:hash/verify`: accept `{ password }`, bcrypt compare, return `{ token }` JWT (7 days, secret from env)
-- [ ] `GET /api/app/:hash/data`: return all `appData` rows for this app
-- [ ] `POST /api/app/:hash/chat`: accept `{ message }`, call Claude with `phase=chat`, return `{ mood, message, uiUpdate? }`
+- [x] create `server/src/routes/app.ts`
+- [x] `GET /api/app/:hash`: if `passwordHash` set, require `Authorization: Bearer <token>` JWT; return app config + latest appData
+- [x] `POST /api/app/:hash/verify`: accept `{ password }`, bcrypt compare, return `{ token }` JWT (7 days, secret from env)
+- [x] `GET /api/app/:hash/data`: return all `appData` rows for this app
+- [x] `POST /api/app/:hash/chat`: accept `{ message }`, call Claude with `phase=chat`, return `{ mood, message, uiUpdate? }`
 
 ### Task 8: Express server entry point
 - [ ] create `server/src/index.ts`
