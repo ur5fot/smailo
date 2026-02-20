@@ -173,11 +173,21 @@ async function handleAuth() {
   authMood.value = 'thinking'
   try {
     await appStore.verifyPassword(hash.value, password.value)
-    requiresAuth.value = false
-    authMood.value = 'happy'
-    await appStore.fetchApp(hash.value)
   } catch {
     authError.value = 'Incorrect password. Please try again.'
+    authMood.value = 'confused'
+    authLoading.value = false
+    password.value = ''
+    return
+  }
+  // Password verified — now load the app. Only hide the auth form after a successful fetch
+  // so we never show a blank main layout when fetchApp fails.
+  try {
+    authMood.value = 'happy'
+    await appStore.fetchApp(hash.value)
+    requiresAuth.value = false
+  } catch {
+    authError.value = 'Failed to load app. Please try again.'
     authMood.value = 'confused'
   } finally {
     authLoading.value = false

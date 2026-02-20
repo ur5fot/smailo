@@ -1,5 +1,6 @@
 import { schedule, validate } from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
+import { lookup } from 'dns/promises';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
@@ -258,18 +259,57 @@ class CronManager {
       return;
     }
 
+    // Resolve DNS before fetching to block DNS rebinding: the cron fires later than when the
+    // hostname was first validated, so an attacker could swap the DNS record to point at an
+    // internal address in the meantime.
+    let resolvedIp: string;
+    try {
+      const result = await lookup(parsedUrl.hostname);
+      resolvedIp = result.address;
+    } catch {
+      console.warn(`[CronManager] fetch_url DNS lookup failed for: ${url}`);
+      return;
+    }
+    if (this.isPrivateHost(resolvedIp)) {
+      console.warn(`[CronManager] fetch_url DNS resolved to private IP ${resolvedIp}: ${url}`);
+      return;
+    }
+
+    const MAX_BODY_BYTES = 1_048_576; // 1 MB
+
     const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     const contentLength = response.headers.get('content-length');
-    const MAX_BODY_BYTES = 1_048_576; // 1 MB
     if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
       console.warn(`[CronManager] fetch_url response too large (${contentLength} bytes) for app ${appId}, skipping`);
       return;
     }
-    const body = await response.text();
-    if (body.length > MAX_BODY_BYTES) {
+
+    // Stream the body and enforce the size limit incrementally to avoid buffering a full
+    // large response into memory before the check fires (e.g. chunked-transfer responses).
+    const reader = response.body?.getReader();
+    if (!reader) {
+      console.warn(`[CronManager] fetch_url no response body for app ${appId}, skipping`);
+      return;
+    }
+    const chunks: Uint8Array[] = [];
+    let totalSize = 0;
+    let truncated = false;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalSize += value.length;
+      if (totalSize > MAX_BODY_BYTES) {
+        reader.cancel();
+        truncated = true;
+        break;
+      }
+      chunks.push(value);
+    }
+    if (truncated) {
       console.warn(`[CronManager] fetch_url body exceeds 1 MB for app ${appId}, skipping`);
       return;
     }
+    const body = new TextDecoder().decode(Buffer.concat(chunks));
     let value: unknown = body;
 
     try {

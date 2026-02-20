@@ -226,7 +226,14 @@ export async function chatWithAI(
   }
   let systemPrompt = phase === 'chat' ? IN_APP_SYSTEM_PROMPT : BRAINSTORM_SYSTEM_PROMPT;
   if (phase === 'chat' && appContext) {
-    systemPrompt += `\n\nAPP CONTEXT:\nConfig: ${JSON.stringify(appContext.config)}\nData: ${JSON.stringify(appContext.data)}`;
+    // Truncate each data value to 500 chars to limit prompt injection surface from externally-
+    // fetched content (e.g. fetch_url cron results stored verbatim in appData).
+    const MAX_VALUE_CHARS = 500;
+    const safeData = appContext.data.map(({ key, value }) => {
+      const str = typeof value === 'string' ? value : JSON.stringify(value);
+      return { key, value: str.length > MAX_VALUE_CHARS ? str.slice(0, MAX_VALUE_CHARS) + '…' : str };
+    });
+    systemPrompt += `\n\nAPP CONTEXT:\nConfig: ${JSON.stringify(appContext.config)}\nData: ${JSON.stringify(safeData)}`;
   }
   const rawText =
     provider === 'deepseek'

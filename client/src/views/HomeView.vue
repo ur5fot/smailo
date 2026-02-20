@@ -59,7 +59,7 @@
               label="Set"
               size="small"
               :loading="settingPassword"
-              :disabled="!password.trim()"
+              :disabled="!password.trim() || !chatStore.creationToken"
               @click="handleSetPassword"
             />
           </div>
@@ -112,6 +112,8 @@ async function handleSubmit(message: string) {
   loading.value = true
   try {
     await chatStore.sendMessage(message)
+  } catch {
+    chatStore.messages.push({ role: 'assistant', content: 'Something went wrong. Please try again.', mood: 'confused' })
   } finally {
     loading.value = false
   }
@@ -120,12 +122,13 @@ async function handleSubmit(message: string) {
 const passwordError = ref('')
 
 async function handleSetPassword() {
-  if (!password.value.trim() || !chatStore.appHash) return
+  if (!password.value.trim() || !chatStore.appHash || !chatStore.creationToken) return
   settingPassword.value = true
   passwordError.value = ''
   try {
     await api.post(`/app/${chatStore.appHash}/set-password`, {
       password: password.value,
+      creationToken: chatStore.creationToken,
     })
     passwordSet.value = true
   } catch (err: any) {

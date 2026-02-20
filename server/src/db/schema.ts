@@ -5,6 +5,9 @@ export const apps = sqliteTable('apps', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   hash: text('hash').notNull().unique(),
   passwordHash: text('password_hash'),
+  // SHA-256 hash of the one-time creation token returned at app creation time.
+  // Required to call set-password; cleared after first use.
+  creationToken: text('creation_token'),
   appName: text('app_name').notNull(),
   description: text('description'),
   config: text('config', { mode: 'json' }),

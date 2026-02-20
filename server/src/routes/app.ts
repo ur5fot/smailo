@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -117,13 +118,16 @@ appRouter.get('/:hash', requireAuthIfProtected as any, async (req: any, res) => 
 appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash: string }>, res) => {
   try {
     const { hash } = req.params;
-    const { password } = req.body as { password: string };
+    const { password, creationToken } = req.body as { password: string; creationToken: string };
 
     if (!password || typeof password !== 'string') {
       return res.status(400).json({ error: 'password is required' });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'password must be at least 8 characters' });
+    }
+    if (!creationToken || typeof creationToken !== 'string') {
+      return res.status(400).json({ error: 'creationToken is required' });
     }
 
     const [row] = await db.select().from(apps).where(eq(apps.hash, hash));
@@ -135,8 +139,20 @@ appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash:
       return res.status(400).json({ error: 'This app already has a password set' });
     }
 
+    // Validate the one-time creation token to prevent race-condition password hijacking
+    if (!row.creationToken) {
+      return res.status(403).json({ error: 'Password protection is not available for this app' });
+    }
+    const tokenHash = createHash('sha256').update(creationToken).digest('hex');
+    if (tokenHash !== row.creationToken) {
+      return res.status(403).json({ error: 'Invalid creation token' });
+    }
+
     const hashed = await bcrypt.hash(password, 12);
-    await db.update(apps).set({ passwordHash: hashed } as any).where(eq(apps.hash, hash));
+    // Clear the creation token after successful use (one-time only)
+    await db.update(apps)
+      .set({ passwordHash: hashed, creationToken: null } as any)
+      .where(eq(apps.hash, hash));
 
     return res.json({ ok: true });
   } catch (error) {

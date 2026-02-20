@@ -14,6 +14,8 @@ export const useChatStore = defineStore('chat', () => {
   const mood = ref<string>('idle')
   const phase = ref<string>('brainstorm')
   const appHash = ref<string | null>(null)
+  // One-time token returned at app creation; required to call set-password
+  const creationToken = ref<string | null>(null)
 
   async function sendMessage(text: string) {
     messages.value.push({ role: 'user', content: text })
@@ -31,6 +33,9 @@ export const useChatStore = defineStore('chat', () => {
     if (data.appHash) {
       appHash.value = data.appHash
     }
+    if (data.creationToken) {
+      creationToken.value = data.creationToken
+    }
 
     messages.value.push({
       role: 'assistant',
@@ -41,5 +46,5 @@ export const useChatStore = defineStore('chat', () => {
     return data
   }
 
-  return { messages, sessionId, mood, phase, appHash, sendMessage }
+  return { messages, sessionId, mood, phase, appHash, creationToken, sendMessage }
 })

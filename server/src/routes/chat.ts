@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { eq, asc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory } from '../db/schema.js';
@@ -59,7 +59,14 @@ chatRouter.post('/', limiter, async (req, res) => {
       currentPhase = 'chat';
     }
 
-    // Persist incoming user message
+    // Build messages array for AI (do NOT persist user message yet — persist only after successful AI call
+    // so retries don't produce duplicate user turns in the conversation history)
+    const messages = [...previousMessages, { role: 'user' as const, content: message }];
+
+    // Call AI
+    const claudeResponse = await chatWithAI(messages, currentPhase);
+
+    // Persist user message only after a successful AI response
     await db.insert(chatHistory).values({
       sessionId,
       role: 'user',
@@ -67,18 +74,18 @@ chatRouter.post('/', limiter, async (req, res) => {
       phase: currentPhase,
     } as any);
 
-    // Build messages array for Claude
-    const messages = [...previousMessages, { role: 'user' as const, content: message }];
-
-    // Call Claude
-    const claudeResponse = await chatWithAI(messages, currentPhase);
-
     let appHashResult: string | undefined;
+    let creationTokenResult: string | undefined;
 
     // If Claude says the app is created, persist the app and schedule cron jobs
     if (claudeResponse.phase === 'created' && claudeResponse.appConfig) {
       const hash = randomBytes(32).toString('hex');
       appHashResult = hash;
+      // Generate a one-time creation token so the client can call set-password without
+      // an unauthenticated race window. Store only the hash; return the plain token once.
+      const creationToken = randomBytes(24).toString('hex');
+      creationTokenResult = creationToken;
+      const creationTokenHash = createHash('sha256').update(creationToken).digest('hex');
 
       const [inserted] = await db
         .insert(apps)
@@ -87,6 +94,7 @@ chatRouter.post('/', limiter, async (req, res) => {
           appName: claudeResponse.appConfig.appName,
           description: claudeResponse.appConfig.description,
           config: claudeResponse.appConfig as any,
+          creationToken: creationTokenHash,
         } as any)
         .returning({ id: apps.id });
 
@@ -117,6 +125,7 @@ chatRouter.post('/', limiter, async (req, res) => {
       message: claudeResponse.message,
       phase: claudeResponse.phase,
       appHash: appHashResult,
+      creationToken: creationTokenResult,
     });
   } catch (error) {
     console.error('[/api/chat] Error:', error);
