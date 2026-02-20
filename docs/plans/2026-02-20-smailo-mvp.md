@@ -90,9 +90,9 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] create `client/index.html`
 
 ### Task 10: Pinia store + API client
-- [ ] create `client/src/api/index.ts` — axios instance with baseURL `/api`, interceptor for JWT token
-- [ ] create `client/src/stores/chat.ts` — Pinia store: `messages[]`, `sessionId`, `mood`, `phase`, `appHash`; action `sendMessage(text)`
-- [ ] create `client/src/stores/app.ts` — Pinia store: `appConfig`, `appData`, `isAuthenticated`; actions `fetchApp(hash)`, `verifyPassword(hash, pwd)`, `fetchData(hash)`
+- [x] create `client/src/api/index.ts` — axios instance with baseURL `/api`, interceptor for JWT token
+- [x] create `client/src/stores/chat.ts` — Pinia store: `messages[]`, `sessionId`, `mood`, `phase`, `appHash`; action `sendMessage(text)`
+- [x] create `client/src/stores/app.ts` — Pinia store: `appConfig`, `appData`, `isAuthenticated`; actions `fetchApp(hash)`, `verifyPassword(hash, pwd)`, `fetchData(hash)`
 
 ### Task 11: Smailo.vue SVG component
 - [ ] create `client/src/components/Smailo.vue`
