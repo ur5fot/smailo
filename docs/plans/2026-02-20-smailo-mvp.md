@@ -95,16 +95,16 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] create `client/src/stores/app.ts` — Pinia store: `appConfig`, `appData`, `isAuthenticated`; actions `fetchApp(hash)`, `verifyPassword(hash, pwd)`, `fetchData(hash)`
 
 ### Task 11: Smailo.vue SVG component
-- [ ] create `client/src/components/Smailo.vue`
-- [ ] SVG structure: circular head, two eyes (ellipses + pupils), mouth (path), two eyebrows (paths)
-- [ ] style: stroke only, no fill, hand-drawn aesthetic (stroke-linecap: round)
-- [ ] prop: `mood: 'idle' | 'thinking' | 'talking' | 'happy' | 'confused'`
-- [ ] GSAP `idle`: slow blink every 3s (scaleY pupils 0→1), gentle sway (rotation ±2°)
-- [ ] GSAP `thinking`: eyes shift left-right (translateX ±8px), head vibrate (x ±2px fast)
-- [ ] GSAP `talking`: mouth open/close (scaleY path 0.5→1.5 rhythm), 300ms loop
-- [ ] GSAP `happy`: wide smile (morph mouth path to arc), bounce (y ±10px)
-- [ ] GSAP `confused`: head tilt (rotation 15°), fade-in "?" text element
-- [ ] `watch(mood)` — kill previous timeline, start new one; `onUnmounted` kill all
+- [x] create `client/src/components/Smailo.vue`
+- [x] SVG structure: circular head, two eyes (ellipses + pupils), mouth (path), two eyebrows (paths)
+- [x] style: stroke only, no fill, hand-drawn aesthetic (stroke-linecap: round)
+- [x] prop: `mood: 'idle' | 'thinking' | 'talking' | 'happy' | 'confused'`
+- [x] GSAP `idle`: slow blink every 3s (scaleY pupils 0→1), gentle sway (rotation ±2°)
+- [x] GSAP `thinking`: eyes shift left-right (translateX ±8px), head vibrate (x ±2px fast)
+- [x] GSAP `talking`: mouth open/close (scaleY path 0.5→1.5 rhythm), 300ms loop
+- [x] GSAP `happy`: wide smile (morph mouth path to arc), bounce (y ±10px)
+- [x] GSAP `confused`: head tilt (rotation 15°), fade-in "?" text element
+- [x] `watch(mood)` — kill previous timeline, start new one; `onUnmounted` kill all
 
 ### Task 12: InputBar.vue component
 - [ ] create `client/src/components/InputBar.vue`
