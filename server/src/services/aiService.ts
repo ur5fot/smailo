@@ -119,6 +119,12 @@ MOOD GUIDELINES:
 
 Keep responses concise and helpful. Focus on the user's data and app context.`;
 
+const anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const deepseekClient = new OpenAI({
+  baseURL: 'https://api.deepseek.com',
+  apiKey: process.env.DEEPSEEK_API_KEY,
+});
+
 function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
   const jsonText = rawText
     .replace(/^```(?:json)?\s*/i, '')
@@ -152,11 +158,8 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
   }
 }
 
-async function callAnthropic(messages: ChatMessage[], phase: ClaudePhase): Promise<string> {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const systemPrompt = phase === 'chat' ? IN_APP_SYSTEM_PROMPT : BRAINSTORM_SYSTEM_PROMPT;
-
-  const response = await anthropic.messages.create({
+async function callAnthropic(messages: ChatMessage[], systemPrompt: string): Promise<string> {
+  const response = await anthropicClient.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2048,
     system: systemPrompt,
@@ -169,14 +172,8 @@ async function callAnthropic(messages: ChatMessage[], phase: ClaudePhase): Promi
     .join('');
 }
 
-async function callDeepSeek(messages: ChatMessage[], phase: ClaudePhase): Promise<string> {
-  const openai = new OpenAI({
-    baseURL: 'https://api.deepseek.com',
-    apiKey: process.env.DEEPSEEK_API_KEY,
-  });
-  const systemPrompt = phase === 'chat' ? IN_APP_SYSTEM_PROMPT : BRAINSTORM_SYSTEM_PROMPT;
-
-  const response = await openai.chat.completions.create({
+async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Promise<string> {
+  const response = await deepseekClient.chat.completions.create({
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
     max_tokens: 2048,
     messages: [
@@ -185,7 +182,7 @@ async function callDeepSeek(messages: ChatMessage[], phase: ClaudePhase): Promis
     ],
   });
 
-  return response.choices[0].message.content ?? '';
+  return response.choices[0]?.message?.content ?? '';
 }
 
 export async function chatWithAI(
@@ -193,11 +190,13 @@ export async function chatWithAI(
   phase: ClaudePhase
 ): Promise<ClaudeResponse> {
   const provider = process.env.AI_PROVIDER ?? 'anthropic';
+  if (provider !== 'anthropic' && provider !== 'deepseek') {
+    throw new Error(`Unknown AI_PROVIDER: "${provider}". Expected "anthropic" or "deepseek".`);
+  }
+  const systemPrompt = phase === 'chat' ? IN_APP_SYSTEM_PROMPT : BRAINSTORM_SYSTEM_PROMPT;
   const rawText =
     provider === 'deepseek'
-      ? await callDeepSeek(messages, phase)
-      : await callAnthropic(messages, phase);
+      ? await callDeepSeek(messages, systemPrompt)
+      : await callAnthropic(messages, systemPrompt);
   return parseResponse(rawText, phase);
 }
-
-export const chatWithClaude = chatWithAI;

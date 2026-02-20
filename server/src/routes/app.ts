@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory } from '../db/schema.js';
-import { chatWithClaude } from '../services/aiService.js';
+import { chatWithAI } from '../services/aiService.js';
 
 export const appRouter = Router();
 
@@ -172,7 +172,7 @@ appRouter.post('/:hash/chat', requireAuthIfProtected as any, async (req: any, re
     } as any);
 
     const messages = [...previousMessages, { role: 'user' as const, content: message }];
-    const claudeResponse = await chatWithClaude(messages, 'chat');
+    const claudeResponse = await chatWithAI(messages, 'chat');
 
     // Persist assistant response
     await db.insert(chatHistory).values({

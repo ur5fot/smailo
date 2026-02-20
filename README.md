@@ -13,7 +13,7 @@ A personal AI applications builder. Chat with Smailo — an expressive AI assist
 ## Prerequisites
 
 - Node.js 20+
-- An Anthropic API key
+- An API key for your chosen AI provider: Anthropic (default) or DeepSeek
 
 ## Setup
 
@@ -71,7 +71,7 @@ smailo/
         │   ├── schema.ts         # Drizzle schema: apps, cronJobs, appData, chatHistory
         │   └── index.ts          # SQLite + Drizzle connection
         ├── services/
-        │   ├── claude.ts         # Claude API integration with phase-aware prompts
+        │   ├── aiService.ts      # Unified AI service: Anthropic or DeepSeek via AI_PROVIDER
         │   └── cronManager.ts    # node-cron scheduler for app automations
         ├── routes/
         │   ├── chat.ts           # POST /api/chat — home brainstorm flow
@@ -81,14 +81,14 @@ smailo/
 
 ### Data Flow
 
-- Home chat: client → `POST /api/chat` → Claude (brainstorm phase) → response with mood/phase
-- App creation: when Claude returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, and schedules any cron jobs
+- Home chat: client → `POST /api/chat` → AI service (brainstorm phase) → response with mood/phase
+- App creation: when the AI service returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, and schedules any cron jobs
 - App access: client → `GET /api/app/:hash` → returns config + latest appData (JWT required if password set)
-- In-app chat: client → `POST /api/app/:hash/chat` → Claude (chat phase) → optional UI update
+- In-app chat: client → `POST /api/app/:hash/chat` → AI service (chat phase) → optional UI update
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data) and writes results to appData
 
 ### Key Technologies
 
 - Frontend: Vue 3, Pinia, Vue Router, PrimeVue 4 (Aura theme), GSAP, Axios
-- Backend: Express, Drizzle ORM, better-sqlite3, node-cron, @anthropic-ai/sdk
+- Backend: Express, Drizzle ORM, better-sqlite3, node-cron, @anthropic-ai/sdk, openai
 - Auth: bcryptjs (password hashing), jsonwebtoken (app access tokens)

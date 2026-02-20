@@ -3,7 +3,7 @@ import type { ScheduledTask } from 'node-cron';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
-import type { CronJobConfig } from './claude.js';
+import type { CronJobConfig } from './aiService.js';
 
 type ActionConfig = Record<string, unknown>;
 

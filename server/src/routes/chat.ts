@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory } from '../db/schema.js';
-import { chatWithClaude } from '../services/aiService.js';
+import { chatWithAI } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 
 export const chatRouter = Router();
@@ -61,7 +61,7 @@ chatRouter.post('/', limiter, async (req, res) => {
     const messages = [...previousMessages, { role: 'user' as const, content: message }];
 
     // Call Claude
-    const claudeResponse = await chatWithClaude(messages, currentPhase);
+    const claudeResponse = await chatWithAI(messages, currentPhase);
 
     let appHashResult: string | undefined;
 
