@@ -45,13 +45,13 @@ DeepSeek совместим с OpenAI API, поэтому используем �
 - [x] в `server/src/routes/app.ts` — заменить импорт `chatWithClaude` из `./claude` на `./aiService`
 
 ### Task 4: Обновить конфигурацию окружения
-- [ ] в `.env.example` добавить:
+- [x] в `.env.example` добавить:
   ```
   AI_PROVIDER=anthropic
   DEEPSEEK_API_KEY=your_deepseek_key_here
   DEEPSEEK_MODEL=deepseek-chat
   ```
-- [ ] в `README.md` добавить строки в таблицу Environment Variables: `AI_PROVIDER`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`
+- [x] в `README.md` добавить строки в таблицу Environment Variables: `AI_PROVIDER`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`
 
 ### Task 5: Verify
 - [ ] убедиться что сервер стартует без ошибок (`npm run dev` в server)
