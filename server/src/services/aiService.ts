@@ -140,10 +140,9 @@ function getDeepSeekClient(): OpenAI {
 }
 
 function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
-  const jsonText = rawText
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/, '')
-    .trim();
+  const start = rawText.indexOf('{');
+  const end = rawText.lastIndexOf('}');
+  const jsonText = start !== -1 && end > start ? rawText.slice(start, end + 1) : rawText.trim();
 
   try {
     const parsed = JSON.parse(jsonText) as ClaudeResponse;
@@ -218,3 +217,5 @@ export async function chatWithAI(
       : await callAnthropic(messages, systemPrompt);
   return parseResponse(rawText, phase);
 }
+
+export const chatWithClaude = chatWithAI;

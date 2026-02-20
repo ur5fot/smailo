@@ -128,6 +128,22 @@ class CronManager {
     await db.insert(appData).values({ appId, key: 'log_entry', value: entry } as any);
   }
 
+  private isPrivateHost(hostname: string): boolean {
+    if (hostname === 'localhost') return true;
+    const ipv4 = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (ipv4) {
+      const [, a, b] = ipv4.map(Number);
+      if (a === 127) return true;
+      if (a === 10) return true;
+      if (a === 169 && b === 254) return true;
+      if (a === 172 && b >= 16 && b <= 31) return true;
+      if (a === 192 && b === 168) return true;
+    }
+    const bare = hostname.replace(/^\[|\]$/g, '');
+    if (bare === '::1' || bare.startsWith('fc') || bare.startsWith('fd')) return true;
+    return false;
+  }
+
   private async handleFetchUrl(appId: number, config: ActionConfig): Promise<void> {
     const url = config.url as string;
     if (!url) {
@@ -144,6 +160,10 @@ class CronManager {
     }
     if (parsedUrl.protocol !== 'https:') {
       console.warn(`[CronManager] fetch_url rejected non-HTTPS URL: ${url}`);
+      return;
+    }
+    if (this.isPrivateHost(parsedUrl.hostname)) {
+      console.warn(`[CronManager] fetch_url rejected private/loopback URL: ${url}`);
       return;
     }
 

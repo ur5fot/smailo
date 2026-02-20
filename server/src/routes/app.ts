@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { eq, desc } from 'drizzle-orm';
@@ -7,6 +8,13 @@ import { apps, appData, chatHistory } from '../db/schema.js';
 import { chatWithAI } from '../services/aiService.js';
 
 export const appRouter = Router();
+
+const verifyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -88,7 +96,7 @@ appRouter.get('/:hash', requireAuthIfProtected as any, async (req: any, res) => 
 });
 
 // POST /api/app/:hash/verify
-appRouter.post('/:hash/verify', async (req, res) => {
+appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: string }>, res) => {
   try {
     const { hash } = req.params;
     const { password } = req.body as { password: string };

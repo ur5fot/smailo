@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { randomBytes } from 'crypto';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory } from '../db/schema.js';
 import { chatWithAI } from '../services/aiService.js';
@@ -38,7 +38,8 @@ chatRouter.post('/', limiter, async (req, res) => {
     const history = await db
       .select()
       .from(chatHistory)
-      .where(eq(chatHistory.sessionId, sessionId));
+      .where(eq(chatHistory.sessionId, sessionId))
+      .orderBy(asc(chatHistory.createdAt));
 
     const previousMessages = history.slice(-20).map((row) => ({
       role: row.role as 'user' | 'assistant',
