@@ -23,11 +23,11 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 ## Implementation Steps
 
 ### Task 1: Root monorepo scaffold
-- [ ] create root `package.json` with `name: "smailo"`, `private: true`, workspaces `["client", "server"]`
-- [ ] add root scripts: `dev` (concurrently client+server), `build` (client build), `start` (server prod)
-- [ ] install root dev deps: `concurrently`
-- [ ] create `.gitignore` (node_modules, dist, .env, *.sqlite, .DS_Store)
-- [ ] create `.env.example` with PORT, ANTHROPIC_API_KEY, JWT_SECRET, DATABASE_URL, CLIENT_URL
+- [x] create root `package.json` with `name: "smailo"`, `private: true`, workspaces `["client", "server"]`
+- [x] add root scripts: `dev` (concurrently client+server), `build` (client build), `start` (server prod)
+- [x] install root dev deps: `concurrently`
+- [x] create `.gitignore` (node_modules, dist, .env, *.sqlite, .DS_Store)
+- [x] create `.env.example` with PORT, ANTHROPIC_API_KEY, JWT_SECRET, DATABASE_URL, CLIENT_URL
 
 ### Task 2: Server package setup
 - [ ] create `server/package.json` with all backend deps: express, drizzle-orm, better-sqlite3, node-cron, bcryptjs, jsonwebtoken, multer, @anthropic-ai/sdk, helmet, express-rate-limit

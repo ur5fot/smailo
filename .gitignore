@@ -1,0 +1,9 @@
+
+# ralphex progress logs
+.ralphex/progress/
+
+node_modules
+dist
+.env
+*.sqlite
+.DS_Store
