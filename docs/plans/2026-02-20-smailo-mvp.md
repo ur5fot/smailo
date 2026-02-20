@@ -53,12 +53,12 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] export `ClaudeResponse` type: `{ mood, message, phase, appConfig? }`
 
 ### Task 5: CronManager service
-- [ ] create `server/src/services/cronManager.ts`
-- [ ] implement `loadAll()` — query all `isActive=1` jobs from DB, schedule with node-cron
-- [ ] implement `addJobs(appId, cronJobs[])` — insert jobs into DB and schedule them
-- [ ] implement action handlers: `log_entry`, `fetch_url`, `send_reminder`, `aggregate_data`
-- [ ] each job run: update `lastRun`, compute `nextRun`, write result to `appData`
-- [ ] export singleton `cronManager` instance
+- [x] create `server/src/services/cronManager.ts`
+- [x] implement `loadAll()` — query all `isActive=1` jobs from DB, schedule with node-cron
+- [x] implement `addJobs(appId, cronJobs[])` — insert jobs into DB and schedule them
+- [x] implement action handlers: `log_entry`, `fetch_url`, `send_reminder`, `aggregate_data`
+- [x] each job run: update `lastRun`, compute `nextRun`, write result to `appData`
+- [x] export singleton `cronManager` instance
 
 ### Task 6: API routes — /api/chat
 - [ ] create `server/src/routes/chat.ts`
