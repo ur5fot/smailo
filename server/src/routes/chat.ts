@@ -30,6 +30,9 @@ chatRouter.post('/', limiter, async (req, res) => {
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'message is required' });
     }
+    if (message.length > 4000) {
+      return res.status(400).json({ error: 'Message too long' });
+    }
 
     // Load previous messages for this session
     const history = await db
@@ -37,7 +40,7 @@ chatRouter.post('/', limiter, async (req, res) => {
       .from(chatHistory)
       .where(eq(chatHistory.sessionId, sessionId));
 
-    const previousMessages = history.map((row) => ({
+    const previousMessages = history.slice(-20).map((row) => ({
       role: row.role as 'user' | 'assistant',
       content: row.content,
     }));

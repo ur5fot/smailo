@@ -146,6 +146,9 @@ appRouter.post('/:hash/chat', requireAuthIfProtected as any, async (req: any, re
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'message is required' });
     }
+    if (message.length > 4000) {
+      return res.status(400).json({ error: 'Message too long' });
+    }
 
     // Load recent chat history for this app
     const history = await db

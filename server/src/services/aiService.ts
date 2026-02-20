@@ -119,11 +119,25 @@ MOOD GUIDELINES:
 
 Keep responses concise and helpful. Focus on the user's data and app context.`;
 
-const anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const deepseekClient = new OpenAI({
-  baseURL: 'https://api.deepseek.com',
-  apiKey: process.env.DEEPSEEK_API_KEY,
-});
+let anthropicClient: Anthropic | null = null;
+let deepseekClient: OpenAI | null = null;
+
+function getAnthropicClient(): Anthropic {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return anthropicClient;
+}
+
+function getDeepSeekClient(): OpenAI {
+  if (!deepseekClient) {
+    deepseekClient = new OpenAI({
+      baseURL: 'https://api.deepseek.com',
+      apiKey: process.env.DEEPSEEK_API_KEY,
+    });
+  }
+  return deepseekClient;
+}
 
 function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
   const jsonText = rawText
@@ -159,7 +173,7 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
 }
 
 async function callAnthropic(messages: ChatMessage[], systemPrompt: string): Promise<string> {
-  const response = await anthropicClient.messages.create({
+  const response = await getAnthropicClient().messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2048,
     system: systemPrompt,
@@ -173,7 +187,7 @@ async function callAnthropic(messages: ChatMessage[], systemPrompt: string): Pro
 }
 
 async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Promise<string> {
-  const response = await deepseekClient.chat.completions.create({
+  const response = await getDeepSeekClient().chat.completions.create({
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
     max_tokens: 2048,
     messages: [
@@ -182,7 +196,11 @@ async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Prom
     ],
   });
 
-  return response.choices[0]?.message?.content ?? '';
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('DeepSeek returned empty content');
+  }
+  return content;
 }
 
 export async function chatWithAI(

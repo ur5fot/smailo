@@ -57,6 +57,13 @@ class CronManager {
       return;
     }
 
+    // Reject expressions that fire every minute (minute field = '*')
+    const minuteField = expression.trim().split(/\s+/)[0];
+    if (minuteField === '*') {
+      console.warn(`[CronManager] Rejecting over-frequent cron expression for job ${jobId}: ${expression}`);
+      return;
+    }
+
     const task = schedule(expression, async () => {
       await this.runJob(jobId, appId, action, config);
     });
@@ -128,7 +135,19 @@ class CronManager {
       return;
     }
 
-    const response = await fetch(url);
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      console.warn(`[CronManager] fetch_url invalid URL: ${url}`);
+      return;
+    }
+    if (parsedUrl.protocol !== 'https:') {
+      console.warn(`[CronManager] fetch_url rejected non-HTTPS URL: ${url}`);
+      return;
+    }
+
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     const body = await response.text();
     let value: unknown = body;
 
