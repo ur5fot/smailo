@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { randomBytes, createHash } from 'crypto';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, isNull, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory } from '../db/schema.js';
 import { chatWithAI } from '../services/aiService.js';
@@ -40,12 +40,14 @@ chatRouter.post('/', limiter, async (req, res) => {
       return res.status(400).json({ error: 'Message too long' });
     }
 
-    // Load previous messages for this session (most recent 20, then reverse for chronological order)
+    // Load previous messages for this session (most recent 20, then reverse for chronological order).
+    // Filter appId IS NULL to isolate home-chat rows and prevent session ID collisions with
+    // in-app chat sessions (which use deterministic IDs like 'app-<hash>').
     const history = (
       await db
         .select()
         .from(chatHistory)
-        .where(eq(chatHistory.sessionId, sessionId))
+        .where(and(eq(chatHistory.sessionId, sessionId), isNull(chatHistory.appId)))
         .orderBy(desc(chatHistory.createdAt))
         .limit(20)
     ).reverse();
@@ -102,6 +104,10 @@ chatRouter.post('/', limiter, async (req, res) => {
       creationTokenResult = creationToken;
       const creationTokenHash = createHash('sha256').update(creationToken).digest('hex');
 
+      // Strip cronJobs from the stored config so fetch_url targets and automation
+      // configs are never written to apps.config (they live in the cronJobs table).
+      const { cronJobs: _cj, ...appConfigToStore } = claudeResponse.appConfig as any;
+
       const [inserted] = await db
         .insert(apps)
         .values({
@@ -110,7 +116,7 @@ chatRouter.post('/', limiter, async (req, res) => {
           description: typeof claudeResponse.appConfig.description === 'string'
             ? claudeResponse.appConfig.description.slice(0, 500)
             : '',
-          config: claudeResponse.appConfig as any,
+          config: appConfigToStore,
           creationToken: creationTokenHash,
         } as any)
         .returning({ id: apps.id });

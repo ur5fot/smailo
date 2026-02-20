@@ -45,7 +45,7 @@ function computeNextRun(expression: string): string | null {
   candidate.setUTCSeconds(0, 0);
   candidate.setUTCMinutes(candidate.getUTCMinutes() + 1);
 
-  const limit = new Date(now.getTime() + 366 * 24 * 60 * 60 * 1000);
+  const limit = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
   while (candidate <= limit) {
     const min = candidate.getUTCMinutes();
     const hour = candidate.getUTCHours();
@@ -122,12 +122,21 @@ class CronManager {
       return;
     }
 
-    // Reject expressions that fire every minute (minute field = '*' or '*/1')
-    const minuteField = expression.trim().split(/\s+/)[0];
-    const isEveryMinute =
+    // Only accept standard 5-field expressions (minute hour dom month dow).
+    // node-cron also accepts 6-field (second minute hour dom month dow) expressions,
+    // which would cause the minute-field guard below to operate on the seconds field.
+    const expressionParts = expression.trim().split(/\s+/);
+    if (expressionParts.length !== 5) {
+      console.warn(`[CronManager] Rejecting non-5-field cron expression for job ${jobId}: ${expression}`);
+      return;
+    }
+
+    // Reject expressions that fire more than once every 5 minutes (minute field = '*' or '*/N' where N<5)
+    const minuteField = expressionParts[0];
+    const isOverFrequent =
       minuteField === '*' ||
-      (minuteField.startsWith('*/') && parseInt(minuteField.slice(2), 10) <= 1);
-    if (isEveryMinute) {
+      (minuteField.startsWith('*/') && parseInt(minuteField.slice(2), 10) < 5);
+    if (isOverFrequent) {
       console.warn(`[CronManager] Rejecting over-frequent cron expression for job ${jobId}: ${expression}`);
       return;
     }
@@ -179,7 +188,7 @@ class CronManager {
   ): Promise<void> {
     switch (action) {
       case 'log_entry':
-        await this.handleLogEntry(appId, config);
+        await this.handleLogEntry(jobId, appId, config);
         break;
       case 'fetch_url':
         await this.handleFetchUrl(jobId, appId, config);
@@ -195,7 +204,7 @@ class CronManager {
     }
   }
 
-  private async handleLogEntry(appId: number, config: ActionConfig): Promise<void> {
+  private async handleLogEntry(jobId: number, appId: number, config: ActionConfig): Promise<void> {
     const fields = (config.fields as Record<string, string>) ?? {};
     const entry: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
@@ -205,7 +214,7 @@ class CronManager {
       entry[key] = type === 'number' ? 0 : '';
     }
 
-    await db.insert(appData).values({ appId, key: 'log_entry', value: entry } as any);
+    await db.insert(appData).values({ appId, key: `log_entry_${jobId}`, value: entry } as any);
   }
 
   private isPrivateHost(hostname: string): boolean {
@@ -219,6 +228,7 @@ class CronManager {
       if (a === 169 && b === 254) return true;
       if (a === 172 && b >= 16 && b <= 31) return true;
       if (a === 192 && b === 168) return true;
+      if (a === 100 && b >= 64 && b <= 127) return true;  // CGNAT RFC 6598
     }
     const bare = hostname.replace(/^\[|\]$/g, '');
     if (

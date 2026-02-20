@@ -281,10 +281,26 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       phase: 'chat',
     } as any);
 
-    // If the AI returned an updated UI layout, persist it to apps.config
+    // If the AI returned an updated UI layout, validate it before persisting.
+    // Each item must have a component name from the allowed whitelist and a plain object props.
     if (claudeResponse.uiUpdate) {
-      const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: claudeResponse.uiUpdate };
-      await db.update(apps).set({ config: updatedConfig } as any).where(eq(apps.id, row.id));
+      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar'];
+      const isValidUiUpdate =
+        Array.isArray(claudeResponse.uiUpdate) &&
+        claudeResponse.uiUpdate.length <= 20 &&
+        (claudeResponse.uiUpdate as any[]).every(
+          (item: any) =>
+            item &&
+            typeof item.component === 'string' &&
+            ALLOWED_COMPONENTS.includes(item.component) &&
+            (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props)))
+        );
+      if (isValidUiUpdate) {
+        const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: claudeResponse.uiUpdate };
+        await db.update(apps).set({ config: updatedConfig } as any).where(eq(apps.id, row.id));
+      } else {
+        console.warn(`[POST /api/app/:hash/chat] AI returned invalid uiUpdate for app ${row.id}, ignoring`);
+      }
     }
 
     return res.json({
