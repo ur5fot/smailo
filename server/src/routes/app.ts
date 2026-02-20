@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import { createHash } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -99,12 +99,14 @@ appRouter.get('/:hash', requireAuthIfProtected as any, async (req: any, res) => 
     // Fetch latest appData (most recent entry per key, deduplicated)
     const data = await getLatestAppData(row.id);
 
-    // Return app config + appData
+    // Return app config + appData; strip server-side-only cronJobs from the config
+    // to avoid exposing fetch_url targets and automation configs to the browser.
+    const { cronJobs: _cronJobs, ...clientConfig } = (row.config as Record<string, unknown>) ?? {};
     return res.json({
       hash: row.hash,
       appName: row.appName,
       description: row.description,
-      config: row.config,
+      config: clientConfig,
       createdAt: row.createdAt,
       appData: data,
     });
@@ -133,6 +135,9 @@ appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash:
     if (!creationToken || typeof creationToken !== 'string') {
       return res.status(400).json({ error: 'creationToken is required' });
     }
+    if (creationToken.length > 128) {
+      return res.status(400).json({ error: 'creationToken too long' });
+    }
 
     const [row] = await db.select().from(apps).where(eq(apps.hash, hash));
     if (!row) {
@@ -148,7 +153,11 @@ appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash:
       return res.status(403).json({ error: 'Password protection is not available for this app' });
     }
     const tokenHash = createHash('sha256').update(creationToken).digest('hex');
-    if (tokenHash !== row.creationToken) {
+    const storedHash = row.creationToken as string;
+    if (
+      tokenHash.length !== storedHash.length ||
+      !timingSafeEqual(Buffer.from(tokenHash), Buffer.from(storedHash))
+    ) {
       return res.status(403).json({ error: 'Invalid creation token' });
     }
 
@@ -227,16 +236,16 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       return res.status(400).json({ error: 'Message too long' });
     }
 
-    // Load recent chat history for this app (DB-limited to avoid full-table load)
+    // Load recent chat history for this app (most recent 20, in chronological order)
     const history = await db
       .select()
       .from(chatHistory)
       .where(eq(chatHistory.appId, row.id))
       .orderBy(desc(chatHistory.createdAt))
-      .limit(40);
+      .limit(20);
 
-    // Reverse to chronological order, take last 20 messages
-    const recentHistory = [...history].reverse().slice(-20);
+    // Reverse to chronological order
+    const recentHistory = [...history].reverse();
 
     const previousMessages = recentHistory.map((r) => ({
       role: r.role as 'user' | 'assistant',

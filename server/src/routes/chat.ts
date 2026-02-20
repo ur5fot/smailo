@@ -40,17 +40,17 @@ chatRouter.post('/', limiter, async (req, res) => {
       return res.status(400).json({ error: 'Message too long' });
     }
 
-    // Load previous messages for this session (most recent 40, then reverse for chronological order)
+    // Load previous messages for this session (most recent 20, then reverse for chronological order)
     const history = (
       await db
         .select()
         .from(chatHistory)
         .where(eq(chatHistory.sessionId, sessionId))
         .orderBy(desc(chatHistory.createdAt))
-        .limit(40)
+        .limit(20)
     ).reverse();
 
-    const previousMessages = history.slice(-20).map((row) => ({
+    const previousMessages = history.map((row) => ({
       role: row.role as 'user' | 'assistant',
       content: row.content,
     }));

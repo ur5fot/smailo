@@ -185,7 +185,7 @@ class CronManager {
         await this.handleFetchUrl(jobId, appId, config);
         break;
       case 'send_reminder':
-        await this.handleSendReminder(appId, config);
+        await this.handleSendReminder(jobId, appId, config);
         break;
       case 'aggregate_data':
         await this.handleAggregateData(appId, config);
@@ -290,7 +290,7 @@ class CronManager {
 
     const response = await fetch(url, { signal: AbortSignal.timeout(10_000), redirect: 'manual' });
     // Block redirects entirely to prevent SSRF via redirect to a private/internal URL
-    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+    if (response.status >= 300 && response.status < 400) {
       console.warn(`[CronManager] fetch_url rejected redirect response for app ${appId}: ${url}`);
       return;
     }
@@ -350,16 +350,16 @@ class CronManager {
     await db.insert(appData).values({ appId, key: `fetch_url_${jobId}`, value: { url, result: value, fetchedAt: new Date().toISOString() } } as any);
   }
 
-  private async handleSendReminder(appId: number, config: ActionConfig): Promise<void> {
+  private async handleSendReminder(jobId: number, appId: number, config: ActionConfig): Promise<void> {
     const text = (config.text as string) ?? 'Reminder';
 
-    await db.insert(appData).values({ appId, key: 'reminder', value: { text, sentAt: new Date().toISOString() } } as any);
+    await db.insert(appData).values({ appId, key: `reminder_${jobId}`, value: { text, sentAt: new Date().toISOString() } } as any);
   }
 
   private async handleAggregateData(appId: number, config: ActionConfig): Promise<void> {
-    const dataKey = config.dataKey as string;
+    const dataKey = ((config.dataKey as string) ?? '').slice(0, 100);
     const operation = (config.operation as string) ?? 'avg';
-    const outputKey = (config.outputKey as string) ?? `${dataKey}_${operation}`;
+    const outputKey = ((config.outputKey as string) ?? `${dataKey}_${operation}`).slice(0, 100);
     const windowDays = Math.min(Math.max(1, (config.windowDays as number) ?? 7), 365);
 
     if (!dataKey) {
