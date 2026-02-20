@@ -91,8 +91,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import gsap from 'gsap'
-
-type Mood = 'idle' | 'thinking' | 'talking' | 'happy' | 'confused'
+import type { Mood } from '../types'
 
 const props = withDefaults(defineProps<{
   mood: Mood
@@ -112,11 +111,16 @@ const rightBrowRef = ref<SVGPathElement | null>(null)
 const questionRef = ref<SVGTextElement | null>(null)
 
 let activeTimeline: gsap.core.Timeline | null = null
+let headVibrateTween: gsap.core.Tween | null = null
 
 function killActive() {
   if (activeTimeline) {
     activeTimeline.kill()
     activeTimeline = null
+  }
+  if (headVibrateTween) {
+    headVibrateTween.kill()
+    headVibrateTween = null
   }
 }
 
@@ -186,8 +190,8 @@ function startThinking() {
     ease: 'power1.inOut',
   })
 
-  // Head vibrate
-  gsap.to(headRef.value, {
+  // Head vibrate — store reference so it can be killed on mood change
+  headVibrateTween = gsap.to(headRef.value, {
     x: 2,
     duration: 0.08,
     repeat: -1,

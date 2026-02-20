@@ -5,7 +5,10 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('smailo_token')
+  // Derive the app hash from the URL to use per-app token storage
+  const appMatch = config.url?.match(/^\/app\/([^/]+)/)
+  const tokenKey = appMatch ? `smailo_token_${appMatch[1]}` : 'smailo_token'
+  const token = localStorage.getItem(tokenKey)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }

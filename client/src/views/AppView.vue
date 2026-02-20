@@ -105,8 +105,8 @@ import Smailo from '../components/Smailo.vue'
 import InputBar from '../components/InputBar.vue'
 import AppRenderer from '../components/AppRenderer.vue'
 import { useAppStore } from '../stores/app'
-
-type Mood = 'idle' | 'thinking' | 'talking' | 'happy' | 'confused'
+import type { ChatMessage } from '../stores/chat'
+import type { Mood } from '../types'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -123,11 +123,6 @@ const refreshing = ref(false)
 const chatLoading = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
 
-interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
-  mood?: string
-}
 const chatMessages = ref<ChatMessage[]>([])
 
 // Transform appData array to a key→value map for AppRenderer
@@ -201,9 +196,9 @@ async function handleChatSubmit(message: string) {
     smailoMood.value = mood || 'idle'
     chatMessages.value.push({ role: 'assistant', content: res.message, mood: res.mood })
 
-    // If Claude returned a uiUpdate, refresh appData
+    // If Claude returned a uiUpdate, refresh the full app (config + appData)
     if (res.uiUpdate) {
-      await appStore.fetchData(hash.value)
+      await appStore.fetchApp(hash.value)
     }
   } catch {
     smailoMood.value = 'confused'

@@ -63,6 +63,7 @@
               @click="handleSetPassword"
             />
           </div>
+          <p v-if="passwordError" class="home__password-error">{{ passwordError }}</p>
           <button class="home__skip-btn" @click="passwordSet = true">Skip</button>
         </div>
         <div v-else class="home__password-done">
@@ -87,6 +88,7 @@ import Button from 'primevue/button'
 import Smailo from '../components/Smailo.vue'
 import InputBar from '../components/InputBar.vue'
 import { useChatStore } from '../stores/chat'
+import type { Mood } from '../types'
 import api from '../api'
 
 const chatStore = useChatStore()
@@ -95,8 +97,6 @@ const messagesRef = ref<HTMLElement | null>(null)
 const password = ref('')
 const passwordSet = ref(false)
 const settingPassword = ref(false)
-
-type Mood = 'idle' | 'thinking' | 'talking' | 'happy' | 'confused'
 
 const smailoMood = computed<Mood>(() => {
   const m = chatStore.mood
@@ -117,19 +117,22 @@ async function handleSubmit(message: string) {
   }
 }
 
+const passwordError = ref('')
+
 async function handleSetPassword() {
   if (!password.value.trim() || !chatStore.appHash) return
   settingPassword.value = true
+  passwordError.value = ''
   try {
     await api.post(`/app/${chatStore.appHash}/set-password`, {
       password: password.value,
     })
     passwordSet.value = true
-  } catch {
-    // Endpoint not available in MVP — mark as done anyway
-    passwordSet.value = true
+  } catch (err: any) {
+    passwordError.value = err?.response?.data?.error ?? 'Failed to set password. Please try again.'
   } finally {
     settingPassword.value = false
+    password.value = ''
   }
 }
 
@@ -314,6 +317,12 @@ watch(
 
 .home__skip-btn:hover {
   color: #6b7280;
+}
+
+.home__password-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #ef4444;
 }
 
 .home__password-done {

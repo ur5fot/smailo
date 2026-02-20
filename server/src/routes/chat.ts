@@ -18,10 +18,9 @@ const limiter = rateLimit({
 
 chatRouter.post('/', limiter, async (req, res) => {
   try {
-    const { sessionId, message, appHash } = req.body as {
+    const { sessionId, message } = req.body as {
       sessionId: string;
       message: string;
-      appHash?: string;
     };
 
     if (!sessionId || typeof sessionId !== 'string') {
@@ -54,6 +53,10 @@ chatRouter.post('/', limiter, async (req, res) => {
     const lastAssistant = [...history].reverse().find((r) => r.role === 'assistant');
     if (lastAssistant?.phase) {
       currentPhase = lastAssistant.phase as typeof currentPhase;
+    }
+    // Once the app has been created, further messages are plain chat — never re-create
+    if ((currentPhase as string) === 'created') {
+      currentPhase = 'chat';
     }
 
     // Persist incoming user message

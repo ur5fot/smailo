@@ -231,4 +231,3 @@ export async function chatWithAI(
   return parseResponse(rawText, phase);
 }
 
-export const chatWithClaude = chatWithAI;

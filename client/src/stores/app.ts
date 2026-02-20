@@ -21,7 +21,7 @@ export const useAppStore = defineStore('app', () => {
     const res = await api.post(`/app/${hash}/verify`, { password: pwd })
     const token = res.data.token
     if (token) {
-      localStorage.setItem('smailo_token', token)
+      localStorage.setItem(`smailo_token_${hash}`, token)
       isAuthenticated.value = true
     }
     return token

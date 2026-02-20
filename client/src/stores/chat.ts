@@ -22,7 +22,6 @@ export const useChatStore = defineStore('chat', () => {
     const res = await api.post('/chat', {
       sessionId: sessionId.value,
       message: text,
-      appHash: appHash.value,
     })
 
     const data = res.data

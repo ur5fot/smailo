@@ -50,11 +50,7 @@ function resolvedProps(item: UiConfigItem): Record<string, any> {
   const resolved = { ...item.props }
   if (item.dataKey && props.appData[item.dataKey] !== undefined) {
     const data = props.appData[item.dataKey]
-    if ('value' in resolved || item.component === 'Knob' || item.component === 'ProgressBar' || item.component === 'Tag') {
-      resolved.value = data
-    } else if (item.component === 'DataTable' || item.component === 'Timeline' || item.component === 'Carousel') {
-      resolved.value = data
-    } else if (item.component === 'Chart') {
+    if (item.component === 'Chart') {
       resolved.data = data
     } else {
       resolved.value = data

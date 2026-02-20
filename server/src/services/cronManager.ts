@@ -5,6 +5,66 @@ import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
 import type { CronJobConfig } from './aiService.js';
 
+/**
+ * Compute an approximate next-run timestamp for a cron expression.
+ * Iterates forward minute-by-minute up to 366 days to find the next match.
+ * Returns null if no match is found within that window.
+ */
+function computeNextRun(expression: string): string | null {
+  const parts = expression.trim().split(/\s+/);
+  // Support 5-field cron (minute hour dom month dow)
+  if (parts.length !== 5) return null;
+
+  const [minPart, hourPart, domPart, monthPart, dowPart] = parts;
+
+  function matches(value: number, field: string, min: number, max: number): boolean {
+    if (field === '*') return true;
+    for (const segment of field.split(',')) {
+      if (segment.includes('/')) {
+        const [range, step] = segment.split('/');
+        const s = parseInt(step, 10);
+        const [lo, hi] = range === '*' ? [min, max] : range.split('-').map(Number);
+        for (let v = lo; v <= (hi ?? lo); v += s) {
+          if (v === value) return true;
+        }
+      } else if (segment.includes('-')) {
+        const [lo, hi] = segment.split('-').map(Number);
+        if (value >= lo && value <= hi) return true;
+      } else {
+        if (parseInt(segment, 10) === value) return true;
+      }
+    }
+    return false;
+  }
+
+  const now = new Date();
+  // Start from the next minute
+  const candidate = new Date(now);
+  candidate.setSeconds(0, 0);
+  candidate.setMinutes(candidate.getMinutes() + 1);
+
+  const limit = new Date(now.getTime() + 366 * 24 * 60 * 60 * 1000);
+  while (candidate <= limit) {
+    const min = candidate.getUTCMinutes();
+    const hour = candidate.getUTCHours();
+    const dom = candidate.getUTCDate();
+    const month = candidate.getUTCMonth() + 1;
+    const dow = candidate.getUTCDay();
+
+    if (
+      matches(min, minPart, 0, 59) &&
+      matches(hour, hourPart, 0, 23) &&
+      matches(dom, domPart, 1, 31) &&
+      matches(month, monthPart, 1, 12) &&
+      matches(dow, dowPart, 0, 6)
+    ) {
+      return candidate.toISOString();
+    }
+    candidate.setMinutes(candidate.getMinutes() + 1);
+  }
+  return null;
+}
+
 type ActionConfig = Record<string, unknown>;
 
 class CronManager {
@@ -64,8 +124,17 @@ class CronManager {
       return;
     }
 
+    // Persist the initial nextRun time
+    const nextRun = computeNextRun(expression);
+    if (nextRun) {
+      db.update(cronJobs)
+        .set({ nextRun } as any)
+        .where(eq(cronJobs.id, jobId))
+        .catch((err) => console.error(`[CronManager] Failed to set nextRun for job ${jobId}:`, err));
+    }
+
     const task = schedule(expression, async () => {
-      await this.runJob(jobId, appId, action, config);
+      await this.runJob(jobId, appId, action, config, expression);
     });
 
     this.tasks.set(jobId, task);
@@ -75,7 +144,8 @@ class CronManager {
     jobId: number,
     appId: number,
     action: string,
-    config: ActionConfig
+    config: ActionConfig,
+    expression?: string
   ): Promise<void> {
     const now = new Date().toISOString();
     console.log(`[CronManager] Running job ${jobId} (action: ${action})`);
@@ -83,9 +153,10 @@ class CronManager {
     try {
       await this.executeAction(appId, action, config);
 
+      const nextRun = expression ? computeNextRun(expression) : null;
       await db
         .update(cronJobs)
-        .set({ lastRun: now } as any)
+        .set({ lastRun: now, ...(nextRun ? { nextRun } : {}) } as any)
         .where(eq(cronJobs.id, jobId));
     } catch (error) {
       console.error(`[CronManager] Job ${jobId} failed:`, error);
@@ -133,7 +204,8 @@ class CronManager {
     const ipv4 = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
     if (ipv4) {
       const [, a, b] = ipv4.map(Number);
-      if (a === 127) return true;
+      if (a === 0) return true;    // 0.0.0.0/8
+      if (a === 127) return true;  // loopback
       if (a === 10) return true;
       if (a === 169 && b === 254) return true;
       if (a === 172 && b >= 16 && b <= 31) return true;
@@ -141,6 +213,21 @@ class CronManager {
     }
     const bare = hostname.replace(/^\[|\]$/g, '');
     if (bare === '::1' || bare.startsWith('fc') || bare.startsWith('fd')) return true;
+    // IPv4-mapped IPv6 (::ffff:a.b.c.d or ::ffff:aabb:ccdd)
+    const ipv4MappedHex = bare.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+    if (ipv4MappedHex) {
+      const hi = parseInt(ipv4MappedHex[1], 16);
+      const a = hi >> 8;
+      const b = hi & 0xff;
+      const lo = parseInt(ipv4MappedHex[2], 16);
+      const c = lo >> 8;
+      const d = lo & 0xff;
+      return this.isPrivateHost(`${a}.${b}.${c}.${d}`);
+    }
+    const ipv4MappedDot = bare.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+    if (ipv4MappedDot) {
+      return this.isPrivateHost(ipv4MappedDot[1]);
+    }
     return false;
   }
 

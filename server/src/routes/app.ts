@@ -2,12 +2,27 @@ import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory } from '../db/schema.js';
 import { chatWithAI } from '../services/aiService.js';
 
 export const appRouter = Router();
+
+/** Return only the most-recent row per key for a given app. */
+async function getLatestAppData(appId: number) {
+  // Use a subquery to find the max id per key, then join back
+  const rows = await db
+    .select()
+    .from(appData)
+    .where(
+      sql`${appData.appId} = ${appId} AND ${appData.id} IN (
+        SELECT MAX(id) FROM app_data WHERE app_id = ${appId} GROUP BY key
+      )`
+    )
+    .orderBy(desc(appData.createdAt));
+  return rows;
+}
 
 const verifyLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -80,12 +95,8 @@ appRouter.get('/:hash', requireAuthIfProtected as any, async (req: any, res) => 
       .set({ lastVisit: new Date().toISOString() } as any)
       .where(eq(apps.id, row.id));
 
-    // Fetch latest appData (most recent entry per key)
-    const data = await db
-      .select()
-      .from(appData)
-      .where(eq(appData.appId, row.id))
-      .orderBy(desc(appData.createdAt));
+    // Fetch latest appData (most recent entry per key, deduplicated)
+    const data = await getLatestAppData(row.id);
 
     // Return app config + appData
     return res.json({
@@ -98,6 +109,38 @@ appRouter.get('/:hash', requireAuthIfProtected as any, async (req: any, res) => 
     });
   } catch (error) {
     console.error('[GET /api/app/:hash] Error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/app/:hash/set-password
+appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash: string }>, res) => {
+  try {
+    const { hash } = req.params;
+    const { password } = req.body as { password: string };
+
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'password is required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'password must be at least 8 characters' });
+    }
+
+    const [row] = await db.select().from(apps).where(eq(apps.hash, hash));
+    if (!row) {
+      return res.status(404).json({ error: 'App not found' });
+    }
+
+    if (row.passwordHash) {
+      return res.status(400).json({ error: 'This app already has a password set' });
+    }
+
+    const hashed = await bcrypt.hash(password, 12);
+    await db.update(apps).set({ passwordHash: hashed } as any).where(eq(apps.hash, hash));
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('[POST /api/app/:hash/set-password] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -139,11 +182,7 @@ appRouter.get('/:hash/data', requireAuthIfProtected as any, async (req: any, res
   try {
     const row: typeof apps.$inferSelect = req.app_row;
 
-    const data = await db
-      .select()
-      .from(appData)
-      .where(eq(appData.appId, row.id))
-      .orderBy(desc(appData.createdAt));
+    const data = await getLatestAppData(row.id);
 
     return res.json({ appData: data });
   } catch (error) {
