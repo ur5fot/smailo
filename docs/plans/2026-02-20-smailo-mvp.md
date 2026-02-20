@@ -131,16 +131,16 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] history mode
 
 ### Task 15: HomeView.vue
-- [ ] create `client/src/views/HomeView.vue`
-- [ ] white background, Smailo centered at 200px, InputBar fixed at bottom
-- [ ] on first message: generate `sessionId` via `uuid` and store in chatStore
-- [ ] display messages as chat bubbles (user right, assistant left with Smailo avatar)
-- [ ] `sendMessage` calls chatStore action, updates `mood` on Smailo from response
-- [ ] when `phase === 'created'`:
+- [x] create `client/src/views/HomeView.vue`
+- [x] white background, Smailo centered at 200px, InputBar fixed at bottom
+- [x] on first message: generate `sessionId` via `uuid` and store in chatStore
+- [x] display messages as chat bubbles (user right, assistant left with Smailo avatar)
+- [x] `sendMessage` calls chatStore action, updates `mood` on Smailo from response
+- [x] when `phase === 'created'`:
   - trigger `mood = 'happy'`
   - show card with link to `/app/:hash`
   - show optional "Set password" form (POST to `/api/app/:hash/set-password` or inline prompt)
-- [ ] loading state: Smailo shows `thinking` mood while awaiting response
+- [x] loading state: Smailo shows `thinking` mood while awaiting response
 
 ### Task 16: AppView.vue
 - [ ] create `client/src/views/AppView.vue`
