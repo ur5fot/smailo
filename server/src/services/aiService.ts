@@ -166,6 +166,14 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
       parsed.phase = phase;
     }
 
+    // Prevent cross-context phase leakage: in-app chat must stay 'chat';
+    // brainstorm flow must not leak into 'chat'.
+    if (phase === 'chat' && parsed.phase !== 'chat') {
+      parsed.phase = 'chat';
+    } else if (phase !== 'chat' && parsed.phase === 'chat') {
+      parsed.phase = phase;
+    }
+
     return parsed;
   } catch {
     return {
