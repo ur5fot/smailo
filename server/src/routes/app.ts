@@ -16,6 +16,13 @@ const verifyLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET env var is not set');
@@ -146,7 +153,7 @@ appRouter.get('/:hash/data', requireAuthIfProtected as any, async (req: any, res
 });
 
 // POST /api/app/:hash/chat
-appRouter.post('/:hash/chat', requireAuthIfProtected as any, async (req: any, res) => {
+appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async (req: any, res) => {
   try {
     const row: typeof apps.$inferSelect = req.app_row;
     const { message } = req.body as { message: string };
@@ -166,7 +173,7 @@ appRouter.post('/:hash/chat', requireAuthIfProtected as any, async (req: any, re
       .orderBy(desc(chatHistory.createdAt));
 
     // Reverse to chronological order, take last 20 messages
-    const recentHistory = history.reverse().slice(-20);
+    const recentHistory = [...history].reverse().slice(-20);
 
     const previousMessages = recentHistory.map((r) => ({
       role: r.role as 'user' | 'assistant',
@@ -197,7 +204,7 @@ appRouter.post('/:hash/chat', requireAuthIfProtected as any, async (req: any, re
     return res.json({
       mood: claudeResponse.mood,
       message: claudeResponse.message,
-      uiUpdate: (claudeResponse as any).uiUpdate,
+      uiUpdate: claudeResponse.uiUpdate,
     });
   } catch (error) {
     console.error('[POST /api/app/:hash/chat] Error:', error);
