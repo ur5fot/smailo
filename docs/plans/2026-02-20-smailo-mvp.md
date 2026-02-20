@@ -83,11 +83,11 @@ data visualizers), each backed by cron jobs and a dynamic PrimeVue UI. No tests 
 - [x] listen on PORT from env (default 3000)
 
 ### Task 9: Client package setup
-- [ ] scaffold `client/` with `npm create vite@latest . -- --template vue-ts` (or manual)
-- [ ] create `client/package.json` with deps: vue, vue-router, pinia, primevue@4, primeicons, @primevue/themes, gsap, axios, uuid
-- [ ] create `client/vite.config.ts` with proxy: `/api` → `http://localhost:3000`
-- [ ] create `client/src/main.ts`: install PrimeVue (Aura theme), PrimeIcons, Pinia, Router
-- [ ] create `client/index.html`
+- [x] scaffold `client/` with `npm create vite@latest . -- --template vue-ts` (or manual)
+- [x] create `client/package.json` with deps: vue, vue-router, pinia, primevue@4, primeicons, @primevue/themes, gsap, axios, uuid
+- [x] create `client/vite.config.ts` with proxy: `/api` → `http://localhost:3000`
+- [x] create `client/src/main.ts`: install PrimeVue (Aura theme), PrimeIcons, Pinia, Router
+- [x] create `client/index.html`
 
 ### Task 10: Pinia store + API client
 - [ ] create `client/src/api/index.ts` — axios instance with baseURL `/api`, interceptor for JWT token
