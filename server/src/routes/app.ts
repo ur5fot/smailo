@@ -204,12 +204,13 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       return res.status(400).json({ error: 'Message too long' });
     }
 
-    // Load recent chat history for this app
+    // Load recent chat history for this app (DB-limited to avoid full-table load)
     const history = await db
       .select()
       .from(chatHistory)
       .where(eq(chatHistory.appId, row.id))
-      .orderBy(desc(chatHistory.createdAt));
+      .orderBy(desc(chatHistory.createdAt))
+      .limit(40);
 
     // Reverse to chronological order, take last 20 messages
     const recentHistory = [...history].reverse().slice(-20);
@@ -228,8 +229,15 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       phase: 'chat',
     } as any);
 
+    // Build app context for the AI (config + latest data)
+    const latestData = await getLatestAppData(row.id);
+    const appContext = {
+      config: row.config,
+      data: latestData.map((r) => ({ key: r.key, value: r.value })),
+    };
+
     const messages = [...previousMessages, { role: 'user' as const, content: message }];
-    const claudeResponse = await chatWithAI(messages, 'chat');
+    const claudeResponse = await chatWithAI(messages, 'chat', appContext);
 
     // Persist assistant response
     await db.insert(chatHistory).values({

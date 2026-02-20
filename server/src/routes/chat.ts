@@ -90,8 +90,17 @@ chatRouter.post('/', limiter, async (req, res) => {
         } as any)
         .returning({ id: apps.id });
 
-      if (inserted && claudeResponse.appConfig.cronJobs?.length > 0) {
-        await cronManager.addJobs(inserted.id, claudeResponse.appConfig.cronJobs);
+      const validJobs = Array.isArray(claudeResponse.appConfig.cronJobs)
+        ? claudeResponse.appConfig.cronJobs.filter(
+            (j) =>
+              j &&
+              typeof j.name === 'string' &&
+              typeof j.schedule === 'string' &&
+              typeof j.action === 'string'
+          )
+        : [];
+      if (inserted && validJobs.length > 0) {
+        await cronManager.addJobs(inserted.id, validJobs);
       }
     }
 

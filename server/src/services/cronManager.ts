@@ -83,8 +83,11 @@ class CronManager {
     console.log(`[CronManager] Loaded ${activeJobs.length} active cron jobs`);
   }
 
+  private static readonly MAX_JOBS_PER_APP = 5;
+
   async addJobs(appId: number, jobs: CronJobConfig[]): Promise<void> {
-    for (const job of jobs) {
+    const capped = jobs.slice(0, CronManager.MAX_JOBS_PER_APP);
+    for (const job of capped) {
       const [inserted] = await db
         .insert(cronJobs)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,7 +154,7 @@ class CronManager {
     console.log(`[CronManager] Running job ${jobId} (action: ${action})`);
 
     try {
-      await this.executeAction(appId, action, config);
+      await this.executeAction(jobId, appId, action, config);
 
       const nextRun = expression ? computeNextRun(expression) : null;
       await db
@@ -164,6 +167,7 @@ class CronManager {
   }
 
   private async executeAction(
+    jobId: number,
     appId: number,
     action: string,
     config: ActionConfig
@@ -173,7 +177,7 @@ class CronManager {
         await this.handleLogEntry(appId, config);
         break;
       case 'fetch_url':
-        await this.handleFetchUrl(appId, config);
+        await this.handleFetchUrl(jobId, appId, config);
         break;
       case 'send_reminder':
         await this.handleSendReminder(appId, config);
@@ -231,7 +235,7 @@ class CronManager {
     return false;
   }
 
-  private async handleFetchUrl(appId: number, config: ActionConfig): Promise<void> {
+  private async handleFetchUrl(jobId: number, appId: number, config: ActionConfig): Promise<void> {
     const url = config.url as string;
     if (!url) {
       console.warn('[CronManager] fetch_url action missing url config');
@@ -287,7 +291,7 @@ class CronManager {
       // keep raw text as value
     }
 
-    await db.insert(appData).values({ appId, key: 'fetch_url', value: { url, result: value, fetchedAt: new Date().toISOString() } } as any);
+    await db.insert(appData).values({ appId, key: `fetch_url_${jobId}`, value: { url, result: value, fetchedAt: new Date().toISOString() } } as any);
   }
 
   private async handleSendReminder(appId: number, config: ActionConfig): Promise<void> {

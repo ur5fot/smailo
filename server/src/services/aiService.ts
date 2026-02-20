@@ -83,7 +83,7 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
   ],
   "uiComponents": [
     {
-      "component": "DataTable" | "Chart" | "Card" | "Timeline" | "Carousel" | "Knob" | "Tag" | "ProgressBar" | "Calendar",
+      "component": "Chart" | "Card" | "Timeline" | "Carousel" | "Knob" | "Tag" | "ProgressBar" | "Calendar",
       "props": { /* PrimeVue component props */ },
       "dataKey": "optional key from appData to bind as value/data"
     }
@@ -217,13 +217,17 @@ async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Prom
 
 export async function chatWithAI(
   messages: ChatMessage[],
-  phase: ClaudePhase
+  phase: ClaudePhase,
+  appContext?: { config: unknown; data: Array<{ key: string; value: unknown }> }
 ): Promise<ClaudeResponse> {
   const provider = process.env.AI_PROVIDER ?? 'anthropic';
   if (provider !== 'anthropic' && provider !== 'deepseek') {
     throw new Error(`Unknown AI_PROVIDER: "${provider}". Expected "anthropic" or "deepseek".`);
   }
-  const systemPrompt = phase === 'chat' ? IN_APP_SYSTEM_PROMPT : BRAINSTORM_SYSTEM_PROMPT;
+  let systemPrompt = phase === 'chat' ? IN_APP_SYSTEM_PROMPT : BRAINSTORM_SYSTEM_PROMPT;
+  if (phase === 'chat' && appContext) {
+    systemPrompt += `\n\nAPP CONTEXT:\nConfig: ${JSON.stringify(appContext.config)}\nData: ${JSON.stringify(appContext.data)}`;
+  }
   const rawText =
     provider === 'deepseek'
       ? await callDeepSeek(messages, systemPrompt)

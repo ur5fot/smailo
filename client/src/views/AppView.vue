@@ -6,6 +6,12 @@
       <p>Loading your app…</p>
     </div>
 
+    <!-- Load error -->
+    <div v-else-if="loadError" class="app-view__loading">
+      <Smailo mood="confused" :size="80" />
+      <p>{{ loadError }}</p>
+    </div>
+
     <!-- Password form -->
     <div v-else-if="requiresAuth" class="app-view__auth">
       <Smailo :mood="authMood" :size="100" />
@@ -113,6 +119,7 @@ const appStore = useAppStore()
 const hash = computed(() => route.params.hash as string)
 
 const loading = ref(true)
+const loadError = ref('')
 const requiresAuth = ref(false)
 const password = ref('')
 const authLoading = ref(false)
@@ -142,12 +149,17 @@ const uiComponents = computed(() => {
 
 async function loadApp() {
   loading.value = true
+  loadError.value = ''
   try {
     await appStore.fetchApp(hash.value)
     requiresAuth.value = false
   } catch (err: any) {
     if (err?.response?.status === 401) {
       requiresAuth.value = true
+    } else if (err?.response?.status === 404) {
+      loadError.value = 'App not found.'
+    } else {
+      loadError.value = 'Failed to load app. Please try again.'
     }
   } finally {
     loading.value = false
@@ -192,8 +204,13 @@ async function handleChatSubmit(message: string) {
 
   try {
     const res = await appStore.chatWithApp(hash.value, message)
-    const mood = res.mood as Mood
-    smailoMood.value = mood || 'idle'
+    const validMoods: Mood[] = ['idle', 'thinking', 'talking', 'happy', 'confused']
+    const mood: Mood = validMoods.includes(res.mood as Mood) ? (res.mood as Mood) : 'idle'
+    smailoMood.value = mood
+    // Reset transient moods back to idle after a short delay
+    if (mood === 'talking' || mood === 'thinking') {
+      setTimeout(() => { smailoMood.value = 'idle' }, 3000)
+    }
     chatMessages.value.push({ role: 'assistant', content: res.message, mood: res.mood })
 
     // If Claude returned a uiUpdate, refresh the full app (config + appData)

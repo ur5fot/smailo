@@ -12,8 +12,6 @@
 
 <script setup lang="ts">
 import Card from 'primevue/card'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
 import Chart from 'primevue/chart'
 import Timeline from 'primevue/timeline'
 import Carousel from 'primevue/carousel'
@@ -35,8 +33,6 @@ const props = defineProps<{
 
 const componentMap: Record<string, any> = {
   Card,
-  DataTable,
-  Column,
   Chart,
   Timeline,
   Carousel,
