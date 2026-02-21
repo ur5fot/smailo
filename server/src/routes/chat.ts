@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { randomBytes, createHash } from 'crypto';
 import { eq, desc, isNull, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { apps, chatHistory } from '../db/schema.js';
+import { apps, chatHistory, users } from '../db/schema.js';
 import { chatWithAI, validateUiComponents } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 
@@ -67,6 +67,10 @@ chatRouter.post('/', limiter, async (req, res) => {
     if (userId !== undefined) {
       if (typeof userId !== 'string' || !/^[A-Za-z0-9]{1,50}$/.test(userId)) {
         return res.status(400).json({ error: 'Invalid userId format' });
+      }
+      const [userRow] = await db.select({ userId: users.userId }).from(users).where(eq(users.userId, userId));
+      if (!userRow) {
+        return res.status(400).json({ error: 'User not found' });
       }
     }
 

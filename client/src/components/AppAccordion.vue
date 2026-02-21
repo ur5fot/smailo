@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -34,6 +34,9 @@ const props = defineProps<{
 
 // Keep first tab open by default; must be a ref so PrimeVue v-model can update it on toggle
 const openTabs = ref(['0'])
+
+// Reset open state when tabs are replaced (e.g. after a uiUpdate from AI chat)
+watch(() => props.tabs, () => { openTabs.value = ['0'] })
 
 function resolvedData(dataKey: string): any {
   return props.appData?.[dataKey]

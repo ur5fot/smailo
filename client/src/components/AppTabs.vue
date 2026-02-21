@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
@@ -41,6 +41,9 @@ const props = defineProps<{
 }>()
 
 const activeTab = ref('0')
+
+// Reset active tab when tabs are replaced (e.g. after a uiUpdate from AI chat)
+watch(() => props.tabs, () => { activeTab.value = '0' })
 
 function resolvedData(dataKey: string): any {
   return props.appData?.[dataKey]

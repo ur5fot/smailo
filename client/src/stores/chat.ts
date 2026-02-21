@@ -16,7 +16,7 @@ export interface AppConfig {
 }
 
 function generateSessionId(): string {
-  return Array.from({ length: 20 }, () => Math.random().toString(36)[2] || '0').join('')
+  return crypto.randomUUID().replace(/-/g, '')
 }
 
 export const useChatStore = defineStore('chat', () => {

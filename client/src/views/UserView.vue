@@ -159,8 +159,11 @@ onMounted(async () => {
   } catch (err: any) {
     userNotFound.value = true
     loadingUser.value = false
-    // Clear stale userId so HomeView doesn't redirect back here in a loop
-    localStorage.removeItem('smailo_user_id')
+    // Only clear stale userId on 404 — transient network/server errors should not
+    // permanently destroy the stored ID; the user can refresh and try again
+    if (err?.response?.status === 404) {
+      localStorage.removeItem('smailo_user_id')
+    }
     return
   }
   loadingUser.value = false
