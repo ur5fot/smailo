@@ -18,7 +18,7 @@ import api from '../api'
 const props = defineProps<{
   label: string
   severity?: string
-  action: { key: string; value: unknown }
+  action: { key: string; value?: unknown }
   hash: string
 }>()
 

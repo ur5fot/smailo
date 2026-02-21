@@ -4,13 +4,13 @@
     <div class="app-input-text__row">
       <InputNumber
         v-if="type === 'number'"
-        v-model="inputValue"
+        v-model="numericValue"
         :placeholder="placeholder"
         class="app-input-text__input"
       />
       <InputText
         v-else
-        v-model="inputValue"
+        v-model="textValue"
         :placeholder="placeholder"
         class="app-input-text__input"
       />
@@ -43,20 +43,23 @@ const emit = defineEmits<{
   'data-written': []
 }>()
 
-const inputValue = ref<string | number | null>(null)
+const numericValue = ref<number | null>(null)
+const textValue = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
 
 async function handleSave() {
-  if (inputValue.value === null || inputValue.value === '') return
+  const value = props.type === 'number' ? numericValue.value : textValue.value
+  if (value === null || value === '') return
   loading.value = true
   errorMsg.value = ''
   try {
     await api.post(`/app/${props.hash}/data`, {
       key: props.action.key,
-      value: inputValue.value,
+      value,
     })
-    inputValue.value = null
+    numericValue.value = null
+    textValue.value = ''
     emit('data-written')
   } catch {
     errorMsg.value = 'Failed to save. Please try again.'

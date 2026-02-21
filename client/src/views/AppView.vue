@@ -63,7 +63,9 @@
           v-if="uiComponents.length > 0"
           :ui-config="uiComponents"
           :app-data="appDataMap"
+          :hash="hash"
           class="app-view__renderer"
+          @data-written="handleDataWritten"
         />
 
         <!-- In-app chat messages -->
@@ -202,6 +204,10 @@ async function handleRefresh() {
   } finally {
     refreshing.value = false
   }
+}
+
+async function handleDataWritten() {
+  await appStore.fetchData(hash.value)
 }
 
 async function handleChatSubmit(message: string) {

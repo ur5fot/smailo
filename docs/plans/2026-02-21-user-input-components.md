@@ -108,11 +108,11 @@ Currently all `appData` writes go through cron jobs or AI responses. After this 
 
 ### Task 6: Register new components in `AppRenderer.vue`
 
-- [ ] Import `AppButton`, `AppInputText`, `AppForm` in `AppRenderer.vue`
-- [ ] Add `v-else-if` blocks before the generic `<component :is>` fallback (same pattern as AppCard/AppDataTable)
-- [ ] Pass `hash` and `action`/`fields`/`outputKey` from the item config to each wrapper
-- [ ] Listen for `'data-written'` event on all three components; on event emit `'data-written'` upward
-- [ ] Update `AppView.vue`: pass `hash` to `<AppRenderer>`; on `'data-written'` call `appStore.fetchData(hash)` to refresh
+- [x] Import `AppButton`, `AppInputText`, `AppForm` in `AppRenderer.vue`
+- [x] Add `v-else-if` blocks before the generic `<component :is>` fallback (same pattern as AppCard/AppDataTable)
+- [x] Pass `hash` and `action`/`fields`/`outputKey` from the item config to each wrapper
+- [x] Listen for `'data-written'` event on all three components; on event emit `'data-written'` upward
+- [x] Update `AppView.vue`: pass `hash` to `<AppRenderer>`; on `'data-written'` call `appStore.fetchData(hash)` to refresh
 
 ### Task 7: Update server-side component whitelists
 

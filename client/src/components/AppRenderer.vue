@@ -13,6 +13,37 @@
         v-bind="resolvedProps(item)"
       />
 
+      <!-- Button: user-triggered data write -->
+      <AppButton
+        v-else-if="item.component === 'Button' && item.action"
+        :label="item.props?.label ?? ''"
+        :severity="item.props?.severity"
+        :action="item.action"
+        :hash="props.hash"
+        @data-written="emit('data-written')"
+      />
+
+      <!-- InputText: user-entered data write -->
+      <AppInputText
+        v-else-if="item.component === 'InputText' && item.action"
+        :label="item.props?.label"
+        :type="item.props?.type"
+        :placeholder="item.props?.placeholder"
+        :action="item.action"
+        :hash="props.hash"
+        @data-written="emit('data-written')"
+      />
+
+      <!-- Form: multi-field data write -->
+      <AppForm
+        v-else-if="item.component === 'Form' && item.fields && item.outputKey"
+        :fields="item.fields"
+        :output-key="item.outputKey"
+        :submit-label="item.props?.submitLabel"
+        :hash="props.hash"
+        @data-written="emit('data-written')"
+      />
+
       <!-- All other PrimeVue components via dynamic :is -->
       <component
         v-else-if="componentMap[item.component]"
@@ -33,6 +64,9 @@ import ProgressBar from 'primevue/progressbar'
 import DatePicker from 'primevue/datepicker'
 import AppCard from './AppCard.vue'
 import AppDataTable from './AppDataTable.vue'
+import AppButton from './AppButton.vue'
+import AppInputText from './AppInputText.vue'
+import AppForm from './AppForm.vue'
 
 interface UiConfigItem {
   component: string
@@ -47,6 +81,10 @@ const props = defineProps<{
   uiConfig: UiConfigItem[]
   appData: Record<string, any>
   hash: string
+}>()
+
+const emit = defineEmits<{
+  'data-written': []
 }>()
 
 const componentMap: Record<string, any> = {
