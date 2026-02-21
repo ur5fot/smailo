@@ -334,12 +334,13 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
             ? (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))
             : (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key)))) &&
           // Form requires outputKey and a non-empty fields array — without them it silently vanishes in the renderer
+          // 'timestamp' is reserved: AppForm always injects it as the submission time; a field with that name would silently lose user input
           (item.component === 'Form'
             ? (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey) &&
                Array.isArray(item.fields) && item.fields.length > 0 &&
-               item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name)))
+               item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp'))
             : (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
-              (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name))))
+              (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp')))
         )
         .slice(0, 20);
       if (validUiItems.length > 0) {
