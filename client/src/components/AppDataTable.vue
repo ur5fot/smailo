@@ -8,7 +8,7 @@
     class="app-datatable"
   >
     <template #empty>
-      <span class="app-datatable__empty">No entries yet. Ask Smailo below to add data.</span>
+      <span class="app-datatable__empty">Записей пока нет.</span>
     </template>
     <Column
       v-for="col in effectiveColumns"

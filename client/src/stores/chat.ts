@@ -6,6 +6,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   mood?: string
+  appConfig?: AppConfig
 }
 
 export interface AppConfig {
@@ -69,6 +70,7 @@ export const useChatStore = defineStore('chat', () => {
       role: 'assistant',
       content: data.message,
       mood: data.mood,
+      ...(data.appConfig ? { appConfig: data.appConfig } : {}),
     })
 
     return data
@@ -86,5 +88,37 @@ export const useChatStore = defineStore('chat', () => {
     sessionStorage.removeItem('smailo_creationToken')
   }
 
-  return { messages, sessionId, mood, phase, appHash, appConfig, creationToken, sendMessage, reset }
+  function initSession(uid: string) {
+    sessionId.value = `home-${uid}`
+    messages.value = []
+    mood.value = 'idle'
+    phase.value = 'brainstorm'
+    appHash.value = null
+    appConfig.value = null
+    creationToken.value = null
+    sessionStorage.removeItem('smailo_appHash')
+    sessionStorage.removeItem('smailo_creationToken')
+  }
+
+  async function loadHistory() {
+    try {
+      const res = await api.get('/chat', { params: { sessionId: sessionId.value } })
+      const history: Array<{ role: 'user' | 'assistant'; content: string; phase?: string }> =
+        res.data.history || []
+      if (history.length > 0) {
+        const lastAsst = [...history].reverse().find((m) => m.role === 'assistant')
+        // Don't restore a completed creation session — the app already exists in the list.
+        // Restoring 'created' history causes users to accidentally re-trigger app creation.
+        if (lastAsst?.phase === 'created') return
+        messages.value = history.map((m) => ({ role: m.role, content: m.content }))
+        if (lastAsst?.phase) {
+          phase.value = lastAsst.phase as typeof phase.value
+        }
+      }
+    } catch {
+      // Silently ignore — user starts with empty messages on failure
+    }
+  }
+
+  return { messages, sessionId, mood, phase, appHash, appConfig, creationToken, sendMessage, reset, initSession, loadHistory }
 })

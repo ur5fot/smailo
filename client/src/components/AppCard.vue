@@ -6,13 +6,13 @@
       <!-- No data at all -->
       <div v-if="props.value === undefined || props.value === null" class="app-card__empty">
         <i class="pi pi-inbox app-card__empty-icon" />
-        <span>No data yet. Ask Smailo below to add entries.</span>
+        <span>Данных пока нет.</span>
       </div>
 
       <!-- Array: render as list -->
       <ul v-else-if="Array.isArray(props.value)" class="app-card__list">
         <li v-if="props.value.length === 0" class="app-card__empty-item">
-          No entries yet.
+          Записей пока нет.
         </li>
         <li
           v-for="(item, i) in props.value"
@@ -22,7 +22,7 @@
           <template v-if="item && typeof item === 'object'">
             <span v-for="(val, key) in item" :key="key" class="app-card__kv">
               <span class="app-card__kv-key">{{ key }}:</span>
-              <span class="app-card__kv-val">{{ val }}</span>
+              <span class="app-card__kv-val">{{ formatIfDate(val) }}</span>
             </span>
           </template>
           <template v-else>{{ item }}</template>
@@ -33,12 +33,12 @@
       <dl v-else-if="typeof props.value === 'object'" class="app-card__dl">
         <template v-for="(val, key) in props.value" :key="key">
           <dt class="app-card__dt">{{ key }}</dt>
-          <dd class="app-card__dd">{{ val }}</dd>
+          <dd class="app-card__dd">{{ formatIfDate(val) }}</dd>
         </template>
       </dl>
 
-      <!-- Primitive: render as text -->
-      <p v-else class="app-card__text">{{ props.value }}</p>
+      <!-- Primitive: render as text (ISO timestamps auto-formatted) -->
+      <p v-else class="app-card__text">{{ formatIfDate(props.value) }}</p>
     </template>
   </Card>
 </template>
@@ -52,6 +52,22 @@ const props = defineProps<{
   // value is bound from dataKey resolution in AppRenderer
   value?: any
 }>()
+
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
+
+function formatIfDate(val: any): any {
+  if (typeof val !== 'string' || !ISO_RE.test(val)) return val
+  try {
+    const d = new Date(val)
+    if (isNaN(d.getTime())) return val
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }).format(d)
+  } catch {
+    return val
+  }
+}
 </script>
 
 <style scoped>

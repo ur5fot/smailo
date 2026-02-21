@@ -21,7 +21,7 @@
           </p>
           <pre v-else style="margin: 0; white-space: pre-wrap; font-size: 0.875rem;">{{ JSON.stringify(resolvedData(tab.dataKey), null, 2) }}</pre>
         </div>
-        <div v-else class="app-tabs__empty">No data yet.</div>
+        <div v-else class="app-tabs__empty">Данных пока нет.</div>
       </TabPanel>
     </TabPanels>
   </Tabs>

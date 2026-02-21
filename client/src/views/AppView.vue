@@ -93,17 +93,11 @@
               class="app-view__bubble-row"
               :class="msg.role === 'user' ? 'app-view__bubble-row--user' : 'app-view__bubble-row--assistant'"
             >
-              <div v-if="msg.role === 'assistant'" class="app-view__bubble-avatar">
-                <Smailo :mood="(msg.mood as any) || 'idle'" :size="32" />
-              </div>
               <div class="app-view__bubble">{{ msg.content }}</div>
             </div>
 
             <!-- Typing indicator -->
             <div v-if="chatLoading" class="app-view__bubble-row app-view__bubble-row--assistant">
-              <div class="app-view__bubble-avatar">
-                <Smailo mood="thinking" :size="32" />
-              </div>
               <div class="app-view__bubble app-view__bubble--typing">
                 <span class="app-view__dot" />
                 <span class="app-view__dot" />
@@ -133,6 +127,7 @@ import AppRenderer from '../components/AppRenderer.vue'
 import { useAppStore } from '../stores/app'
 import type { ChatMessage } from '../stores/chat'
 import type { Mood } from '../types'
+import api from '../api'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -175,19 +170,30 @@ const uiComponents = computed(() => {
   return (config.uiComponents as any[]) || []
 })
 
+async function fetchChatHistory() {
+  try {
+    const res = await api.get(`/app/${hash.value}/chat`)
+    const history: Array<{ role: 'user' | 'assistant'; content: string }> = res.data.history || []
+    chatMessages.value = history.map((m) => ({ role: m.role, content: m.content }))
+  } catch {
+    // Silently ignore — chat starts empty on failure
+  }
+}
+
 async function loadApp() {
   loading.value = true
   loadError.value = ''
   try {
     await appStore.fetchApp(hash.value)
     requiresAuth.value = false
+    await fetchChatHistory()
   } catch (err: any) {
     if (err?.response?.status === 401) {
       requiresAuth.value = true
     } else if (err?.response?.status === 404) {
       loadError.value = 'App not found.'
     } else {
-      loadError.value = 'Failed to load app. Please try again.'
+      loadError.value = 'Не удалось загрузить приложение. Попробуйте обновить страницу.'
     }
   } finally {
     loading.value = false
@@ -202,7 +208,7 @@ async function handleAuth() {
   try {
     await appStore.verifyPassword(hash.value, password.value)
   } catch {
-    authError.value = 'Incorrect password. Please try again.'
+    authError.value = 'Неверный пароль. Попробуйте ещё раз.'
     authMood.value = 'confused'
     authLoading.value = false
     password.value = ''
@@ -213,9 +219,10 @@ async function handleAuth() {
   try {
     authMood.value = 'happy'
     await appStore.fetchApp(hash.value)
+    await fetchChatHistory()
     requiresAuth.value = false
   } catch {
-    authError.value = 'Failed to load app. Please try again.'
+    authError.value = 'Не удалось загрузить приложение. Попробуйте обновить страницу.'
     authMood.value = 'confused'
   } finally {
     authLoading.value = false
@@ -272,7 +279,7 @@ async function handleChatSubmit(message: string) {
     // Remove the optimistically-pushed user message so it doesn't linger on failure.
     chatMessages.value.pop()
     smailoMood.value = 'confused'
-    chatMessages.value.push({ role: 'assistant', content: 'Something went wrong. Please try again.', mood: 'confused' })
+    chatMessages.value.push({ role: 'assistant', content: 'Что-то пошло не так. Попробуйте ещё раз.', mood: 'confused' })
   } finally {
     chatLoading.value = false
     await nextTick()

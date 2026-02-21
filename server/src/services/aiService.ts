@@ -9,6 +9,7 @@ export type ClaudeResponse = {
   phase: ClaudePhase;
   appConfig?: AppConfig;
   uiUpdate?: UiComponent[];
+  memoryUpdate?: string;
 };
 
 export type CronJobConfig = {
@@ -113,6 +114,7 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
 - Button: use "label" prop and optional "severity" ("success", "danger", "warning", "info"). Use "action" with { key, value } to write a fixed value on click.
   Example: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
 - InputText: use "label", "type" ("text" or "number"), "placeholder" props. Use "action" with { key } — value comes from user input.
+  IMPORTANT: InputText already has a built-in save button — do NOT add a separate Button to save its value.
   Example: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
 - Form: use "fields" array with { name, type, label } objects and "outputKey" for the appData key. Use "props.submitLabel" to customize button text.
   Example: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }, { "name": "note", "type": "text", "label": "Заметка" }], "outputKey": "weight_entry" }
@@ -177,6 +179,7 @@ UX RULES (always follow when designing apps):
 - Use Tag for status labels, ProgressBar/Knob for percentages/dials, Rating for scores
 - Use Accordion to group related but less-important info (hide clutter)
 - Always show a "last updated" Card or Tag using {outputKey}_updated_at when fetch_url is used
+- DATE/TIME DISPLAY: ISO timestamp strings (e.g. "2026-02-21T17:09:25.683Z") are automatically formatted by the UI into human-readable dates like "21 февраля 2026, 17:09". Always store dates/times as ISO strings — never format them manually in config.
 
 NUMBERED OPTIONS: When presenting multiple choices or asking the user to pick between options,
 ALWAYS number them: "1. Option A\n2. Option B\n3. Option C"
@@ -227,9 +230,15 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry" }
 - NEVER use components not listed above.
 
+DATE/TIME DISPLAY: ISO timestamp strings are automatically formatted by the UI into human-readable dates (e.g. "21 февраля 2026, 17:09"). Always use ISO strings for dates — never format them manually.
+
 NUMBERED OPTIONS: When presenting multiple choices or asking the user to pick between options,
 ALWAYS number them: "1. Option A\n2. Option B\n3. Option C"
 If the user replies with just a number (e.g. "2"), treat it as selecting that option.
+
+APP MEMORY:
+An APP MEMORY section is injected into your context when present. Use it to remember key facts about the app, user preferences, and decisions. When you learn something important, include "memoryUpdate" in your JSON to replace the entire memory (max 2000 chars). Omit "memoryUpdate" if nothing changed.
+Example: "memoryUpdate": "# Currency App\\n- User tracks USD/EUR/GBP\\n- API key in api_key field"
 
 Keep responses concise and helpful. Focus on the user's data and app context.`;
 
@@ -305,7 +314,7 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
     }
 
     if (!parsed.message || typeof parsed.message !== 'string') {
-      parsed.message = 'I had trouble formulating a response. Could you try again?';
+      parsed.message = 'Что-то пошло не так с ответом. Попробуйте ещё раз.';
     } else {
       // Cap message length before it reaches the DB to prevent unbounded storage
       // and context inflation on subsequent AI calls.
@@ -325,11 +334,19 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
       parsed.phase = phase;
     }
 
+    // memoryUpdate is only valid in the in-app chat phase; strip it everywhere else
+    if (phase === 'chat' && typeof parsed.memoryUpdate === 'string') {
+      const trimmed = parsed.memoryUpdate.trim().slice(0, 2000);
+      parsed.memoryUpdate = trimmed || undefined;
+    } else {
+      delete (parsed as any).memoryUpdate;
+    }
+
     return parsed;
   } catch {
     return {
       mood: 'confused',
-      message: 'I got a bit tangled up there. Could you say that again?',
+      message: 'Кажется, я запутался. Можешь повторить?',
       phase,
     };
   }
@@ -369,7 +386,7 @@ async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Prom
 export async function chatWithAI(
   messages: ChatMessage[],
   phase: ClaudePhase,
-  appContext?: { config: unknown; data: Array<{ key: string; value: unknown }> }
+  appContext?: { config: unknown; data: Array<{ key: string; value: unknown }>; notes?: string }
 ): Promise<ClaudeResponse> {
   const provider = process.env.AI_PROVIDER ?? 'anthropic';
   if (provider !== 'anthropic' && provider !== 'deepseek') {
@@ -388,6 +405,9 @@ export async function chatWithAI(
     const configStr = JSON.stringify(appContext.config);
     const safeConfig = configStr.length > MAX_CONFIG_CHARS ? configStr.slice(0, MAX_CONFIG_CHARS) + '…' : configStr;
     systemPrompt += `\n\nAPP CONTEXT:\nConfig: ${safeConfig}\nData: ${JSON.stringify(safeData)}`;
+    if (appContext.notes) {
+      systemPrompt += `\n\nAPP MEMORY:\n${appContext.notes}`;
+    }
   }
   const rawText =
     provider === 'deepseek'

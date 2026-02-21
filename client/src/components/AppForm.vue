@@ -90,7 +90,7 @@ async function handleSubmit() {
     }
     emit('data-written')
   } catch {
-    errorMsg.value = 'Failed to save. Please try again.'
+    errorMsg.value = 'Не удалось сохранить. Попробуйте ещё раз.'
   } finally {
     loading.value = false
   }

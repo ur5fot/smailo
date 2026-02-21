@@ -51,7 +51,7 @@ const errorMsg = ref('')
 async function handleSave() {
   const value = props.type === 'number' ? numericValue.value : textValue.value
   if (value === null || (typeof value === 'string' && value.trim() === '')) {
-    errorMsg.value = 'Please enter a value.'
+    errorMsg.value = 'Введите значение.'
     return
   }
   loading.value = true
@@ -65,7 +65,7 @@ async function handleSave() {
     textValue.value = ''
     emit('data-written')
   } catch {
-    errorMsg.value = 'Failed to save. Please try again.'
+    errorMsg.value = 'Не удалось сохранить. Попробуйте ещё раз.'
   } finally {
     loading.value = false
   }

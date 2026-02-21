@@ -11,6 +11,8 @@ import { cronManager } from '../services/cronManager.js';
 
 export const appRouter = Router();
 
+const CHAT_HISTORY_LIMIT = 20;
+
 /** Return only the most-recent row per key for a given app. */
 async function getLatestAppData(appId: number) {
   // Use a subquery to find the max id per key, then join back
@@ -230,6 +232,25 @@ appRouter.get('/:hash/data', requireAuthIfProtected as any, async (req: any, res
   }
 });
 
+// GET /api/app/:hash/chat
+appRouter.get('/:hash/chat', requireAuthIfProtected as any, async (req: any, res) => {
+  try {
+    const row: typeof apps.$inferSelect = req.app_row;
+    const rows = await db
+      .select()
+      .from(chatHistory)
+      .where(and(eq(chatHistory.appId, row.id), eq(chatHistory.sessionId, `app-${row.hash}`)))
+      .orderBy(desc(chatHistory.createdAt))
+      .limit(CHAT_HISTORY_LIMIT);
+    return res.json({
+      history: [...rows].reverse().map((r) => ({ role: r.role, content: r.content })),
+    });
+  } catch (error) {
+    console.error('[GET /api/app/:hash/chat] Error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/app/:hash/data
 const KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
 const VALUE_MAX_BYTES = 10_000;
@@ -295,7 +316,7 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       .from(chatHistory)
       .where(and(eq(chatHistory.appId, row.id), eq(chatHistory.sessionId, `app-${row.hash}`)))
       .orderBy(desc(chatHistory.createdAt))
-      .limit(20);
+      .limit(CHAT_HISTORY_LIMIT);
 
     // Reverse to chronological order
     const recentHistory = [...history].reverse();
@@ -305,11 +326,12 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       content: r.content,
     }));
 
-    // Build app context for the AI (config + latest data)
+    // Build app context for the AI (config + latest data + notes memory)
     const latestData = await getLatestAppData(row.id);
     const appContext = {
       config: row.config,
       data: latestData.map((r) => ({ key: r.key, value: r.value })),
+      notes: row.notes ?? undefined,
     };
 
     const messages = [...previousMessages, { role: 'user' as const, content: message }];
@@ -346,6 +368,13 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       } else {
         console.warn(`[POST /api/app/:hash/chat] uiUpdate had no valid components for app ${row.id}`);
       }
+    }
+
+    // Save memory update if the AI provided one
+    if (claudeResponse.memoryUpdate !== undefined) {
+      await db.update(apps)
+        .set({ notes: claudeResponse.memoryUpdate } as any)
+        .where(eq(apps.id, row.id));
     }
 
     return res.json({

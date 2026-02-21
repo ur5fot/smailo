@@ -10,7 +10,9 @@ A personal AI applications builder. Chat with Smailo — an expressive AI assist
 4. Once created, your app gets a unique URL at `/:userId/:hash` you can bookmark
 5. Optionally set a password to protect your app
 6. Inside your app, chat with Smailo in the right panel to update the UI or add automations
-7. All your apps are listed on your personal page `/:userId`
+7. Chat history is persisted across sessions — both in the home creation chat and inside each app
+8. Smailo builds a per-app memory of important context and uses it in future conversations
+9. All your apps are listed on your personal page `/:userId`
 
 ## Prerequisites
 
@@ -88,8 +90,8 @@ smailo/
         │   └── cronManager.ts    # node-cron scheduler for app automations
         ├── routes/
         │   ├── users.ts          # POST/GET /api/users — user creation and lookup
-        │   ├── chat.ts           # POST /api/chat — home brainstorm flow
-        │   └── app.ts            # GET/POST /api/app/:hash — app access and chat
+        │   ├── chat.ts           # POST/GET /api/chat — home brainstorm flow + chat history
+        │   └── app.ts            # GET/POST /api/app/:hash — app access, chat, chat history
         └── index.ts              # Express entry point
 ```
 
@@ -109,7 +111,9 @@ smailo/
 - Creation chat: client → `POST /api/chat` (with `userId`) → AI service (brainstorm phase) → response with mood/phase
 - App creation: when the AI service returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row (with `userId`), and schedules any cron jobs
 - App access: client → `GET /api/app/:hash` → returns config + latest appData (JWT required if password set)
-- In-app chat: client → `POST /api/app/:hash/chat` → AI service (chat phase) → optional UI update
+- In-app chat: client → `POST /api/app/:hash/chat` → AI service (chat phase) → optional UI update and/or memory update
+- Chat history: client → `GET /api/chat?sessionId=home-<userId>` / `GET /api/app/:hash/chat` → last 20 messages restored on page load
+- AI memory: each in-app chat response may include a `memoryUpdate` — concise notes (up to 2000 chars) saved to `apps.notes` and injected into future AI calls for that app
 - User-triggered writes: Button/InputText/Form components → `POST /api/app/:hash/data` → appData updated, UI refreshes
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data) and writes results to appData
 

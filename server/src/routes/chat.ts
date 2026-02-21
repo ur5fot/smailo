@@ -9,6 +9,8 @@ import { cronManager } from '../services/cronManager.js';
 
 export const chatRouter = Router();
 
+const CHAT_HISTORY_LIMIT = 20;
+
 /**
  * Strip sensitive cron job data (action configs like fetch_url targets) before sending
  * appConfig to the browser. At 'created' phase cronJobs are fully removed (not needed
@@ -83,7 +85,7 @@ chatRouter.post('/', limiter, async (req, res) => {
         .from(chatHistory)
         .where(and(eq(chatHistory.sessionId, sessionId), isNull(chatHistory.appId)))
         .orderBy(desc(chatHistory.createdAt))
-        .limit(20)
+        .limit(CHAT_HISTORY_LIMIT)
     ).reverse();
 
     const previousMessages = history.map((row) => ({
@@ -97,9 +99,11 @@ chatRouter.post('/', limiter, async (req, res) => {
     if (lastAssistant?.phase) {
       currentPhase = lastAssistant.phase as typeof currentPhase;
     }
-    // Once the app has been created, further messages are plain chat — never re-create
-    if ((currentPhase as string) === 'created') {
-      currentPhase = 'chat';
+    // After app creation, restart brainstorm for the next app — the home chat always uses
+    // the brainstorm prompt and must never switch to the in-app chat prompt (no appContext here).
+    // Cast to string to work around TypeScript control-flow narrowing collapsing the union type.
+    if ((currentPhase as string) === 'created' || (currentPhase as string) === 'chat') {
+      currentPhase = 'brainstorm';
     }
 
     // Build messages array for AI (do NOT persist user message yet — persist only after successful AI call
@@ -166,18 +170,18 @@ chatRouter.post('/', limiter, async (req, res) => {
 
     // Wrap all DB writes in a transaction so a crash between user-message and
     // assistant-message inserts cannot leave orphaned rows that corrupt conversation state.
-    await db.transaction(async (tx) => {
+    db.transaction((tx) => {
       // Persist user message only after a successful AI response
-      await tx.insert(chatHistory).values({
+      tx.insert(chatHistory).values({
         sessionId,
         role: 'user',
         content: message,
         phase: currentPhase,
-      } as any);
+      } as any).run();
 
       if (appCreationData) {
         const { hash, creationTokenHash, appConfigToStore, appName } = appCreationData;
-        const [inserted] = await tx
+        const inserted = tx
           .insert(apps)
           .values({
             hash,
@@ -189,16 +193,17 @@ chatRouter.post('/', limiter, async (req, res) => {
             config: appConfigToStore,
             creationToken: creationTokenHash,
           } as any)
-          .returning({ id: apps.id });
+          .returning({ id: apps.id })
+          .get();
         if (inserted) insertedAppId = inserted.id;
       }
 
-      await tx.insert(chatHistory).values({
+      tx.insert(chatHistory).values({
         sessionId,
         role: 'assistant',
         content: claudeResponse.message,
         phase: responsePhase,
-      } as any);
+      } as any).run();
     });
 
     // Schedule cron jobs after the transaction commits — if this fails the app exists
@@ -220,6 +225,32 @@ chatRouter.post('/', limiter, async (req, res) => {
     });
   } catch (error) {
     console.error('[/api/chat] Error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+chatRouter.get('/', limiter, async (req, res) => {
+  const { sessionId } = req.query as { sessionId?: string };
+  if (!sessionId || typeof sessionId !== 'string') {
+    return res.status(400).json({ error: 'sessionId is required' });
+  }
+  if (sessionId.length > 128) {
+    return res.status(400).json({ error: 'sessionId too long' });
+  }
+  try {
+    const rows = (
+      await db
+        .select()
+        .from(chatHistory)
+        .where(and(eq(chatHistory.sessionId, sessionId), isNull(chatHistory.appId)))
+        .orderBy(desc(chatHistory.createdAt))
+        .limit(CHAT_HISTORY_LIMIT)
+    ).reverse();
+    return res.json({
+      history: rows.map((r) => ({ role: r.role, content: r.content, phase: r.phase })),
+    });
+  } catch (error) {
+    console.error('[GET /api/chat] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

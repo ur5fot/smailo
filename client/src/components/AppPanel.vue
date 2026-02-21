@@ -4,7 +4,7 @@
       <p v-if="typeof value === 'string' || typeof value === 'number'">{{ value }}</p>
       <pre v-else style="margin: 0; white-space: pre-wrap; font-size: 0.875rem;">{{ JSON.stringify(value, null, 2) }}</pre>
     </div>
-    <div v-else class="app-panel__empty">No data yet.</div>
+    <div v-else class="app-panel__empty">Данных пока нет.</div>
   </Panel>
 </template>
 

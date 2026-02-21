@@ -77,23 +77,43 @@
               <p>Привет! Расскажите, какое приложение вы хотите создать?</p>
             </div>
 
-            <div
-              v-for="(msg, i) in chatStore.messages"
-              :key="i"
-              class="user-view__bubble-row"
-              :class="msg.role === 'user' ? 'user-view__bubble-row--user' : 'user-view__bubble-row--assistant'"
-            >
-              <div v-if="msg.role === 'assistant'" class="user-view__bubble-avatar">
-                <Smailo :mood="(msg.mood as any) || 'idle'" :size="32" />
+            <template v-for="(msg, i) in chatStore.messages" :key="i">
+              <div
+                class="user-view__bubble-row"
+                :class="msg.role === 'user' ? 'user-view__bubble-row--user' : 'user-view__bubble-row--assistant'"
+              >
+                <div class="user-view__bubble">{{ msg.content }}</div>
               </div>
-              <div class="user-view__bubble">{{ msg.content }}</div>
-            </div>
+              <!-- App config preview card shown in confirm phase -->
+              <div v-if="msg.appConfig" class="user-view__confirm-card">
+                <div class="user-view__confirm-title">{{ msg.appConfig.appName }}</div>
+                <div class="user-view__confirm-desc">{{ msg.appConfig.description }}</div>
+                <div v-if="msg.appConfig.uiComponents?.length" class="user-view__confirm-section">
+                  <div class="user-view__confirm-label">Компоненты ({{ msg.appConfig.uiComponents.length }})</div>
+                  <div class="user-view__confirm-chips">
+                    <span
+                      v-for="(c, j) in msg.appConfig.uiComponents"
+                      :key="j"
+                      class="user-view__confirm-chip"
+                    >{{ c.component }}</span>
+                  </div>
+                </div>
+                <div v-if="msg.appConfig.cronJobs?.length" class="user-view__confirm-section">
+                  <div class="user-view__confirm-label">Автоматизация ({{ msg.appConfig.cronJobs.length }})</div>
+                  <div
+                    v-for="(job, j) in msg.appConfig.cronJobs"
+                    :key="j"
+                    class="user-view__confirm-job"
+                  >
+                    <span class="user-view__confirm-job-name">{{ job.name }}</span>
+                    <span class="user-view__confirm-job-schedule">{{ job.humanReadable || job.schedule }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
 
             <!-- Typing indicator -->
             <div v-if="chatLoading" class="user-view__bubble-row user-view__bubble-row--assistant">
-              <div class="user-view__bubble-avatar">
-                <Smailo mood="thinking" :size="32" />
-              </div>
               <div class="user-view__bubble user-view__bubble--typing">
                 <span class="user-view__dot" />
                 <span class="user-view__dot" />
@@ -151,8 +171,8 @@ async function loadApps() {
 }
 
 onMounted(async () => {
-  // Reset chat state so returning users always start a fresh brainstorm session.
-  chatStore.reset()
+  // Set deterministic session ID for this user's home chat (synchronous — no API call).
+  chatStore.initSession(userId.value)
   try {
     await userStore.fetchUser(userId.value)
     // Only write to localStorage if we don't already have a different stored identity.
@@ -172,6 +192,8 @@ onMounted(async () => {
     return
   }
   loadingUser.value = false
+  // Load previous chat history (best-effort — silently ignored on failure)
+  await chatStore.loadHistory()
   await loadApps()
 })
 
@@ -461,6 +483,77 @@ watch(
 /* ── Input bar ── */
 .user-view__input-wrapper {
   flex-shrink: 0;
+}
+
+/* ── Confirm card ── */
+.user-view__confirm-card {
+  margin: 0.25rem 2.5rem 0.25rem 2.5rem;
+  padding: 0.85rem 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.user-view__confirm-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.user-view__confirm-desc {
+  font-size: 0.825rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.user-view__confirm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.user-view__confirm-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.user-view__confirm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.user-view__confirm-chip {
+  background: #ede9fe;
+  color: #6366f1;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.4rem;
+  font-weight: 500;
+}
+
+.user-view__confirm-job {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #374151;
+  gap: 0.5rem;
+}
+
+.user-view__confirm-job-name {
+  font-weight: 500;
+}
+
+.user-view__confirm-job-schedule {
+  color: #9ca3af;
+  font-size: 0.75rem;
 }
 
 /* ── Mobile: single column ── */
