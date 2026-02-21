@@ -72,10 +72,12 @@ async function handleSubmit() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const formObject: Record<string, unknown> = { timestamp: new Date().toISOString() }
+    const formObject: Record<string, unknown> = {}
     for (const field of props.fields) {
       formObject[field.name] = fieldValues[field.name]
     }
+    // Inject timestamp last so it always wins, even if a field is named 'timestamp'
+    formObject.timestamp = new Date().toISOString()
     await api.post(`/app/${props.hash}/data`, {
       key: props.outputKey,
       value: formObject,

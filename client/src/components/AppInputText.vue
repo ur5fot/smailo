@@ -50,7 +50,7 @@ const errorMsg = ref('')
 
 async function handleSave() {
   const value = props.type === 'number' ? numericValue.value : textValue.value
-  if (value === null || value === '') return
+  if (value === null || (typeof value === 'string' && value.trim() === '')) return
   loading.value = true
   errorMsg.value = ''
   try {
