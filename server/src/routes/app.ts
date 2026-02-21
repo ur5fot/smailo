@@ -7,6 +7,7 @@ import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory } from '../db/schema.js';
 import { chatWithAI, validateUiComponents } from '../services/aiService.js';
+import { cronManager } from '../services/cronManager.js';
 
 export const appRouter = Router();
 
@@ -101,6 +102,7 @@ appRouter.get('/:hash', requireAuthIfProtected as any, async (req: any, res) => 
     const { cronJobs: _cronJobs, ...clientConfig } = (row.config as Record<string, unknown>) ?? {};
     return res.json({
       hash: row.hash,
+      userId: row.userId ?? null,
       appName: row.appName,
       description: row.description,
       config: clientConfig,
@@ -254,6 +256,15 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
       key,
       value,
     } as any);
+
+    // Run triggered jobs and wait for them so the client gets fresh data on the next
+    // fetchData() call. Cap at 15s to avoid blocking indefinitely on slow external APIs.
+    await Promise.race([
+      cronManager.runTriggeredJobs(row.id, key),
+      new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
+    ]).catch((err) => {
+      console.error('[POST /api/app/:hash/data] runTriggeredJobs error:', err);
+    });
 
     return res.json({ ok: true });
   } catch (error) {

@@ -46,9 +46,10 @@ chatRouter.post('/', limiter, async (req, res) => {
       return res.status(400).json({ error: 'Request body must be JSON' });
     }
 
-    const { sessionId, message } = req.body as {
+    const { sessionId, message, userId } = req.body as {
       sessionId: string;
       message: string;
+      userId?: string;
     };
 
     if (!sessionId || typeof sessionId !== 'string') {
@@ -62,6 +63,11 @@ chatRouter.post('/', limiter, async (req, res) => {
     }
     if (message.length > 4000) {
       return res.status(400).json({ error: 'Message too long' });
+    }
+    if (userId !== undefined) {
+      if (typeof userId !== 'string' || !/^[A-Za-z0-9]{1,50}$/.test(userId)) {
+        return res.status(400).json({ error: 'Invalid userId format' });
+      }
     }
 
     // Load previous messages for this session (most recent 20, then reverse for chronological order).
@@ -144,6 +150,7 @@ chatRouter.post('/', limiter, async (req, res) => {
         .insert(apps)
         .values({
           hash,
+          userId: userId ?? null,
           appName: appName.trim().slice(0, 200),
           description: typeof claudeResponse.appConfig.description === 'string'
             ? claudeResponse.appConfig.description.slice(0, 500)
