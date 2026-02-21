@@ -104,7 +104,7 @@
 
           <!-- Input bar -->
           <div class="user-view__input-wrapper">
-            <InputBar @submit="handleChatSubmit" />
+            <InputBar :last-assistant-message="lastAssistantMessage" @submit="handleChatSubmit" />
           </div>
         </div>
       </div>
@@ -128,6 +128,14 @@ const userStore = useUserStore()
 
 const userId = computed(() => route.params.userId as string)
 const loadingUser = ref(true)
+
+const lastAssistantMessage = computed(() => {
+  const msgs = chatStore.messages
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === 'assistant') return msgs[i].content
+  }
+  return undefined
+})
 const userNotFound = ref(false)
 const loadingApps = ref(false)
 const chatLoading = ref(false)

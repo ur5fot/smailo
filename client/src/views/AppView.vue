@@ -114,7 +114,7 @@
 
           <!-- Input bar -->
           <div class="app-view__input-wrapper">
-            <InputBar @submit="handleChatSubmit" />
+            <InputBar :last-assistant-message="lastAssistantMessage" @submit="handleChatSubmit" />
           </div>
         </div>
       </div>
@@ -152,6 +152,13 @@ const chatLoading = ref(false)
 const messagesRef = ref<HTMLElement | null>(null)
 
 const chatMessages = ref<ChatMessage[]>([])
+
+const lastAssistantMessage = computed(() => {
+  for (let i = chatMessages.value.length - 1; i >= 0; i--) {
+    if (chatMessages.value[i].role === 'assistant') return chatMessages.value[i].content
+  }
+  return undefined
+})
 
 // Transform appData array to a key→value map for AppRenderer
 const appDataMap = computed<Record<string, any>>(() => {
