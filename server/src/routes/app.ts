@@ -127,9 +127,10 @@ appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash:
     if (password.length < 8) {
       return res.status(400).json({ error: 'password must be at least 8 characters' });
     }
-    // bcrypt silently truncates at 72 bytes; reject longer inputs to prevent DoS via slow hashing
-    if (password.length > 72) {
-      return res.status(400).json({ error: 'password must be at most 72 characters' });
+    // bcrypt truncates at 72 bytes (not chars); check byte length so multi-byte Unicode passwords
+    // cannot produce hash collisions by differing only after byte 72
+    if (Buffer.byteLength(password, 'utf8') > 72) {
+      return res.status(400).json({ error: 'password must be at most 72 bytes' });
     }
     if (!creationToken || typeof creationToken !== 'string') {
       return res.status(400).json({ error: 'creationToken is required' });
@@ -189,8 +190,8 @@ appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: strin
     if (!password || typeof password !== 'string') {
       return res.status(400).json({ error: 'password is required' });
     }
-    if (password.length > 72) {
-      return res.status(400).json({ error: 'password must be at most 72 characters' });
+    if (Buffer.byteLength(password, 'utf8') > 72) {
+      return res.status(400).json({ error: 'password must be at most 72 bytes' });
     }
 
     const [row] = await db.select().from(apps).where(eq(apps.hash, hash));

@@ -155,7 +155,12 @@ onMounted(async () => {
   chatStore.reset()
   try {
     await userStore.fetchUser(userId.value)
-    localStorage.setItem('smailo_user_id', userId.value)
+    // Only write to localStorage if we don't already have a different stored identity.
+    // Visiting another user's page should not overwrite the current user's stored ID.
+    const storedId = localStorage.getItem('smailo_user_id')
+    if (!storedId || storedId === userId.value) {
+      localStorage.setItem('smailo_user_id', userId.value)
+    }
   } catch (err: any) {
     userNotFound.value = true
     loadingUser.value = false
