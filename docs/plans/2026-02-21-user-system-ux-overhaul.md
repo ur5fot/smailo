@@ -124,7 +124,7 @@
 
 ### Task 9: Обновить AI промпты
 
-- [ ] **UX best practices** в `BRAINSTORM_SYSTEM_PROMPT`:
+- [x] **UX best practices** в `BRAINSTORM_SYSTEM_PROMPT`:
   ```
   UX RULES (always follow when designing apps):
   - Use the user's language for all labels, titles, button text
@@ -137,13 +137,13 @@
   - Use Accordion to group related but less-important info (hide clutter)
   - Always show a "last updated" Card or Tag using {outputKey}_updated_at when fetch_url is used
   ```
-- [ ] **Numbered options** в `BRAINSTORM_SYSTEM_PROMPT` и `IN_APP_SYSTEM_PROMPT`:
+- [x] **Numbered options** в `BRAINSTORM_SYSTEM_PROMPT` и `IN_APP_SYSTEM_PROMPT`:
   ```
   NUMBERED OPTIONS: When presenting multiple choices or asking the user to pick between options,
   ALWAYS number them: "1. Option A\n2. Option B\n3. Option C"
   If the user replies with just a number (e.g. "2"), treat it as selecting that option.
   ```
-- [ ] Добавить описание новых компонентов (Accordion, Panel, Tabs, Image, Chip, Badge, Slider, Rating, MeterGroup) в систем промпт
+- [x] Добавить описание новых компонентов (Accordion, Panel, Tabs, Image, Chip, Badge, Slider, Rating, MeterGroup) в систем промпт
 
 ### Task 10: Нумерация вариантов на фронте
 
