@@ -94,7 +94,7 @@
             />
           </div>
           <p v-if="passwordError" class="home__password-error">{{ passwordError }}</p>
-          <button class="home__skip-btn" @click="passwordSet = true">Skip</button>
+          <button class="home__skip-btn" @click="passwordSet = true; chatStore.creationToken = null; sessionStorage.removeItem('smailo_creationToken'); sessionStorage.removeItem('smailo_appHash')">Skip</button>
         </div>
         <div v-else class="home__password-done">
           <i class="pi pi-lock" /> Protected
@@ -135,6 +135,8 @@ const smailoMood = computed<Mood>(() => {
 })
 
 async function handleSubmit(message: string) {
+  if (chatStore.phase === 'created') return
+
   if (!chatStore.sessionId) {
     chatStore.sessionId = uuidv4()
   }

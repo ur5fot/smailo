@@ -57,7 +57,6 @@
 <script setup lang="ts">
 import Chart from 'primevue/chart'
 import Timeline from 'primevue/timeline'
-import Carousel from 'primevue/carousel'
 import Knob from 'primevue/knob'
 import Tag from 'primevue/tag'
 import ProgressBar from 'primevue/progressbar'
@@ -90,7 +89,6 @@ const emit = defineEmits<{
 const componentMap: Record<string, any> = {
   Chart,
   Timeline,
-  Carousel,
   Knob,
   Tag,
   ProgressBar,

@@ -31,10 +31,18 @@ export const useChatStore = defineStore('chat', () => {
     messages.value.push({ role: 'user', content: text })
     mood.value = 'thinking'
 
-    const res = await api.post('/chat', {
-      sessionId: sessionId.value,
-      message: text,
-    })
+    let res
+    try {
+      res = await api.post('/chat', {
+        sessionId: sessionId.value,
+        message: text,
+      })
+    } catch (err) {
+      // Remove the optimistically-pushed user message so it doesn't linger after failure.
+      messages.value.pop()
+      mood.value = 'confused'
+      throw err
+    }
 
     const data = res.data
     mood.value = data.mood || 'idle'

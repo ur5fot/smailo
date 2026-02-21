@@ -173,7 +173,7 @@ Keep responses concise and helpful. Focus on the user's data and app context.`;
 
 const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
 const ALLOWED_UI_COMPONENTS = [
-  'Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar',
+  'Card', 'Chart', 'Timeline', 'Knob', 'Tag', 'ProgressBar',
   'Calendar', 'DataTable', 'Button', 'InputText', 'Form',
 ];
 

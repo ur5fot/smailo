@@ -450,7 +450,8 @@ class CronManager {
     const dataKey = ((config.dataKey as string) ?? '').slice(0, 100);
     const operation = (config.operation as string) ?? 'avg';
     const rawOutputKey = ((config.outputKey as string) ?? `${dataKey}_${operation}`).slice(0, 100);
-    const outputKey = CRON_KEY_REGEX.test(rawOutputKey) ? rawOutputKey : `${dataKey}_${operation}`.slice(0, 100);
+    const fallbackKey = `${dataKey}_${operation}`.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 100);
+    const outputKey = CRON_KEY_REGEX.test(rawOutputKey) ? rawOutputKey : fallbackKey;
     // Guard against non-numeric windowDays which would produce NaN and crash toISOString().
     const rawWindowDays = config.windowDays;
     const windowDays = typeof rawWindowDays === 'number' && isFinite(rawWindowDays)
@@ -492,6 +493,7 @@ class CronManager {
       .filter((v): v is number => v !== null);
 
     if (numbers.length === 0) {
+      console.warn(`[CronManager] aggregate_data: no numeric values found for key "${dataKey}" in app ${appId}`);
       return;
     }
 
