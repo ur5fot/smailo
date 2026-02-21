@@ -4,11 +4,13 @@ A personal AI applications builder. Chat with Smailo — an expressive AI assist
 
 ## How It Works
 
-1. Open the home page and describe your app idea to Smailo
-2. Smailo walks you through a brainstorm → confirm → created flow
-3. Once created, your app gets a unique URL you can bookmark
-4. Optionally set a password to protect your app
-5. Inside your app, chat with Smailo to update the UI or add automations
+1. Open the home page — create a new personal user ID or enter an existing one
+2. On your user page, describe your app idea to Smailo in the AI chat
+3. Smailo walks you through a brainstorm → confirm → created flow
+4. Once created, your app gets a unique URL at `/:userId/:hash` you can bookmark
+5. Optionally set a password to protect your app
+6. Inside your app, chat with Smailo in the right panel to update the UI or add automations
+7. All your apps are listed on your personal page `/:userId`
 
 ## Prerequisites
 
@@ -55,40 +57,57 @@ smailo/
 │   └── src/
 │       ├── components/
 │       │   ├── Smailo.vue        # Animated SVG character (5 moods)
-│       │   ├── InputBar.vue      # Text input with speech recognition
+│       │   ├── InputBar.vue      # Text input with quick-number buttons for numbered options
 │       │   ├── AppRenderer.vue   # Dynamic PrimeVue component renderer
 │       │   ├── AppCard.vue       # Card wrapper (uses PrimeVue slots)
 │       │   ├── AppDataTable.vue  # DataTable wrapper (auto-generates columns)
 │       │   ├── AppButton.vue     # Clickable button that writes to appData
 │       │   ├── AppInputText.vue  # Text/number input with Save button
-│       │   └── AppForm.vue       # Multi-field form that writes a combined object
+│       │   ├── AppForm.vue       # Multi-field form that writes a combined object
+│       │   ├── AppAccordion.vue  # Accordion wrapper for collapsible sections
+│       │   ├── AppPanel.vue      # Panel wrapper with header slot
+│       │   └── AppTabs.vue       # Tabs wrapper showing data per tab
 │       ├── views/
-│       │   ├── HomeView.vue      # Chat interface for creating apps
-│       │   └── AppView.vue       # Per-app view with auth and data
+│       │   ├── HomeView.vue      # Landing: create/enter user ID
+│       │   ├── UserView.vue      # User page: app list (left) + AI chat for creating apps (right)
+│       │   └── AppView.vue       # Two-column: AppRenderer (left) + in-app AI chat (right)
 │       ├── stores/
-│       │   ├── chat.ts           # Pinia store for home chat state
+│       │   ├── user.ts           # Pinia store for user identity and app list
+│       │   ├── chat.ts           # Pinia store for app creation chat state
 │       │   └── app.ts            # Pinia store for app data and auth
 │       ├── api/index.ts          # Axios instance with JWT interceptor
-│       └── router/index.ts       # Vue Router (/ and /app/:hash)
+│       └── router/index.ts       # Vue Router: /, /:userId, /:userId/:hash, /app/:hash
 │
 └── server/                 # Express + TypeScript backend
     └── src/
         ├── db/
-        │   ├── schema.ts         # Drizzle schema: apps, cronJobs, appData, chatHistory
+        │   ├── schema.ts         # Drizzle schema: users, apps, cronJobs, appData, chatHistory
         │   └── index.ts          # SQLite + Drizzle connection
         ├── services/
         │   ├── aiService.ts      # Unified AI service: Anthropic or DeepSeek via AI_PROVIDER
         │   └── cronManager.ts    # node-cron scheduler for app automations
         ├── routes/
+        │   ├── users.ts          # POST/GET /api/users — user creation and lookup
         │   ├── chat.ts           # POST /api/chat — home brainstorm flow
         │   └── app.ts            # GET/POST /api/app/:hash — app access and chat
         └── index.ts              # Express entry point
 ```
 
+### Routes
+
+| Path | View | Description |
+|------|------|-------------|
+| `/` | HomeView | Landing — create new user or enter existing userId |
+| `/:userId` | UserView | Personal page with app list and AI creation chat |
+| `/:userId/:hash` | AppView | App view with two-column layout |
+| `/app/:hash` | AppView | Backward-compatible (userId = null) |
+
 ### Data Flow
 
-- Home chat: client → `POST /api/chat` → AI service (brainstorm phase) → response with mood/phase
-- App creation: when the AI service returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, and schedules any cron jobs
+- User creation: client → `POST /api/users` → returns `{ userId }` → stored in `localStorage`
+- App list: client → `GET /api/users/:userId/apps` → list of user's apps
+- Creation chat: client → `POST /api/chat` (with `userId`) → AI service (brainstorm phase) → response with mood/phase
+- App creation: when the AI service returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row (with `userId`), and schedules any cron jobs
 - App access: client → `GET /api/app/:hash` → returns config + latest appData (JWT required if password set)
 - In-app chat: client → `POST /api/app/:hash/chat` → AI service (chat phase) → optional UI update
 - User-triggered writes: Button/InputText/Form components → `POST /api/app/:hash/data` → appData updated, UI refreshes

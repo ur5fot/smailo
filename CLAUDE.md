@@ -42,15 +42,24 @@ smailo/
 
 npm workspaces; root `package.json` has scripts that delegate to both.
 
+### Routes
+
+```
+/                   → HomeView       (landing: create user or enter existing userId)
+/:userId            → UserView       (user's app list + AI chat for creating apps)
+/:userId/:hash      → AppView        (two-column: app left, AI assistant right)
+/app/:hash          → AppView        (backward-compatible; userId = null)
+```
+
 ### App lifecycle (the core flow)
 
-Apps are created through a **three-phase home chat** (`POST /api/chat`):
+Users first get a `userId` (10-char nanoid stored in `localStorage` as `smailo_user_id`). Apps are then created through a **three-phase home chat** (`POST /api/chat`):
 
 1. **brainstorm** — AI asks clarifying questions about the app idea
 2. **confirm** — AI returns an `appConfig` JSON for the user to review
-3. **created** — user confirms; server creates the app row, generates a 64-char hex `hash`, and schedules cron jobs
+3. **created** — user confirms; server creates the app row, generates a 64-char hex `hash`, and schedules cron jobs; `userId` is saved in `apps.userId`
 
-Once created, the app lives at `/app/:hash`. Inside the app, a separate **chat** phase (`POST /api/app/:hash/chat`) lets the user update the UI layout via `uiUpdate`.
+Once created, the app lives at `/:userId/:hash`. The old `/app/:hash` route is kept for backward compatibility. Inside the app, a separate **chat** phase (`POST /api/app/:hash/chat`) lets the user update the UI layout via `uiUpdate`.
 
 Phase transitions are enforced server-side: `created` can only follow `confirm` — AI cannot skip phases.
 
@@ -109,11 +118,12 @@ All cron expressions must be 5-field only (no seconds). Minimum frequency: every
 
 ### Database (`server/src/db/schema.ts`)
 
-Four tables, all using Drizzle ORM with SQLite via better-sqlite3:
+Five tables, all using Drizzle ORM with SQLite via better-sqlite3:
 
 | Table | Purpose |
 |---|---|
-| `apps` | One row per created app; `config` stores uiComponents JSON; `cronJobs` stripped before storage |
+| `users` | Anonymous users; `userId` is a 10-char nanoid (unique); no auth — just identity |
+| `apps` | One row per created app; `config` stores uiComponents JSON; `cronJobs` stripped before storage; `userId` FK (nullable for old apps) |
 | `cron_jobs` | Automation jobs per app; `config` is action-specific JSON |
 | `app_data` | Append-only log of key/value entries written by cron jobs and user input components (Button, InputText, Form); queries always get latest row per key |
 | `chat_history` | Full chat history; home chat rows have `appId = NULL`; in-app rows use `sessionId = 'app-<hash>'` |
@@ -141,8 +151,20 @@ Input components write to `appData` directly without AI involvement:
 
 ### Client state
 
-Two Pinia stores:
-- `chat.ts` — home page state: messages array, current phase, appHash after creation
+Three Pinia stores:
+- `user.ts` — user identity: `userId`, list of user's apps; methods: `createUser()`, `fetchApps(userId)`
+- `chat.ts` — creation chat state: messages array, current phase, appHash after creation
 - `app.ts` — per-app state: app config, appData map, auth token, in-app chat messages
 
+Three views:
+- `HomeView.vue` — minimal landing: create new userId or enter existing one; no chat
+- `UserView.vue` — two-column: left = list of user's apps, right = Smailo + AI chat for creating apps
+- `AppView.vue` — two-column: left = AppRenderer + app data, right = Smailo + in-app chat
+
 Axios instance (`client/src/api/index.ts`) auto-attaches JWT from localStorage.
+
+### User API (`server/src/routes/users.ts`)
+
+- `POST /api/users` — generate userId (nanoid 10), insert into users, return `{ userId }`
+- `GET /api/users/:userId` — return `{ userId, createdAt }` or 404
+- `GET /api/users/:userId/apps` — return `[{ hash, appName, description, createdAt, lastVisit }]`
