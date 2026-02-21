@@ -87,7 +87,7 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
   ],
   "uiComponents": [
     {
-      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form",
+      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form" | "Accordion" | "Panel" | "Chip" | "Badge" | "Slider" | "Rating" | "Tabs" | "Image" | "MeterGroup",
       "props": { /* component-specific props — see component guide below */ },
       "dataKey": "key from appData to bind as value prop",
       "action": { "key": "appDataKey", "value": "optional fixed value" },  // for Button
@@ -116,6 +116,24 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Example: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
 - Form: use "fields" array with { name, type, label } objects and "outputKey" for the appData key. Use "props.submitLabel" to customize button text.
   Example: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }, { "name": "note", "type": "text", "label": "Заметка" }], "outputKey": "weight_entry" }
+- Accordion: collapsible sections. Use "props.tabs" array of { header, dataKey } objects. Each section shows data from its dataKey.
+  Example: { "component": "Accordion", "props": { "tabs": [{ "header": "Детали", "dataKey": "details" }, { "header": "История", "dataKey": "history" }] } }
+- Panel: titled panel. Use "props.header" for the title, "dataKey" to show data in the panel body.
+  Example: { "component": "Panel", "props": { "header": "Статистика", "toggleable": true }, "dataKey": "stats" }
+- Chip: compact label/tag. Use "props.label" for static text, or "dataKey" for dynamic value.
+  Example: { "component": "Chip", "props": { "label": "Активно" } }
+- Badge: numeric badge. Use "props.value" (number) and "props.severity" ("success", "danger", "warning", "info").
+  Example: { "component": "Badge", "props": { "value": 5, "severity": "warning" } }
+- Slider: read-only display slider. Use "dataKey" to bind numeric value, "props.min"/"props.max" for range.
+  Example: { "component": "Slider", "props": { "min": 0, "max": 100 }, "dataKey": "progress" }
+- Rating: star rating display (read-only). Use "dataKey" for numeric score, "props.stars" for max stars.
+  Example: { "component": "Rating", "props": { "stars": 5 }, "dataKey": "score" }
+- Tabs: tabbed content. Use "props.tabs" array of { label, dataKey } objects.
+  Example: { "component": "Tabs", "props": { "tabs": [{ "label": "Сегодня", "dataKey": "today" }, { "label": "Неделя", "dataKey": "week" }] } }
+- Image: display an image. Use "dataKey" for dynamic URL or "props.src" for static URL. Use "props.width" and "props.alt".
+  Example: { "component": "Image", "props": { "width": "200", "alt": "Фото" }, "dataKey": "image_url" }
+- MeterGroup: multi-segment progress meter. Use "dataKey" to bind array of { label, value, color } objects.
+  Example: { "component": "MeterGroup", "dataKey": "metrics" }
 
 NEVER use any component not listed above.
 
@@ -176,7 +194,11 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - DataTable: { "component": "DataTable", "props": { "columns": [{"field":"f","header":"H"}] }, "dataKey": "key" }
 - Chart: { "component": "Chart", "props": { "type": "line" }, "dataKey": "key" }
 - Knob: { "component": "Knob", "props": { "min": 0, "max": 100 }, "dataKey": "key" }
-- Tag, ProgressBar, Timeline, Calendar — supported.
+- Tag, ProgressBar, Timeline, Calendar, Chip, Badge, Slider, Rating, MeterGroup — supported (use dataKey for value binding).
+- Accordion: { "component": "Accordion", "props": { "tabs": [{ "header": "Заголовок", "dataKey": "key" }] } }
+- Panel: { "component": "Panel", "props": { "header": "Заголовок", "toggleable": true }, "dataKey": "key" }
+- Tabs: { "component": "Tabs", "props": { "tabs": [{ "label": "Вкладка", "dataKey": "key" }] } }
+- Image: { "component": "Image", "props": { "width": "200", "alt": "Изображение" }, "dataKey": "image_url" }
 - Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
 - InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
 - Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry" }
@@ -188,6 +210,7 @@ const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
 const ALLOWED_UI_COMPONENTS = [
   'Card', 'Chart', 'Timeline', 'Knob', 'Tag', 'ProgressBar',
   'Calendar', 'DataTable', 'Button', 'InputText', 'Form',
+  'Accordion', 'Panel', 'Chip', 'Badge', 'Slider', 'Rating', 'Tabs', 'Image', 'MeterGroup',
 ];
 
 /**

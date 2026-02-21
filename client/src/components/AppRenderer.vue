@@ -44,6 +44,26 @@
         @data-written="emit('data-written')"
       />
 
+      <!-- Accordion: collapsible sections with slot-based content -->
+      <AppAccordion
+        v-else-if="item.component === 'Accordion'"
+        :tabs="item.props?.tabs ?? []"
+        :app-data="props.appData"
+      />
+
+      <!-- Panel: titled panel with slot-based content -->
+      <AppPanel
+        v-else-if="item.component === 'Panel'"
+        v-bind="resolvedProps(item)"
+      />
+
+      <!-- Tabs: tabbed interface -->
+      <AppTabs
+        v-else-if="item.component === 'Tabs'"
+        :tabs="item.props?.tabs ?? []"
+        :app-data="props.appData"
+      />
+
       <!-- All other PrimeVue components via dynamic :is -->
       <component
         v-else-if="componentMap[item.component]"
@@ -61,11 +81,20 @@ import Knob from 'primevue/knob'
 import Tag from 'primevue/tag'
 import ProgressBar from 'primevue/progressbar'
 import DatePicker from 'primevue/datepicker'
+import Chip from 'primevue/chip'
+import Badge from 'primevue/badge'
+import Slider from 'primevue/slider'
+import Rating from 'primevue/rating'
+import Image from 'primevue/image'
+import MeterGroup from 'primevue/metergroup'
 import AppCard from './AppCard.vue'
 import AppDataTable from './AppDataTable.vue'
 import AppButton from './AppButton.vue'
 import AppInputText from './AppInputText.vue'
 import AppForm from './AppForm.vue'
+import AppAccordion from './AppAccordion.vue'
+import AppPanel from './AppPanel.vue'
+import AppTabs from './AppTabs.vue'
 
 interface UiConfigItem {
   component: string
@@ -93,6 +122,12 @@ const componentMap: Record<string, any> = {
   Tag,
   ProgressBar,
   Calendar: DatePicker,
+  Chip,
+  Badge,
+  Slider,
+  Rating,
+  Image,
+  MeterGroup,
 }
 
 // Strip event handler props (keys starting with 'on') to prevent stored XSS.

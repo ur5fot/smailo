@@ -110,17 +110,17 @@
 
 Добавить в `client/src/components/AppRenderer.vue` + `componentMap` + валидацию на сервере:
 
-- [ ] `Accordion` — сворачиваемые секции (нужен wrapper `AppAccordion.vue` т.к. использует слоты; принимает `value` массив `[{ header, content }]`)
-- [ ] `Panel` — панель с заголовком (wrapper `AppPanel.vue`; принимает `header` prop + `value` dataKey для содержимого)
-- [ ] `Chip` — метка/тег (простой компонент, prop `label`)
-- [ ] `Badge` — бейдж с числом (prop `value`, `severity`)
-- [ ] `Slider` — ползунок (read-only display; prop `value` от dataKey, `min`, `max`)
-- [ ] `Rating` — звёздная оценка (read-only; prop `value` от dataKey, `stars`)
-- [ ] `Tabs` — вкладки (wrapper `AppTabs.vue`; принимает `tabs: [{label, dataKey}]` — каждая вкладка показывает данные по dataKey)
-- [ ] `Image` — изображение (prop `src` от dataKey или props, `width`, `alt`)
-- [ ] `MeterGroup` — прогресс с несколькими секциями (prop `value` массив `[{label, value, color}]`)
-- [ ] Обновить whitelist компонентов в `server/src/services/aiService.ts` (validateUiComponents)
-- [ ] Обновить `CLAUDE.md` — список разрешённых компонентов
+- [x] `Accordion` — сворачиваемые секции (нужен wrapper `AppAccordion.vue` т.к. использует слоты; принимает `value` массив `[{ header, content }]`)
+- [x] `Panel` — панель с заголовком (wrapper `AppPanel.vue`; принимает `header` prop + `value` dataKey для содержимого)
+- [x] `Chip` — метка/тег (простой компонент, prop `label`)
+- [x] `Badge` — бейдж с числом (prop `value`, `severity`)
+- [x] `Slider` — ползунок (read-only display; prop `value` от dataKey, `min`, `max`)
+- [x] `Rating` — звёздная оценка (read-only; prop `value` от dataKey, `stars`)
+- [x] `Tabs` — вкладки (wrapper `AppTabs.vue`; принимает `tabs: [{label, dataKey}]` — каждая вкладка показывает данные по dataKey)
+- [x] `Image` — изображение (prop `src` от dataKey или props, `width`, `alt`)
+- [x] `MeterGroup` — прогресс с несколькими секциями (prop `value` массив `[{label, value, color}]`)
+- [x] Обновить whitelist компонентов в `server/src/services/aiService.ts` (validateUiComponents)
+- [x] Обновить `CLAUDE.md` — список разрешённых компонентов
 
 ### Task 9: Обновить AI промпты
 

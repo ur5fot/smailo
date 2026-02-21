@@ -73,6 +73,7 @@ The AI generates and the server stores configs in this shape (cronJobs are store
   uiComponents: Array<{
     component: 'Card' | 'DataTable' | 'Chart' | 'Timeline' | 'Knob' | 'Tag' | 'ProgressBar' | 'Calendar'
              | 'Button' | 'InputText' | 'Form'
+             | 'Accordion' | 'Panel' | 'Chip' | 'Badge' | 'Slider' | 'Rating' | 'Tabs' | 'Image' | 'MeterGroup'
     props: Record<string, unknown>  // component-specific, no 'on*' props
     dataKey?: string                // key into appData to bind as value/data prop
     // Input component fields (top-level, NOT inside props):
@@ -85,11 +86,14 @@ The AI generates and the server stores configs in this shape (cronJobs are store
 
 ### Dynamic UI rendering (`client/src/components/AppRenderer.vue`)
 
-Iterates `uiConfig` array and renders each component dynamically. Five components use dedicated wrappers:
+Iterates `uiConfig` array and renders each component dynamically. Eight components use dedicated wrappers:
 - `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue` (data display)
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
+- `Accordion` → `AppAccordion.vue`, `Panel` → `AppPanel.vue`, `Tabs` → `AppTabs.vue` (slot-based layout)
 
 All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map; for `Chart` it binds to `data` prop, for all others to `value` prop. Props starting with `on` are stripped **client-side only** (in `resolvedProps`); the server whitelist validates component names and prop object shape but does not remove individual `on*` keys.
+
+New display-only components: `Chip` (label tag), `Badge` (numeric badge with severity), `Slider` (read-only range slider), `Rating` (star display), `Image` (image from URL), `MeterGroup` (multi-segment progress). Accordion/Panel/Tabs use `props.tabs` array instead of `dataKey`.
 
 Input wrapper components call `POST /api/app/:hash/data` on user interaction and emit `'data-written'`, which bubbles up through `AppRenderer` to `AppView.vue`, triggering `appStore.fetchData(hash)` to refresh displayed data.
 
