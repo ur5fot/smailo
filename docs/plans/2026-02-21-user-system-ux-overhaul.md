@@ -64,14 +64,14 @@
 
 ### Task 4: Новая домашняя страница (лендинг)
 
-- [ ] Переписать `client/src/views/HomeView.vue`:
+- [x] Переписать `client/src/views/HomeView.vue`:
   - По центру: Smailo (200px, mood='idle') + заголовок "Smailo"
   - Кнопка "Создать нового пользователя" → POST /api/users → redirect `/:userId`
   - Разделитель "или"
   - Поле InputText "Введите ID пользователя" + кнопка "Перейти" → redirect `/:userId`
   - Если userId не найден (GET /api/users/:userId вернул 404) — показать ошибку
-- [ ] Убрать весь старый чат-интерфейс из HomeView (он переедет в UserView)
-- [ ] Хранить userId в localStorage `smailo_user_id` — если уже есть, предзаполнить поле или сразу редиректить
+- [x] Убрать весь старый чат-интерфейс из HomeView (он переедет в UserView)
+- [x] Хранить userId в localStorage `smailo_user_id` — если уже есть, предзаполнить поле или сразу редиректить
 
 ### Task 5: UserView — страница пользователя
 
