@@ -258,15 +258,56 @@ const VALUE_MAX_BYTES = 10_000;
 appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async (req: any, res) => {
   try {
     const row: typeof apps.$inferSelect = req.app_row;
-    const { key, value } = req.body as { key: unknown; value: unknown };
+    const { key, value, mode, index } = req.body as { key: unknown; value: unknown; mode?: unknown; index?: unknown };
 
     if (!key || typeof key !== 'string' || !KEY_REGEX.test(key)) {
       return res.status(400).json({ error: 'key must be alphanumeric/underscore, max 100 chars' });
     }
+
+    // delete-item: remove item at index from stored array
+    if (mode === 'delete-item') {
+      if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) {
+        return res.status(400).json({ error: 'index must be a non-negative integer' });
+      }
+      const [existing] = await db
+        .select()
+        .from(appData)
+        .where(
+          sql`${appData.appId} = ${row.id} AND ${appData.id} IN (
+            SELECT MAX(id) FROM app_data WHERE app_id = ${row.id} AND key = ${key}
+          )`
+        );
+      const current = Array.isArray(existing?.value) ? existing.value : [];
+      const updated = current.filter((_: unknown, i: number) => i !== index);
+      await db.insert(appData).values({ appId: row.id, key, value: updated } as any);
+      return res.json({ ok: true });
+    }
+
     if (value === undefined || value === null) {
       return res.status(400).json({ error: 'value is required' });
     }
-    const serialized = JSON.stringify(value);
+
+    let storedValue: unknown = value;
+
+    if (mode === 'append') {
+      // Read the current array value for this key and append the new item.
+      const [existing] = await db
+        .select()
+        .from(appData)
+        .where(
+          sql`${appData.appId} = ${row.id} AND ${appData.id} IN (
+            SELECT MAX(id) FROM app_data WHERE app_id = ${row.id} AND key = ${key}
+          )`
+        );
+      const current = existing?.value;
+      // Wrap primitive values as objects so DataTable can bind to named fields.
+      const item = (typeof value === 'string' || typeof value === 'number')
+        ? { value, timestamp: new Date().toISOString() }
+        : value;
+      storedValue = Array.isArray(current) ? [...current, item] : [item];
+    }
+
+    const serialized = JSON.stringify(storedValue);
     if (Buffer.byteLength(serialized, 'utf8') > VALUE_MAX_BYTES) {
       return res.status(413).json({ error: 'value too large' });
     }
@@ -276,7 +317,7 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
     await db.insert(appData).values({
       appId: row.id,
       key,
-      value,
+      value: storedValue,
     } as any);
 
     // Run triggered jobs and wait for them so the client gets fresh data on the next

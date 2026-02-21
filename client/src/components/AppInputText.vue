@@ -8,6 +8,13 @@
         :placeholder="placeholder"
         class="app-input-text__input"
       />
+      <DatePicker
+        v-else-if="type === 'date'"
+        v-model="dateValue"
+        :placeholder="placeholder"
+        dateFormat="dd.mm.yy"
+        class="app-input-text__input"
+      />
       <InputText
         v-else
         v-model="textValue"
@@ -29,13 +36,14 @@ import { ref } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
+import DatePicker from 'primevue/datepicker'
 import api from '../api'
 
 const props = defineProps<{
   label?: string
-  type?: 'text' | 'number'
+  type?: 'text' | 'number' | 'date'
   placeholder?: string
-  action: { key: string }
+  action: { key: string; mode?: 'append' }
   hash: string
 }>()
 
@@ -45,11 +53,19 @@ const emit = defineEmits<{
 
 const numericValue = ref<number | null>(null)
 const textValue = ref('')
+const dateValue = ref<Date | null>(null)
 const loading = ref(false)
 const errorMsg = ref('')
 
 async function handleSave() {
-  const value = props.type === 'number' ? numericValue.value : textValue.value
+  let value: unknown
+  if (props.type === 'number') {
+    value = numericValue.value
+  } else if (props.type === 'date') {
+    value = dateValue.value ? (dateValue.value as Date).toISOString() : null
+  } else {
+    value = textValue.value
+  }
   if (value === null || (typeof value === 'string' && value.trim() === '')) {
     errorMsg.value = 'Введите значение.'
     return
@@ -60,9 +76,11 @@ async function handleSave() {
     await api.post(`/app/${props.hash}/data`, {
       key: props.action.key,
       value,
+      ...(props.action.mode === 'append' ? { mode: 'append' } : {}),
     })
     numericValue.value = null
     textValue.value = ''
+    dateValue.value = null
     emit('data-written')
   } catch {
     errorMsg.value = 'Не удалось сохранить. Попробуйте ещё раз.'

@@ -74,6 +74,18 @@
           <div class="user-view__messages" ref="messagesRef">
             <div v-if="chatStore.messages.length === 0" class="user-view__welcome">
               <p>Привет! Расскажите, какое приложение вы хотите создать?</p>
+              <div class="user-view__suggestions">
+                <button
+                  v-for="s in SUGGESTIONS"
+                  :key="s.text"
+                  class="user-view__suggestion"
+                  :disabled="chatLoading"
+                  @click="fillSuggestion(s.text)"
+                >
+                  <span class="user-view__suggestion-icon">{{ s.icon }}</span>
+                  {{ s.label }}
+                </button>
+              </div>
             </div>
 
             <template v-for="(msg, i) in chatStore.messages" :key="i">
@@ -128,7 +140,7 @@
 
           <!-- Input bar -->
           <div class="user-view__input-wrapper">
-            <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading" @submit="handleChatSubmit" />
+            <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading" :fill-text="pendingSuggestion" @submit="handleChatSubmit" />
           </div>
         </div>
       </div>
@@ -166,6 +178,20 @@ const userNotFound = ref(false)
 const loadingApps = ref(false)
 const chatLoading = ref(false)
 const messagesRef = ref<HTMLElement | null>(null)
+const pendingSuggestion = ref<{ text: string; key: number }>({ text: '', key: 0 })
+
+const SUGGESTIONS = [
+  { icon: '⚖️', label: 'Трекер веса', text: 'Хочу трекер веса — вводить значение каждый день и видеть график динамики' },
+  { icon: '😊', label: 'Трекер настроения', text: 'Хочу трекер настроения — оценивать день по шкале 1–10 и смотреть статистику за неделю' },
+  { icon: '💧', label: 'Напоминание пить воду', text: 'Хочу приложение с напоминанием пить воду каждые 2 часа' },
+  { icon: '💱', label: 'Курс валют', text: 'Хочу виджет с актуальным курсом USD/EUR к рублю, обновляется каждые 30 минут' },
+  { icon: '📅', label: 'Счётчик дат', text: 'Хочу счётчик разницы между двумя датами — в днях, месяцах и годах' },
+  { icon: '✅', label: 'Список задач', text: 'Хочу простой список задач — добавлять задачи и отмечать выполненные' },
+]
+
+function fillSuggestion(text: string) {
+  pendingSuggestion.value = { text, key: Date.now() }
+}
 
 async function loadApps() {
   loadingApps.value = true
@@ -422,6 +448,7 @@ watch(
 
 .user-view__welcome {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
@@ -433,6 +460,45 @@ watch(
 
 .user-view__welcome p {
   margin: 0;
+}
+
+.user-view__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.user-view__suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 2rem;
+  background: #fff;
+  color: #374151;
+  font-size: 0.825rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.user-view__suggestion:hover:not(:disabled) {
+  border-color: #6366f1;
+  background: #f5f3ff;
+  color: #6366f1;
+}
+
+.user-view__suggestion:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.user-view__suggestion-icon {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 /* ── Chat bubbles ── */

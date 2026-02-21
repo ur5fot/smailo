@@ -131,7 +131,7 @@ class CronManager {
 
   private static readonly MAX_JOBS_PER_APP = 5;
 
-  private static readonly ALLOWED_ACTIONS = new Set(['log_entry', 'fetch_url', 'send_reminder', 'aggregate_data']);
+  private static readonly ALLOWED_ACTIONS = new Set(['log_entry', 'fetch_url', 'send_reminder', 'aggregate_data', 'compute']);
 
   async addJobs(appId: number, jobs: CronJobConfig[]): Promise<void> {
     const capped = jobs.slice(0, CronManager.MAX_JOBS_PER_APP);
@@ -264,6 +264,9 @@ class CronManager {
         break;
       case 'aggregate_data':
         await this.handleAggregateData(appId, config);
+        break;
+      case 'compute':
+        await this.handleCompute(appId, config);
         break;
       default:
         console.warn(`[CronManager] Unknown action type: ${action}`);
@@ -609,6 +612,48 @@ class CronManager {
       return;
     }
     await db.insert(appData).values({ appId, key: outputKey, value: result } as any);
+  }
+
+  private async handleCompute(appId: number, config: ActionConfig): Promise<void> {
+    const operation = (config.operation as string) ?? '';
+    const rawOutputKey = ((config.outputKey as string) ?? '').slice(0, 100);
+    const outputKey = CRON_KEY_REGEX.test(rawOutputKey) ? rawOutputKey : null;
+    if (!outputKey) {
+      console.warn(`[CronManager] compute: missing or invalid outputKey for app ${appId}`);
+      return;
+    }
+
+    if (operation === 'date_diff') {
+      const inputKeys = config.inputKeys as string[] | undefined;
+      if (!Array.isArray(inputKeys) || inputKeys.length < 2) {
+        console.warn(`[CronManager] compute date_diff: requires inputKeys array with 2 keys for app ${appId}`);
+        return;
+      }
+      const dataMap = await this.getLatestDataMap(appId);
+      const rawA = dataMap.get(inputKeys[0]);
+      const rawB = dataMap.get(inputKeys[1]);
+      if (!rawA || !rawB) {
+        console.warn(`[CronManager] compute date_diff: one or both input keys not found for app ${appId}`);
+        return;
+      }
+      const dateA = new Date(typeof rawA === 'string' ? rawA : String(rawA));
+      const dateB = new Date(typeof rawB === 'string' ? rawB : String(rawB));
+      if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+        console.warn(`[CronManager] compute date_diff: invalid date values for app ${appId}`);
+        return;
+      }
+      const [earlier, later] = dateA <= dateB ? [dateA, dateB] : [dateB, dateA];
+      const totalDays = Math.floor((later.getTime() - earlier.getTime()) / (1000 * 60 * 60 * 24));
+      let years = later.getFullYear() - earlier.getFullYear();
+      let months = later.getMonth() - earlier.getMonth();
+      let days = later.getDate() - earlier.getDate();
+      if (days < 0) { months -= 1; days += new Date(later.getFullYear(), later.getMonth(), 0).getDate(); }
+      if (months < 0) { years -= 1; months += 12; }
+      const result = { totalDays, years, months, days };
+      await db.insert(appData).values({ appId, key: outputKey, value: result } as any);
+    } else {
+      console.warn(`[CronManager] compute: unknown operation "${operation}" for app ${appId}`);
+    }
   }
 
   /**

@@ -40,6 +40,7 @@
         :fields="item.fields"
         :output-key="item.outputKey"
         :submit-label="item.props?.submitLabel"
+        :append-mode="item.appendMode"
         :hash="props.hash"
         @data-written="emit('data-written')"
       />
@@ -55,6 +56,15 @@
       <AppPanel
         v-else-if="item.component === 'Panel'"
         v-bind="resolvedProps(item)"
+      />
+
+      <!-- CardList: dynamic card-per-item list from appData array, with per-item delete -->
+      <AppCardList
+        v-else-if="item.component === 'CardList'"
+        v-bind="resolvedProps(item)"
+        :data-key="item.dataKey"
+        :hash="props.hash"
+        @data-written="emit('data-written')"
       />
 
       <!-- Tabs: tabbed interface -->
@@ -95,14 +105,16 @@ import AppForm from './AppForm.vue'
 import AppAccordion from './AppAccordion.vue'
 import AppPanel from './AppPanel.vue'
 import AppTabs from './AppTabs.vue'
+import AppCardList from './AppCardList.vue'
 
 interface UiConfigItem {
   component: string
   props: Record<string, any>
   dataKey?: string
-  action?: { key: string; value?: unknown }
+  action?: { key: string; value?: unknown; mode?: 'append' }
   fields?: Array<{ name: string; type: string; label: string }>
   outputKey?: string
+  appendMode?: boolean
 }
 
 const props = defineProps<{

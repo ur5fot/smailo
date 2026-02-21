@@ -24,9 +24,10 @@ export type UiComponent = {
   component: string;
   props: Record<string, unknown>;
   dataKey?: string;
-  action?: { key: string; value?: unknown };
+  action?: { key: string; value?: unknown; mode?: 'append' };
   fields?: Array<{ name: string; type: string; label: string }>;
   outputKey?: string;
+  appendMode?: boolean;
 };
 
 export type AppConfig = {
@@ -82,13 +83,13 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
       "name": "Job display name",
       "schedule": "cron expression e.g. 0 9 * * *",
       "humanReadable": "Every day at 9am",
-      "action": "log_entry" | "fetch_url" | "send_reminder" | "aggregate_data",
+      "action": "log_entry" | "fetch_url" | "send_reminder" | "aggregate_data" | "compute",
       "config": { /* action-specific config */ }
     }
   ],
   "uiComponents": [
     {
-      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form" | "Accordion" | "Panel" | "Chip" | "Badge" | "Slider" | "Rating" | "Tabs" | "Image" | "MeterGroup",
+      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form" | "Accordion" | "Panel" | "Chip" | "Badge" | "Slider" | "Rating" | "Tabs" | "Image" | "MeterGroup" | "CardList",
       "props": { /* component-specific props — see component guide below */ },
       "dataKey": "key from appData to bind as value prop",
       "action": { "key": "appDataKey", "value": "optional fixed value" },  // for Button
@@ -113,11 +114,21 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
 - Timeline: use "dataKey" to bind array of { date, content } objects.
 - Button: use "label" prop and optional "severity" ("success", "danger", "warning", "info"). Use "action" with { key, value } to write a fixed value on click.
   Example: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
-- InputText: use "label", "type" ("text" or "number"), "placeholder" props. Use "action" with { key } — value comes from user input.
+- InputText: use "label", "type" ("text", "number", or "date"), "placeholder" props. Use "action" with { key } — value comes from user input.
   IMPORTANT: InputText already has a built-in save button — do NOT add a separate Button to save its value.
-  Example: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
+  For date inputs use type "date" — renders a calendar date picker; saves as ISO string.
+  For ACCUMULATING values (lists), use action.mode "append" — each save ADDS to an array instead of overwriting.
+  When using InputText with mode "append", each item is stored as { value, timestamp }. Use CardList (preferred) or DataTable to display.
+  Example text: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
+  Example date: { "component": "InputText", "props": { "label": "Дата начала", "type": "date" }, "action": { "key": "start_date" } }
+  Example list: { "component": "InputText", "props": { "label": "Новая задача", "type": "text" }, "action": { "key": "tasks", "mode": "append" } }
+  CardList for InputText append list: { "component": "CardList", "dataKey": "tasks" }
 - Form: use "fields" array with { name, type, label } objects and "outputKey" for the appData key. Use "props.submitLabel" to customize button text.
+  Add "appendMode": true to ACCUMULATE submissions as an array (for lists, logs, task trackers).
+  With appendMode, use CardList (preferred) or DataTable to display. CardList auto-renders all fields per item.
   Example: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }, { "name": "note", "type": "text", "label": "Заметка" }], "outputKey": "weight_entry" }
+  Example list: { "component": "Form", "props": { "submitLabel": "Добавить задачу" }, "fields": [{ "name": "task", "type": "text", "label": "Задача" }], "outputKey": "tasks", "appendMode": true }
+  CardList for Form appendMode: { "component": "CardList", "dataKey": "tasks" }
 - Accordion: collapsible sections. Use "props.tabs" array of { header, dataKey } objects. Each section shows data from its dataKey.
   Example: { "component": "Accordion", "props": { "tabs": [{ "header": "Детали", "dataKey": "details" }, { "header": "История", "dataKey": "history" }] } }
 - Panel: titled panel. Use "props.header" for the title, "dataKey" to show data in the panel body.
@@ -136,6 +147,9 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Example: { "component": "Image", "props": { "width": "200", "alt": "Фото" }, "dataKey": "image_url" }
 - MeterGroup: multi-segment progress meter. Use "dataKey" to bind array of { label, value, color } objects.
   Example: { "component": "MeterGroup", "dataKey": "metrics" }
+- CardList: DYNAMIC card-per-item list from an appData array. Use "dataKey" to bind the array. Each item renders as a separate card. PREFERRED for any list/log/task tracker where items are added one by one.
+  Works with both InputText append (shows value + timestamp) and Form appendMode (shows all form fields).
+  Example: { "component": "CardList", "dataKey": "tasks" }
 
 NEVER use any component not listed above.
 
@@ -151,6 +165,11 @@ ACTION CONFIG EXAMPLES:
 - fetch_url with API key from user input: { "url": "https://api.example.com/v1/{api_key}/data", "dataPath": "$.rate", "outputKey": "rate", "triggerOnKey": "refresh_trigger" }
 - send_reminder: { "text": "Don't forget to log your mood!", "outputKey": "reminder" }
 - aggregate_data: { "dataKey": "weight", "operation": "avg", "outputKey": "weight_avg_7d", "windowDays": 7 }
+- compute: { "operation": "date_diff", "inputKeys": ["start_date", "end_date"], "outputKey": "diff", "triggerOnKey": "calc_trigger" }
+  Use "compute" with "date_diff" to calculate the difference between two saved dates.
+  Result is stored as object { years, months, days, totalDays } — display fields via dot notation.
+  Always pair with a Button (triggerOnKey) so the calculation runs when the user clicks "Вычислить".
+  Display example: Card with dataKey "diff.totalDays" shows total days; Card with dataKey "diff.years" shows years.
 
 CRITICAL fetch_url rules:
 - Always set "outputKey" in the config — this is the key under which data is stored
@@ -166,8 +185,9 @@ CRITICAL fetch_url rules:
   Example: url "https://api.example.com/v1/{user_api_key}/rates" will replace {user_api_key} with the value stored under the "user_api_key" appData key.
   Use this when the user needs to enter their own API key via an InputText component.
 - TRIGGER ON BUTTON: add "triggerOnKey": "<key>" to run the job immediately when that appData key is written.
-  Pair with a Button whose action.key matches triggerOnKey so pressing the button fires the fetch instantly.
+  Pair with a Button whose action.key matches triggerOnKey so pressing the button fires the job instantly.
   Example: Button action { "key": "refresh_trigger", "value": 1 } + job config { "triggerOnKey": "refresh_trigger" }
+  This works for fetch_url AND compute — use it to make "Вычислить" buttons that trigger date_diff or other computations.
 
 UX RULES (always follow when designing apps):
 - Use the user's language for all labels, titles, button text
@@ -227,7 +247,12 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Image: { "component": "Image", "props": { "width": "200", "alt": "Изображение" }, "dataKey": "image_url" }
 - Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
 - InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
+  Use action.mode "append" to accumulate items: { "action": { "key": "notes", "mode": "append" } }
+  When InputText uses mode "append", items are stored as { value, timestamp }. Use CardList to display.
 - Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry" }
+  Add "appendMode": true to accumulate submissions as array. Use CardList to display — auto-renders all fields.
+- CardList: DYNAMIC card-per-item list — PREFERRED for any task/log/note list. Use "dataKey" to bind array.
+  { "component": "CardList", "dataKey": "tasks" }
 - NEVER use components not listed above.
 
 DATE/TIME DISPLAY: ISO timestamp strings are automatically formatted by the UI into human-readable dates (e.g. "21 февраля 2026, 17:09"). Always use ISO strings for dates — never format them manually.
@@ -246,7 +271,7 @@ const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
 const ALLOWED_UI_COMPONENTS = [
   'Card', 'Chart', 'Timeline', 'Knob', 'Tag', 'ProgressBar',
   'Calendar', 'DataTable', 'Button', 'InputText', 'Form',
-  'Accordion', 'Panel', 'Chip', 'Badge', 'Slider', 'Rating', 'Tabs', 'Image', 'MeterGroup',
+  'Accordion', 'Panel', 'Chip', 'Badge', 'Slider', 'Rating', 'Tabs', 'Image', 'MeterGroup', 'CardList',
 ];
 
 /**
@@ -300,7 +325,7 @@ function getDeepSeekClient(): OpenAI {
   return deepseekClient;
 }
 
-function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
+function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse | null {
   const start = rawText.indexOf('{');
   const end = rawText.lastIndexOf('}');
   const jsonText = start !== -1 && end > start ? rawText.slice(start, end + 1) : rawText.trim();
@@ -343,12 +368,10 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
     }
 
     return parsed;
-  } catch {
-    return {
-      mood: 'confused',
-      message: 'Кажется, я запутался. Можешь повторить?',
-      phase,
-    };
+  } catch (err) {
+    console.error('[parseResponse] Failed to parse AI response. Raw text (first 500 chars):', rawText.slice(0, 500));
+    console.error('[parseResponse] Parse error:', err instanceof Error ? err.message : err);
+    return null;
   }
 }
 
@@ -409,10 +432,31 @@ export async function chatWithAI(
       systemPrompt += `\n\nAPP MEMORY:\n${appContext.notes}`;
     }
   }
-  const rawText =
+  const callProvider = (msgs: ChatMessage[]) =>
     provider === 'deepseek'
-      ? await callDeepSeek(messages, systemPrompt)
-      : await callAnthropic(messages, systemPrompt);
-  return parseResponse(rawText, phase);
+      ? callDeepSeek(msgs, systemPrompt)
+      : callAnthropic(msgs, systemPrompt);
+
+  const rawText = await callProvider(messages);
+  const result = parseResponse(rawText, phase);
+  if (result) return result;
+
+  // Retry: send the broken response back and ask AI to fix the JSON format
+  console.warn('[chatWithAI] Retrying after invalid JSON response');
+  const retryMessages: ChatMessage[] = [
+    ...messages,
+    { role: 'assistant', content: rawText },
+    { role: 'user', content: 'Your previous response was not valid JSON. Please resend your answer as a single valid JSON object following the exact format from your instructions. No markdown, no explanation — only the JSON object.' },
+  ];
+  const retryText = await callProvider(retryMessages);
+  const retryResult = parseResponse(retryText, phase);
+  if (retryResult) return retryResult;
+
+  console.error('[chatWithAI] Retry also failed. Returning fallback.');
+  return {
+    mood: 'confused' as const,
+    message: 'Кажется, я запутался. Можешь повторить?',
+    phase,
+  };
 }
 

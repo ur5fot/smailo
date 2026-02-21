@@ -37,6 +37,7 @@ const props = defineProps<{
   fields: Array<{ name: string; type: string; label: string }>
   outputKey: string
   submitLabel?: string
+  appendMode?: boolean
   hash: string
 }>()
 
@@ -84,6 +85,7 @@ async function handleSubmit() {
     await api.post(`/app/${props.hash}/data`, {
       key: props.outputKey,
       value: formObject,
+      ...(props.appendMode ? { mode: 'append' } : {}),
     })
     for (const field of props.fields) {
       fieldValues[field.name] = field.type === 'number' ? null : ''

@@ -141,6 +141,7 @@ const questionRef = ref<SVGTextElement | null>(null)
 
 let activeTimeline: gsap.core.Timeline | null = null
 let headVibrateTween: gsap.core.Tween | null = null
+let thinkingActive = false
 
 // Default arm path points: [mx, my, qx, qy, ex, ey]
 const L_ARM_DEFAULT = [15, 62, 2, 68, 5, 78]
@@ -159,10 +160,13 @@ function morphHand(el: SVGCircleElement | null, fx: number, fy: number, tx: numb
 }
 
 function killActive() {
+  thinkingActive = false
   if (activeTimeline) {
     if ((activeTimeline as any)._sway) (activeTimeline as any)._sway.kill()
     if ((activeTimeline as any)._breathe) (activeTimeline as any)._breathe.kill()
     if ((activeTimeline as any)._blink) (activeTimeline as any)._blink.kill()
+    if ((activeTimeline as any)._scratch) (activeTimeline as any)._scratch.kill()
+    if ((activeTimeline as any)._leftSway) (activeTimeline as any)._leftSway.kill()
     activeTimeline.kill()
     activeTimeline = null
   }
@@ -266,18 +270,15 @@ function startIdle() {
 function startThinking() {
   if (!leftPupilRef.value || !rightPupilRef.value || !headRef.value) return
 
-  const tl = gsap.timeline({ repeat: -1, yoyo: true })
+  thinkingActive = true
 
   // Eyes scan in a gentle arc (up-left → down-right)
+  const tl = gsap.timeline({ repeat: -1, yoyo: true })
   tl.to([leftPupilRef.value, rightPupilRef.value], {
-    x: 3, y: -2,
-    duration: 0.5,
-    ease: 'power1.inOut',
+    x: 3, y: -2, duration: 0.5, ease: 'power1.inOut',
   })
   tl.to([leftPupilRef.value, rightPupilRef.value], {
-    x: -3, y: 2,
-    duration: 0.5,
-    ease: 'power1.inOut',
+    x: -3, y: 2, duration: 0.5, ease: 'power1.inOut',
   })
 
   // Furrow brows — concentration look
@@ -285,28 +286,77 @@ function startThinking() {
     y: 3, duration: 0.4, ease: 'power2.out',
   })
 
-  // Right arm raises toward temple (thinking pose)
-  const rProxy = { t: 0 }
-  const rThink = [85, 62, 100, 52, 96, 44]
-  gsap.to(rProxy, {
-    t: 1, duration: 0.5, ease: 'power2.out',
+  // Slow uncertain head tilt
+  headVibrateTween = gsap.to(headRef.value, {
+    rotation: 4, duration: 0.7, ease: 'sine.inOut',
+    yoyo: true, repeat: -1, transformOrigin: '50px 50px',
+  })
+
+  // Left arm: very gentle idle sway
+  const leftSway = gsap.to([leftArmRef.value, leftHandRef.value], {
+    y: -3, duration: 1.9, ease: 'sine.inOut', yoyo: true, repeat: -1,
+  })
+
+  // Right arm scratch near temple
+  const R_THINK_BASE = [85, 62, 100, 52, 96, 44]
+
+  // Scratch oscillation — rapid small back/forth of hand near head
+  const scratchObj = { d: 0 }
+  const scratchTween = gsap.to(scratchObj, {
+    d: 2.5, duration: 0.08, ease: 'sine.inOut', yoyo: true, repeat: -1,
+    paused: true,
     onUpdate() {
-      morphArm(rightArmRef.value, R_ARM_DEFAULT, rThink, rProxy.t)
-      morphHand(rightHandRef.value, 95, 80, 96, 43, rProxy.t)
+      const d = scratchObj.d
+      if (rightArmRef.value) {
+        rightArmRef.value.setAttribute(
+          'd', `M 85 62 Q ${+(100 + d).toFixed(1)} ${+(52 - d * 0.4).toFixed(1)} ${+(96 + d).toFixed(1)} ${+(44 - d * 0.3).toFixed(1)}`
+        )
+      }
+      if (rightHandRef.value) {
+        rightHandRef.value.setAttribute('cx', String(+(96 + d).toFixed(1)))
+        rightHandRef.value.setAttribute('cy', String(+(43 - d * 0.3).toFixed(1)))
+      }
     },
   })
 
-  // Slow uncertain head tilt
-  headVibrateTween = gsap.to(headRef.value, {
-    rotation: 4,
-    duration: 0.7,
-    ease: 'sine.inOut',
-    yoyo: true,
-    repeat: -1,
-    transformOrigin: '50px 50px',
-  })
+  function raiseArmAndScratch(jx = 0, jy = 0) {
+    if (!thinkingActive) return
+    const target = [85, 62, 100 + jx, 52 + jy, 96 + jx * 0.5, 44 + jy * 0.5]
+    const hx = 96 + jx * 0.5
+    const hy = 43 + jy * 0.5
+    const up = { t: 0 }
+    gsap.to(up, {
+      t: 1, duration: 0.4, ease: 'power2.out',
+      onUpdate() { morphArm(rightArmRef.value, R_ARM_DEFAULT, target, up.t); morphHand(rightHandRef.value, 95, 80, hx, hy, up.t) },
+      onComplete() { if (!thinkingActive) return; scratchTween.play(); scheduleRandomDrop() },
+    })
+  }
+
+  function scheduleRandomDrop() {
+    if (!thinkingActive) return
+    gsap.delayedCall(2.5 + Math.random() * 3.5, () => {
+      if (!thinkingActive) return
+      scratchTween.pause()
+      const down = { t: 1 }
+      gsap.to(down, {
+        t: 0, duration: 0.3, ease: 'power2.in',
+        onUpdate() { morphArm(rightArmRef.value, R_ARM_DEFAULT, R_THINK_BASE, down.t); morphHand(rightHandRef.value, 95, 80, 96, 43, down.t) },
+        onComplete() {
+          if (!thinkingActive) return
+          gsap.delayedCall(0.3 + Math.random() * 0.6, () => {
+            if (!thinkingActive) return
+            raiseArmAndScratch((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 4)
+          })
+        },
+      })
+    })
+  }
+
+  raiseArmAndScratch()
 
   activeTimeline = tl
+  ;(activeTimeline as any)._scratch = scratchTween
+  ;(activeTimeline as any)._leftSway = leftSway
 }
 
 function startTalking() {

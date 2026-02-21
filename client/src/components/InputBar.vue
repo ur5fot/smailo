@@ -40,13 +40,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 
 const props = defineProps<{
   lastAssistantMessage?: string
   disabled?: boolean
+  fillText?: { text: string; key: number }
 }>()
 
 const emit = defineEmits<{
@@ -55,6 +56,10 @@ const emit = defineEmits<{
 
 const text = ref('')
 const isRecording = ref(false)
+
+watch(() => props.fillText, (val) => {
+  if (val?.text) text.value = val.text
+})
 
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
 const speechSupported = !!SpeechRecognition
