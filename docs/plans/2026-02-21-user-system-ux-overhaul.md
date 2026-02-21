@@ -50,11 +50,11 @@
 
 ### Task 2: Серверные эндпоинты для пользователей
 
-- [ ] Создать `server/src/routes/users.ts` с Router
-- [ ] `POST /api/users` — генерировать userId (nanoid 10 символов, alphanumeric), вставить в users, вернуть `{ userId }`
-- [ ] `GET /api/users/:userId` — вернуть `{ userId, createdAt }` или 404
-- [ ] `GET /api/users/:userId/apps` — вернуть список приложений пользователя `[{ hash, appName, description, createdAt, lastVisit }]`
-- [ ] Зарегистрировать `usersRouter` в `server/src/index.ts` под `/api/users`
+- [x] Создать `server/src/routes/users.ts` с Router
+- [x] `POST /api/users` — генерировать userId (nanoid 10 символов, alphanumeric), вставить в users, вернуть `{ userId }`
+- [x] `GET /api/users/:userId` — вернуть `{ userId, createdAt }` или 404
+- [x] `GET /api/users/:userId/apps` — вернуть список приложений пользователя `[{ hash, appName, description, createdAt, lastVisit }]`
+- [x] Зарегистрировать `usersRouter` в `server/src/index.ts` под `/api/users`
 
 ### Task 3: Привязка приложений к пользователю
 

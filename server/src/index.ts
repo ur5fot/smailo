@@ -1,11 +1,9 @@
-import dotenv from 'dotenv';
-import { resolve } from 'path';
-dotenv.config({ path: resolve(process.cwd(), '..', '.env') });
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { chatRouter } from './routes/chat.js';
 import { appRouter } from './routes/app.js';
+import { usersRouter } from './routes/users.js';
 import { cronManager } from './services/cronManager.js';
 
 const app = express();
@@ -18,6 +16,7 @@ app.use(express.json({ limit: '50kb' }));
 
 app.use('/api/chat', chatRouter);
 app.use('/api/app', appRouter);
+app.use('/api/users', usersRouter);
 
 cronManager.loadAll().catch((err) => {
   console.error('[cronManager] Failed to load jobs on startup:', err);
