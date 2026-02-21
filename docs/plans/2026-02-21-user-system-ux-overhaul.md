@@ -87,14 +87,14 @@
 
 ### Task 6: Обновить AppView — двухколоночный layout
 
-- [ ] Обновить `client/src/views/AppView.vue`:
+- [x] Обновить `client/src/views/AppView.vue`:
   - **Layout**: два столбца side-by-side
   - Левый (~60%): заголовок (appName) + AppRenderer + данные — без чата
   - Правый (~40%): Smailo + in-app чат (редактирование приложения)
   - На мобильных: левый сверху, правый снизу (collapsible)
-- [ ] InputBar перенести в правую колонку
-- [ ] Smailo отображается в верхней части правой колонки, показывает что делает
-- [ ] Обновить маршруты: добавить `/:userId/:hash` → AppView; старый `/app/:hash` оставить как redirect или direct access (userId = null)
+- [x] InputBar перенести в правую колонку
+- [x] Smailo отображается в верхней части правой колонки, показывает что делает
+- [x] Обновить маршруты: добавить `/:userId/:hash` → AppView; старый `/app/:hash` оставить как redirect или direct access (userId = null)
 
 ### Task 7: Обновить роутер
 

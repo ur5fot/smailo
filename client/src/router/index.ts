@@ -8,7 +8,13 @@ const router = createRouter({
       component: () => import('../views/HomeView.vue'),
     },
     {
+      // Legacy URL — userId not known, works without user context
       path: '/app/:hash',
+      component: () => import('../views/AppView.vue'),
+    },
+    {
+      // App view with user context — userId available for back navigation
+      path: '/:userId/:hash',
       component: () => import('../views/AppView.vue'),
     },
     {

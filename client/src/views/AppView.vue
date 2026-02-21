@@ -37,68 +37,86 @@
       <p v-if="authError" class="app-view__auth-error">{{ authError }}</p>
     </div>
 
-    <!-- Main app layout -->
+    <!-- Main app layout: two-column -->
     <template v-else>
-      <!-- Header -->
-      <header class="app-view__header">
-        <div class="app-view__header-left">
-          <Smailo :mood="smailoMood" :size="40" />
-          <h1 class="app-view__title">{{ appStore.appName || 'My App' }}</h1>
-        </div>
-        <Button
-          icon="pi pi-refresh"
-          text
-          rounded
-          :loading="refreshing"
-          title="Refresh data"
-          class="app-view__refresh-btn"
-          @click="handleRefresh"
-        />
-      </header>
-
-      <!-- Scrollable content area -->
-      <div class="app-view__content" ref="contentRef">
-        <!-- Dynamic UI via AppRenderer -->
-        <AppRenderer
-          v-if="uiComponents.length > 0"
-          :ui-config="uiComponents"
-          :app-data="appDataMap"
-          :hash="hash"
-          class="app-view__renderer"
-          @data-written="handleDataWritten"
-        />
-
-        <!-- In-app chat messages -->
-        <div v-if="chatMessages.length > 0" class="app-view__chat">
-          <div
-            v-for="(msg, i) in chatMessages"
-            :key="i"
-            class="app-view__bubble-row"
-            :class="msg.role === 'user' ? 'app-view__bubble-row--user' : 'app-view__bubble-row--assistant'"
-          >
-            <div v-if="msg.role === 'assistant'" class="app-view__bubble-avatar">
-              <Smailo :mood="(msg.mood as any) || 'idle'" :size="32" />
+      <!-- Two-column container -->
+      <div class="app-view__columns">
+        <!-- Left column: app content -->
+        <div class="app-view__left">
+          <!-- Header -->
+          <header class="app-view__header">
+            <div class="app-view__header-left">
+              <router-link v-if="userId" :to="`/${userId}`" class="app-view__back">
+                <i class="pi pi-arrow-left" />
+              </router-link>
+              <h1 class="app-view__title">{{ appStore.appName || 'My App' }}</h1>
             </div>
-            <div class="app-view__bubble">{{ msg.content }}</div>
-          </div>
+            <Button
+              icon="pi pi-refresh"
+              text
+              rounded
+              :loading="refreshing"
+              title="Refresh data"
+              class="app-view__refresh-btn"
+              @click="handleRefresh"
+            />
+          </header>
 
-          <!-- Typing indicator -->
-          <div v-if="chatLoading" class="app-view__bubble-row app-view__bubble-row--assistant">
-            <div class="app-view__bubble-avatar">
-              <Smailo mood="thinking" :size="32" />
-            </div>
-            <div class="app-view__bubble app-view__bubble--typing">
-              <span class="app-view__dot" />
-              <span class="app-view__dot" />
-              <span class="app-view__dot" />
-            </div>
+          <!-- Scrollable app content -->
+          <div class="app-view__content">
+            <AppRenderer
+              v-if="uiComponents.length > 0"
+              :ui-config="uiComponents"
+              :app-data="appDataMap"
+              :hash="hash"
+              class="app-view__renderer"
+              @data-written="handleDataWritten"
+            />
           </div>
         </div>
-      </div>
 
-      <!-- Fixed InputBar -->
-      <div class="app-view__input-wrapper">
-        <InputBar @submit="handleChatSubmit" />
+        <!-- Right column: Smailo + chat -->
+        <div class="app-view__right">
+          <div class="app-view__smailo-wrap">
+            <Smailo :mood="smailoMood" :size="80" />
+          </div>
+
+          <!-- Chat messages -->
+          <div class="app-view__messages" ref="messagesRef">
+            <div v-if="chatMessages.length === 0" class="app-view__welcome">
+              <p>Привет! Могу помочь изменить приложение.</p>
+            </div>
+
+            <div
+              v-for="(msg, i) in chatMessages"
+              :key="i"
+              class="app-view__bubble-row"
+              :class="msg.role === 'user' ? 'app-view__bubble-row--user' : 'app-view__bubble-row--assistant'"
+            >
+              <div v-if="msg.role === 'assistant'" class="app-view__bubble-avatar">
+                <Smailo :mood="(msg.mood as any) || 'idle'" :size="32" />
+              </div>
+              <div class="app-view__bubble">{{ msg.content }}</div>
+            </div>
+
+            <!-- Typing indicator -->
+            <div v-if="chatLoading" class="app-view__bubble-row app-view__bubble-row--assistant">
+              <div class="app-view__bubble-avatar">
+                <Smailo mood="thinking" :size="32" />
+              </div>
+              <div class="app-view__bubble app-view__bubble--typing">
+                <span class="app-view__dot" />
+                <span class="app-view__dot" />
+                <span class="app-view__dot" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Input bar -->
+          <div class="app-view__input-wrapper">
+            <InputBar @submit="handleChatSubmit" />
+          </div>
+        </div>
       </div>
     </template>
   </div>
@@ -119,6 +137,7 @@ import type { Mood } from '../types'
 const route = useRoute()
 const appStore = useAppStore()
 const hash = computed(() => route.params.hash as string)
+const userId = computed(() => route.params.userId as string | undefined)
 
 const loading = ref(true)
 const loadError = ref('')
@@ -130,7 +149,7 @@ const authMood = ref<Mood>('idle')
 const smailoMood = ref<Mood>('idle')
 const refreshing = ref(false)
 const chatLoading = ref(false)
-const contentRef = ref<HTMLElement | null>(null)
+const messagesRef = ref<HTMLElement | null>(null)
 
 const chatMessages = ref<ChatMessage[]>([])
 
@@ -250,8 +269,8 @@ async function handleChatSubmit(message: string) {
 }
 
 function scrollToBottom() {
-  if (contentRef.value) {
-    contentRef.value.scrollTop = contentRef.value.scrollHeight
+  if (messagesRef.value) {
+    messagesRef.value.scrollTop = messagesRef.value.scrollHeight
   }
 }
 
@@ -337,6 +356,22 @@ onMounted(() => {
   color: #ef4444;
 }
 
+/* ── Two-column layout ─────────────────────────── */
+.app-view__columns {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Left column: app content ──────────────────── */
+.app-view__left {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #f3f4f6;
+  overflow: hidden;
+}
+
 /* ── Header ────────────────────────────────────── */
 .app-view__header {
   display: flex;
@@ -351,6 +386,19 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.app-view__back {
+  display: flex;
+  align-items: center;
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 1rem;
+  transition: color 0.15s;
+}
+
+.app-view__back:hover {
+  color: #111827;
 }
 
 .app-view__title {
@@ -378,14 +426,47 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* ── Chat section ──────────────────────────────── */
-.app-view__chat {
+/* ── Right column: Smailo + chat ───────────────── */
+.app-view__right {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-view__smailo-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0 0.5rem;
+  flex-shrink: 0;
+}
+
+/* ── Chat messages ─────────────────────────────── */
+.app-view__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 1rem 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  padding-bottom: 0.5rem;
 }
 
+.app-view__welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.app-view__welcome p {
+  margin: 0;
+}
+
+/* ── Chat bubbles ──────────────────────────────── */
 .app-view__bubble-row {
   display: flex;
   align-items: flex-end;
@@ -402,7 +483,7 @@ onMounted(() => {
 }
 
 .app-view__bubble {
-  max-width: 65%;
+  max-width: 75%;
   padding: 0.55rem 0.85rem;
   border-radius: 1rem;
   line-height: 1.5;
@@ -449,5 +530,30 @@ onMounted(() => {
 /* ── Input bar wrapper ─────────────────────────── */
 .app-view__input-wrapper {
   flex-shrink: 0;
+}
+
+/* ── Mobile: single column ─────────────────────── */
+@media (max-width: 767px) {
+  .app-view__columns {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .app-view__left {
+    flex: none;
+    border-right: none;
+    border-bottom: 1px solid #f3f4f6;
+    overflow: visible;
+    min-height: 50vh;
+  }
+
+  .app-view__content {
+    overflow-y: visible;
+  }
+
+  .app-view__right {
+    flex: none;
+    min-height: 50vh;
+  }
 }
 </style>
