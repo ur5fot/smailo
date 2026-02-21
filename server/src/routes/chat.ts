@@ -111,6 +111,7 @@ chatRouter.post('/', limiter, async (req, res) => {
       // Validate uiComponents against the allowed component whitelist to match the same
       // boundary enforced on in-app chat uiUpdate responses.
       const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable', 'Button', 'InputText', 'Form'];
+      const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
       if (Array.isArray(appConfigToStore.uiComponents)) {
         appConfigToStore.uiComponents = (appConfigToStore.uiComponents as any[])
           .filter(
@@ -118,7 +119,13 @@ chatRouter.post('/', limiter, async (req, res) => {
               item &&
               typeof item.component === 'string' &&
               ALLOWED_COMPONENTS.includes(item.component) &&
-              (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props)))
+              (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props))) &&
+              // Validate action.key for Button/InputText — invalid keys cause perpetual write failures
+              (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))) &&
+              // Validate outputKey for Form
+              (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
+              // Validate field names for Form
+              (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name)))
           )
           .slice(0, 20);
       }

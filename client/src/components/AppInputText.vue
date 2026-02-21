@@ -50,7 +50,10 @@ const errorMsg = ref('')
 
 async function handleSave() {
   const value = props.type === 'number' ? numericValue.value : textValue.value
-  if (value === null || (typeof value === 'string' && value.trim() === '')) return
+  if (value === null || (typeof value === 'string' && value.trim() === '')) {
+    errorMsg.value = 'Please enter a value.'
+    return
+  }
   loading.value = true
   errorMsg.value = ''
   try {

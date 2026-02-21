@@ -322,12 +322,19 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
     let validUiItems: any[] | undefined;
     if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
       const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable', 'Button', 'InputText', 'Form'];
+      const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
       validUiItems = (claudeResponse.uiUpdate as any[])
         .filter((item: any) =>
           item &&
           typeof item.component === 'string' &&
           ALLOWED_COMPONENTS.includes(item.component) &&
-          (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props)))
+          (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props))) &&
+          // Validate action.key for Button/InputText — invalid keys cause perpetual write failures
+          (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))) &&
+          // Validate outputKey for Form
+          (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
+          // Validate field names for Form
+          (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name)))
         )
         .slice(0, 20);
       if (validUiItems.length > 0) {

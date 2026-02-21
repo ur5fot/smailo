@@ -45,7 +45,7 @@ const emit = defineEmits<{
 }>()
 
 const fieldValues = reactive<Record<string, string | number | null>>(
-  Object.fromEntries(props.fields.map(f => [f.name, null]))
+  Object.fromEntries(props.fields.map(f => [f.name, f.type === 'number' ? null : '']))
 )
 const loading = ref(false)
 const errorMsg = ref('')
@@ -58,7 +58,7 @@ watch(() => props.fields, (newFields) => {
     delete fieldValues[key]
   }
   for (const f of newFields) {
-    fieldValues[f.name] = null
+    fieldValues[f.name] = f.type === 'number' ? null : ''
   }
 })
 
@@ -66,7 +66,7 @@ async function handleSubmit() {
   // Validate: all fields must be non-null and non-empty before submitting
   for (const field of props.fields) {
     const v = fieldValues[field.name]
-    if (v === null || v === '') {
+    if (v === null || (typeof v === 'string' && v.trim() === '')) {
       errorMsg.value = `"${field.label}" is required.`
       return
     }
@@ -85,7 +85,7 @@ async function handleSubmit() {
       value: formObject,
     })
     for (const field of props.fields) {
-      fieldValues[field.name] = null
+      fieldValues[field.name] = field.type === 'number' ? null : ''
     }
     emit('data-written')
   } catch {
