@@ -223,6 +223,39 @@ appRouter.get('/:hash/data', requireAuthIfProtected as any, async (req: any, res
   }
 });
 
+// POST /api/app/:hash/data
+const KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
+const VALUE_MAX_BYTES = 10_000;
+
+appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async (req: any, res) => {
+  try {
+    const row: typeof apps.$inferSelect = req.app_row;
+    const { key, value } = req.body as { key: unknown; value: unknown };
+
+    if (!key || typeof key !== 'string' || !KEY_REGEX.test(key)) {
+      return res.status(400).json({ error: 'key must be alphanumeric/underscore, max 100 chars' });
+    }
+    if (value === undefined || value === null) {
+      return res.status(400).json({ error: 'value is required' });
+    }
+    const serialized = JSON.stringify(value);
+    if (serialized.length > VALUE_MAX_BYTES) {
+      return res.status(413).json({ error: 'value too large' });
+    }
+
+    await db.insert(appData).values({
+      appId: row.id,
+      key,
+      value: serialized,
+    } as any);
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('[POST /api/app/:hash/data] Error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/app/:hash/chat
 appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async (req: any, res) => {
   try {
