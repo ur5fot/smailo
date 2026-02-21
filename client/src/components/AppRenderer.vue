@@ -144,6 +144,8 @@ function resolvedProps(item: UiConfigItem): Record<string, any> {
     const data = props.appData[item.dataKey]
     if (item.component === 'Chart') {
       resolved.data = data
+    } else if (item.component === 'Image') {
+      resolved.src = data
     } else {
       resolved.value = data
     }

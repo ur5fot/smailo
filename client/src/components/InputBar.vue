@@ -94,7 +94,7 @@ function toggleRecording() {
   recognition = new SpeechRecognition()
   recognition.continuous = false
   recognition.interimResults = false
-  recognition.lang = 'en-US'
+  recognition.lang = 'ru-RU'
 
   recognition.onstart = () => {
     isRecording.value = true
