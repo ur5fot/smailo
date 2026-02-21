@@ -70,10 +70,10 @@ Currently all `appData` writes go through cron jobs or AI responses. After this 
 
 ### Task 2: Extend `UiConfigItem` type in `AppRenderer.vue`
 
-- [ ] Add `action?: { key: string; value?: unknown }` to `UiConfigItem` interface
-- [ ] Add `fields?: Array<{ name: string; type: string; label: string }>` to `UiConfigItem`
-- [ ] Add `outputKey?: string` to `UiConfigItem`
-- [ ] Add `hash` prop to AppRenderer: `const props = defineProps<{ uiConfig, appData, hash: string }>()`
+- [x] Add `action?: { key: string; value?: unknown }` to `UiConfigItem` interface
+- [x] Add `fields?: Array<{ name: string; type: string; label: string }>` to `UiConfigItem`
+- [x] Add `outputKey?: string` to `UiConfigItem`
+- [x] Add `hash` prop to AppRenderer: `const props = defineProps<{ uiConfig, appData, hash: string }>()`
 
 ### Task 3: `AppButton.vue` wrapper component
 

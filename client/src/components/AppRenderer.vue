@@ -38,11 +38,15 @@ interface UiConfigItem {
   component: string
   props: Record<string, any>
   dataKey?: string
+  action?: { key: string; value?: unknown }
+  fields?: Array<{ name: string; type: string; label: string }>
+  outputKey?: string
 }
 
 const props = defineProps<{
   uiConfig: UiConfigItem[]
   appData: Record<string, any>
+  hash: string
 }>()
 
 const componentMap: Record<string, any> = {
