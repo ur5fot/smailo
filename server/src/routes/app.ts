@@ -317,7 +317,7 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
     // If the AI returned an updated UI layout, validate it before persisting.
     // Filter uiUpdate to only allowed components; save whatever passes the whitelist.
     if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
-      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable'];
+      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable', 'Button', 'InputText', 'Form'];
       const validItems = (claudeResponse.uiUpdate as any[])
         .filter((item: any) =>
           item &&

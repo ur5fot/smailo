@@ -116,9 +116,9 @@ Currently all `appData` writes go through cron jobs or AI responses. After this 
 
 ### Task 7: Update server-side component whitelists
 
-- [ ] `server/src/routes/chat.ts:113` — add `'Button', 'InputText', 'Form'` to `ALLOWED_COMPONENTS`
-- [ ] `server/src/routes/app.ts:287` — add `'Button', 'InputText', 'Form'` to `ALLOWED_COMPONENTS`
-- [ ] In both places: extend the props validation to also accept `action`, `fields`, `outputKey` keys (or simply relax the check to allow any non-array object props, which is already the case)
+- [x] `server/src/routes/chat.ts:113` — add `'Button', 'InputText', 'Form'` to `ALLOWED_COMPONENTS`
+- [x] `server/src/routes/app.ts:287` — add `'Button', 'InputText', 'Form'` to `ALLOWED_COMPONENTS`
+- [x] In both places: extend the props validation to also accept `action`, `fields`, `outputKey` keys (or simply relax the check to allow any non-array object props, which is already the case)
 
 ### Task 8: Update AI system prompts
 
