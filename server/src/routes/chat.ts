@@ -70,6 +70,11 @@ chatRouter.post('/', limiter, async (req, res) => {
       if (typeof userId !== 'string' || !/^[A-Za-z0-9]{1,50}$/.test(userId)) {
         return res.status(400).json({ error: 'Invalid userId format' });
       }
+      // Prevent cross-user session injection: the home-chat sessionId is always derived
+      // from userId on the client, so any mismatch is either a bug or an attack.
+      if (sessionId !== `home-${userId}`) {
+        return res.status(400).json({ error: 'sessionId does not match userId' });
+      }
       const [userRow] = await db.select({ userId: users.userId }).from(users).where(eq(users.userId, userId));
       if (!userRow) {
         return res.status(400).json({ error: 'User not found' });
