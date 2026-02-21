@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { createHash, timingSafeEqual } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory } from '../db/schema.js';
 import { chatWithAI, validateUiComponents } from '../services/aiService.js';
@@ -159,10 +159,17 @@ appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash:
     }
 
     const hashed = await bcrypt.hash(password, 12);
-    // Clear the creation token after successful use (one-time only)
-    await db.update(apps)
+    // Conditional UPDATE: only succeeds if passwordHash is still NULL.
+    // This prevents a TOCTOU race where two concurrent requests both pass the
+    // passwordHash IS NULL check above but only one should set the password.
+    const updated = await db.update(apps)
       .set({ passwordHash: hashed, creationToken: null } as any)
-      .where(eq(apps.hash, hash));
+      .where(and(eq(apps.hash, hash), isNull(apps.passwordHash)))
+      .returning({ id: apps.id });
+
+    if (updated.length === 0) {
+      return res.status(400).json({ error: 'This app already has a password set' });
+    }
 
     return res.json({ ok: true });
   } catch (error) {
@@ -268,11 +275,13 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       return res.status(400).json({ error: 'Message too long' });
     }
 
-    // Load recent chat history for this app (most recent 20, in chronological order)
+    // Load recent chat history for this app (most recent 20, in chronological order).
+    // Filter by both appId AND sessionId to match the stored convention ('app-<hash>')
+    // and prevent orphaned rows with a different sessionId from polluting the context.
     const history = await db
       .select()
       .from(chatHistory)
-      .where(eq(chatHistory.appId, row.id))
+      .where(and(eq(chatHistory.appId, row.id), eq(chatHistory.sessionId, `app-${row.hash}`)))
       .orderBy(desc(chatHistory.createdAt))
       .limit(20);
 

@@ -7,9 +7,54 @@ import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
 import type { CronJobConfig } from './aiService.js';
 
+/** Shared cron-field matcher used by computeNextRun and minMinuteInterval. */
+function matchesCronField(value: number, field: string, min: number, max: number): boolean {
+  if (field === '*') return true;
+  for (const segment of field.split(',')) {
+    if (segment.includes('/')) {
+      const [range, step] = segment.split('/');
+      const s = parseInt(step, 10);
+      if (s <= 0) return false;
+      const [lo, hi] = range === '*' ? [min, max] : range.split('-').map(Number);
+      for (let v = lo; v <= (hi ?? lo); v += s) {
+        if (v === value) return true;
+      }
+    } else if (segment.includes('-')) {
+      const [lo, hi] = segment.split('-').map(Number);
+      if (value >= lo && value <= hi) return true;
+    } else {
+      if (parseInt(segment, 10) === value) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Return the minimum gap in minutes between any two consecutive firings determined
+ * by the minute field alone (assuming all other fields are '*').  Used to enforce
+ * the minimum 5-minute interval independently of the step syntax used.
+ */
+function minMinuteInterval(minuteField: string): number {
+  const matching: number[] = [];
+  for (let m = 0; m < 60; m++) {
+    if (matchesCronField(m, minuteField, 0, 59)) matching.push(m);
+  }
+  if (matching.length === 0) return Infinity;
+  if (matching.length === 1) return 60; // fires at most once per hour
+
+  let minGap = Infinity;
+  for (let i = 1; i < matching.length; i++) {
+    minGap = Math.min(minGap, matching[i] - matching[i - 1]);
+  }
+  // Wraparound gap (from last minute back to first, via 60)
+  const wrap = 60 - matching[matching.length - 1] + matching[0];
+  minGap = Math.min(minGap, wrap);
+  return minGap;
+}
+
 /**
  * Compute an approximate next-run timestamp for a cron expression.
- * Iterates forward minute-by-minute up to 366 days to find the next match.
+ * Iterates forward minute-by-minute up to 60 days to find the next match.
  * Returns null if no match is found within that window.
  */
 function computeNextRun(expression: string): string | null {
@@ -18,27 +63,6 @@ function computeNextRun(expression: string): string | null {
   if (parts.length !== 5) return null;
 
   const [minPart, hourPart, domPart, monthPart, dowPart] = parts;
-
-  function matches(value: number, field: string, min: number, max: number): boolean {
-    if (field === '*') return true;
-    for (const segment of field.split(',')) {
-      if (segment.includes('/')) {
-        const [range, step] = segment.split('/');
-        const s = parseInt(step, 10);
-        if (s <= 0) return false;
-        const [lo, hi] = range === '*' ? [min, max] : range.split('-').map(Number);
-        for (let v = lo; v <= (hi ?? lo); v += s) {
-          if (v === value) return true;
-        }
-      } else if (segment.includes('-')) {
-        const [lo, hi] = segment.split('-').map(Number);
-        if (value >= lo && value <= hi) return true;
-      } else {
-        if (parseInt(segment, 10) === value) return true;
-      }
-    }
-    return false;
-  }
 
   const now = new Date();
   // Start from the next minute (UTC arithmetic throughout)
@@ -55,11 +79,11 @@ function computeNextRun(expression: string): string | null {
     const dow = candidate.getUTCDay();
 
     if (
-      matches(min, minPart, 0, 59) &&
-      matches(hour, hourPart, 0, 23) &&
-      matches(dom, domPart, 1, 31) &&
-      matches(month, monthPart, 1, 12) &&
-      matches(dow, dowPart, 0, 6)
+      matchesCronField(min, minPart, 0, 59) &&
+      matchesCronField(hour, hourPart, 0, 23) &&
+      matchesCronField(dom, domPart, 1, 31) &&
+      matchesCronField(month, monthPart, 1, 12) &&
+      matchesCronField(dow, dowPart, 0, 6)
     ) {
       return candidate.toISOString();
     }
@@ -72,6 +96,9 @@ type ActionConfig = Record<string, unknown>;
 
 /** Keys stored by cron handlers must match this pattern (same rule as the data endpoint). */
 const CRON_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
+
+/** Maximum byte size for a value written to appData by cron handlers (same limit as the /data endpoint). */
+const CRON_VALUE_MAX_BYTES = 10_000;
 
 class CronManager {
   private tasks = new Map<number, ScheduledTask>();
@@ -112,10 +139,7 @@ class CronManager {
         continue;
       }
       const minuteField = expressionParts[0];
-      const isOverFrequent =
-        minuteField === '*' ||
-        (minuteField.startsWith('*/') && parseInt(minuteField.slice(2), 10) < 5);
-      if (isOverFrequent) {
+      if (minMinuteInterval(minuteField) < 5) {
         console.warn(`[CronManager] Skipping over-frequent cron expression for job "${job.name}": ${job.schedule}`);
         continue;
       }
@@ -161,12 +185,11 @@ class CronManager {
       return;
     }
 
-    // Reject expressions that fire more than once every 5 minutes (minute field = '*' or '*/N' where N<5)
+    // Reject expressions that fire more than once every 5 minutes.
+    // minMinuteInterval expands the minute field fully (including comma-list and range syntax)
+    // so expressions like "0,1 * * * *" are correctly caught, not just "*/N" forms.
     const minuteField = expressionParts[0];
-    const isOverFrequent =
-      minuteField === '*' ||
-      (minuteField.startsWith('*/') && parseInt(minuteField.slice(2), 10) < 5);
-    if (isOverFrequent) {
+    if (minMinuteInterval(minuteField) < 5) {
       console.warn(`[CronManager] Rejecting over-frequent cron expression for job ${jobId}: ${expression}`);
       return;
     }
@@ -249,6 +272,10 @@ class CronManager {
       ? config.outputKey.slice(0, 100)
       : `log_entry_${jobId}`;
     const storageKey = CRON_KEY_REGEX.test(rawLogKey) ? rawLogKey : `log_entry_${jobId}`;
+    if (Buffer.byteLength(JSON.stringify(entry), 'utf8') > CRON_VALUE_MAX_BYTES) {
+      console.warn(`[CronManager] log_entry value too large for job ${jobId}, skipping`);
+      return;
+    }
     await db.insert(appData).values({ appId, key: storageKey, value: entry } as any);
   }
 
@@ -422,7 +449,13 @@ class CronManager {
             current = (current as Record<string, unknown>)[part];
           }
         }
-        value = current ?? parsed;
+        if (current === undefined) {
+          // Path not found — do not fall back to the full response: a misconfigured
+          // dataPath should not silently store an unintended multi-KB blob.
+          console.warn(`[CronManager] fetch_url dataPath "${dataPath}" not found in response for app ${appId}, skipping storage`);
+          return;
+        }
+        value = current;
       }
     } catch {
       // keep raw text as value
@@ -433,6 +466,10 @@ class CronManager {
       ? config.outputKey.slice(0, 100)
       : `fetch_url_${jobId}`;
     const fetchStorageKey = CRON_KEY_REGEX.test(rawFetchKey) ? rawFetchKey : `fetch_url_${jobId}`;
+    if (Buffer.byteLength(JSON.stringify(value), 'utf8') > CRON_VALUE_MAX_BYTES) {
+      console.warn(`[CronManager] fetch_url extracted value too large (>${CRON_VALUE_MAX_BYTES} bytes) for app ${appId}, skipping`);
+      return;
+    }
     await db.insert(appData).values({ appId, key: fetchStorageKey, value } as any);
   }
 
@@ -443,7 +480,8 @@ class CronManager {
       ? config.outputKey.slice(0, 100)
       : `reminder_${jobId}`;
     const storageKey = CRON_KEY_REGEX.test(rawKey) ? rawKey : `reminder_${jobId}`;
-    await db.insert(appData).values({ appId, key: storageKey, value: { text, sentAt: new Date().toISOString() } } as any);
+    const reminderValue = { text: String(text).slice(0, 2000), sentAt: new Date().toISOString() };
+    await db.insert(appData).values({ appId, key: storageKey, value: reminderValue } as any);
   }
 
   private async handleAggregateData(appId: number, config: ActionConfig): Promise<void> {
@@ -460,6 +498,10 @@ class CronManager {
 
     if (!dataKey) {
       console.warn('[CronManager] aggregate_data action missing dataKey config');
+      return;
+    }
+    if (outputKey === dataKey) {
+      console.warn(`[CronManager] aggregate_data: outputKey and dataKey are both "${dataKey}" for app ${appId} — would cause compounding corruption, skipping`);
       return;
     }
 
@@ -521,6 +563,12 @@ class CronManager {
 
     // Store the plain numeric result so UI components (Knob, ProgressBar, Tag, etc.) can
     // bind directly via dataKey without needing to unwrap a metadata object.
+    // (A number serializes to at most a few bytes, so the size check will always pass,
+    // but it is kept here for consistency with the other handlers.)
+    if (Buffer.byteLength(JSON.stringify(result), 'utf8') > CRON_VALUE_MAX_BYTES) {
+      console.warn(`[CronManager] aggregate_data result too large for app ${appId}, skipping`);
+      return;
+    }
     await db.insert(appData).values({ appId, key: outputKey, value: result } as any);
   }
 }

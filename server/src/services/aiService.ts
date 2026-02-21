@@ -243,6 +243,10 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
 
     if (!parsed.message || typeof parsed.message !== 'string') {
       parsed.message = 'I had trouble formulating a response. Could you try again?';
+    } else {
+      // Cap message length before it reaches the DB to prevent unbounded storage
+      // and context inflation on subsequent AI calls.
+      parsed.message = parsed.message.slice(0, 4000);
     }
 
     const validPhases: ClaudePhase[] = ['brainstorm', 'confirm', 'created', 'chat'];
