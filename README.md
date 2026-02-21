@@ -55,7 +55,10 @@ smailo/
 │       ├── components/
 │       │   ├── Smailo.vue        # Animated SVG character (5 moods)
 │       │   ├── InputBar.vue      # Text input with speech recognition
-│       │   └── AppRenderer.vue   # Dynamic PrimeVue component renderer
+│       │   ├── AppRenderer.vue   # Dynamic PrimeVue component renderer
+│       │   ├── AppButton.vue     # Clickable button that writes to appData
+│       │   ├── AppInputText.vue  # Text/number input with Save button
+│       │   └── AppForm.vue       # Multi-field form that writes a combined object
 │       ├── views/
 │       │   ├── HomeView.vue      # Chat interface for creating apps
 │       │   └── AppView.vue       # Per-app view with auth and data
@@ -85,6 +88,7 @@ smailo/
 - App creation: when the AI service returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, and schedules any cron jobs
 - App access: client → `GET /api/app/:hash` → returns config + latest appData (JWT required if password set)
 - In-app chat: client → `POST /api/app/:hash/chat` → AI service (chat phase) → optional UI update
+- User-triggered writes: Button/InputText/Form components → `POST /api/app/:hash/data` → appData updated, UI refreshes
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data) and writes results to appData
 
 ### Key Technologies

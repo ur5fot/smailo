@@ -135,9 +135,9 @@ Currently all `appData` writes go through cron jobs or AI responses. After this 
 
 ### Task 9: Update documentation
 
-- [ ] Update `README.md` — mention user input components in the architecture section
-- [ ] Update `README.ru.md` — same changes in Russian
-- [ ] Update `CLAUDE.md` — add note about input components and new endpoint
+- [x] Update `README.md` — mention user input components in the architecture section
+- [x] Update `README.ru.md` — same changes in Russian
+- [x] Update `CLAUDE.md` — add note about input components and new endpoint
 
 ## Technical Details
 
