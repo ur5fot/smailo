@@ -75,15 +75,15 @@
 
 ### Task 5: UserView — страница пользователя
 
-- [ ] Создать `client/src/views/UserView.vue`
-- [ ] **Layout**: два столбца — левый (список приложений), правый (AI ассистент)
+- [x] Создать `client/src/views/UserView.vue`
+- [x] **Layout**: два столбца — левый (список приложений), правый (AI ассистент)
   - Левый (ширина ~55%): заголовок "Мои приложения", список карточек приложений (appName, description, ссылка на `/:userId/:hash`), кнопка "Создать приложение" которая активирует чат справа
   - Правый (ширина ~45%): Smailo + чат для создания приложений (весь текущий HomeView чат-интерфейс)
   - На мобильных — одна колонка (список сверху, чат снизу)
-- [ ] Перенести логику чата из HomeView в UserView (использовать существующий `chatStore`)
-- [ ] При создании приложения (фаза `created`) — передавать `userId` в POST /api/chat, redirect на `/:userId/:hash`
-- [ ] Создать `client/src/stores/user.ts` — state: `{ userId, apps[] }`, methods: `fetchApps(userId)`, `createUser()`
-- [ ] Добавить маршрут `/:userId` → `UserView` в `client/src/router/index.ts`
+- [x] Перенести логику чата из HomeView в UserView (использовать существующий `chatStore`)
+- [x] При создании приложения (фаза `created`) — передавать `userId` в POST /api/chat, redirect на `/:userId/:hash`
+- [x] Создать `client/src/stores/user.ts` — state: `{ userId, apps[] }`, methods: `fetchApps(userId)`, `createUser()`
+- [x] Добавить маршрут `/:userId` → `UserView` в `client/src/router/index.ts`
 
 ### Task 6: Обновить AppView — двухколоночный layout
 

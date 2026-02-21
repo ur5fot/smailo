@@ -11,6 +11,10 @@ const router = createRouter({
       path: '/app/:hash',
       component: () => import('../views/AppView.vue'),
     },
+    {
+      path: '/:userId',
+      component: () => import('../views/UserView.vue'),
+    },
   ],
 })
 

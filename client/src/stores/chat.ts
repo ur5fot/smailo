@@ -15,9 +15,13 @@ export interface AppConfig {
   uiComponents: Array<{ component: string; dataKey?: string }>
 }
 
+function generateSessionId(): string {
+  return Array.from({ length: 20 }, () => Math.random().toString(36)[2] || '0').join('')
+}
+
 export const useChatStore = defineStore('chat', () => {
   const messages = ref<ChatMessage[]>([])
-  const sessionId = ref<string>('')
+  const sessionId = ref<string>(generateSessionId())
   const mood = ref<string>('idle')
   const phase = ref<string>('brainstorm')
   // Restore appHash and creationToken from sessionStorage so they survive a page refresh
@@ -27,7 +31,7 @@ export const useChatStore = defineStore('chat', () => {
   // One-time token returned at app creation; required to call set-password
   const creationToken = ref<string | null>(sessionStorage.getItem('smailo_creationToken'))
 
-  async function sendMessage(text: string) {
+  async function sendMessage(text: string, userId?: string) {
     messages.value.push({ role: 'user', content: text })
     mood.value = 'thinking'
 
@@ -36,6 +40,7 @@ export const useChatStore = defineStore('chat', () => {
       res = await api.post('/chat', {
         sessionId: sessionId.value,
         message: text,
+        ...(userId ? { userId } : {}),
       })
     } catch (err) {
       // Remove the optimistically-pushed user message so it doesn't linger after failure.
