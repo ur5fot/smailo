@@ -9,6 +9,30 @@ import { cronManager } from '../services/cronManager.js';
 
 export const chatRouter = Router();
 
+/**
+ * Strip sensitive cron job data (action configs like fetch_url targets) before sending
+ * appConfig to the browser. At 'created' phase cronJobs are fully removed (not needed
+ * client-side after the app hash is returned). At 'confirm' phase, job display fields
+ * (name, schedule, action, humanReadable) are kept for the plan preview card, but the
+ * 'config' sub-object containing URLs and keys is stripped.
+ */
+function sanitizeAppConfigForClient(appConfig: any, phase: string): any {
+  if (phase === 'created') {
+    const { cronJobs: _cj, ...rest } = appConfig;
+    return rest;
+  }
+  // confirm phase: keep job metadata for plan card display, strip sensitive config
+  const { cronJobs, ...rest } = appConfig;
+  return {
+    ...rest,
+    ...(Array.isArray(cronJobs)
+      ? {
+          cronJobs: cronJobs.map(({ config: _c, ...jobRest }: any) => jobRest),
+        }
+      : {}),
+  };
+}
+
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
@@ -164,9 +188,10 @@ chatRouter.post('/', limiter, async (req, res) => {
       mood: claudeResponse.mood,
       message: claudeResponse.message,
       phase: responsePhase,
-      appConfig: (responsePhase === 'confirm' || responsePhase === 'created')
-        ? claudeResponse.appConfig
-        : undefined,
+      appConfig:
+        (responsePhase === 'confirm' || responsePhase === 'created') && claudeResponse.appConfig
+          ? sanitizeAppConfigForClient(claudeResponse.appConfig, responsePhase)
+          : undefined,
       appHash: appHashResult,
       creationToken: creationTokenResult,
     });

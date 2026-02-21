@@ -238,6 +238,8 @@ async function handleChatSubmit(message: string) {
       await appStore.fetchApp(hash.value)
     }
   } catch {
+    // Remove the optimistically-pushed user message so it doesn't linger on failure.
+    chatMessages.value.pop()
     smailoMood.value = 'confused'
     chatMessages.value.push({ role: 'assistant', content: 'Something went wrong. Please try again.', mood: 'confused' })
   } finally {

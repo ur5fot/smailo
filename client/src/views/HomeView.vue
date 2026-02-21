@@ -102,8 +102,8 @@
       </div>
     </div>
 
-    <!-- InputBar fixed at bottom -->
-    <div class="home__input-wrapper">
+    <!-- InputBar fixed at bottom — hidden after app creation (conversation is over) -->
+    <div v-if="chatStore.phase !== 'created'" class="home__input-wrapper">
       <InputBar @submit="handleSubmit" />
     </div>
   </div>
