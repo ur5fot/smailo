@@ -39,8 +39,9 @@ npm run dev
 |--------------------|-------------------------------------------------------|---------------------------|
 | PORT               | Порт сервера                                          | 3000                      |
 | ANTHROPIC_API_KEY  | API-ключ Anthropic (обязателен для anthropic)         | —                         |
+| ANTHROPIC_MODEL    | Название модели Anthropic                             | claude-sonnet-4-6         |
 | JWT_SECRET         | Секрет для подписи токенов доступа к приложениям      | —                         |
-| DATABASE_URL       | Путь к файлу базы данных SQLite                       | ./smailo.sqlite           |
+| DATABASE_URL       | Путь к файлу базы данных SQLite                       | ./data.sqlite             |
 | CLIENT_URL         | Origin, разрешённый CORS                              | http://localhost:5173     |
 | AI_PROVIDER        | AI-провайдер: anthropic или deepseek                  | anthropic                 |
 | DEEPSEEK_API_KEY   | API-ключ DeepSeek (обязателен для deepseek)           | —                         |

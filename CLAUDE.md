@@ -60,7 +60,7 @@ Single `chatWithAI(messages, phase, appContext?)` function. Always returns a JSO
 - **`BRAINSTORM_SYSTEM_PROMPT`** — used for `brainstorm`/`confirm`/`created` phases
 - **`IN_APP_SYSTEM_PROMPT`** — used for `chat` phase; receives truncated app config + data as context
 
-Provider is selected at runtime via `AI_PROVIDER` env var (`anthropic` or `deepseek`). Clients are lazily initialized singletons. AI response is always JSON — `parseResponse()` strips markdown fences and validates/sanitizes all fields.
+Provider is selected at runtime via `AI_PROVIDER` env var (`anthropic` or `deepseek`). The Anthropic model is overridable via `ANTHROPIC_MODEL` env var (default: `claude-sonnet-4-6`). Clients are lazily initialized singletons. AI response is always JSON — `parseResponse()` extracts JSON by finding the outermost `{`…`}` pair in the raw response, then validates/sanitizes all fields.
 
 ### App config JSON shape
 
@@ -111,7 +111,7 @@ Four tables, all using Drizzle ORM with SQLite via better-sqlite3:
 |---|---|
 | `apps` | One row per created app; `config` stores uiComponents JSON; `cronJobs` stripped before storage |
 | `cron_jobs` | Automation jobs per app; `config` is action-specific JSON |
-| `app_data` | Append-only log of key/value entries written by cron jobs; queries always get latest row per key |
+| `app_data` | Append-only log of key/value entries written by cron jobs and user input components (Button, InputText, Form); queries always get latest row per key |
 | `chat_history` | Full chat history; home chat rows have `appId = NULL`; in-app rows use `sessionId = 'app-<hash>'` |
 
 ### Auth

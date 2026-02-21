@@ -1,6 +1,7 @@
 import { schedule, validate } from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { lookup } from 'dns/promises';
+import https from 'node:https';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
@@ -69,6 +70,9 @@ function computeNextRun(expression: string): string | null {
 
 type ActionConfig = Record<string, unknown>;
 
+/** Keys stored by cron handlers must match this pattern (same rule as the data endpoint). */
+const CRON_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
+
 class CronManager {
   private tasks = new Map<number, ScheduledTask>();
 
@@ -105,6 +109,14 @@ class CronManager {
       const expressionParts = job.schedule.trim().split(/\s+/);
       if (expressionParts.length !== 5) {
         console.warn(`[CronManager] Skipping non-5-field cron expression for job "${job.name}": ${job.schedule}`);
+        continue;
+      }
+      const minuteField = expressionParts[0];
+      const isOverFrequent =
+        minuteField === '*' ||
+        (minuteField.startsWith('*/') && parseInt(minuteField.slice(2), 10) < 5);
+      if (isOverFrequent) {
+        console.warn(`[CronManager] Skipping over-frequent cron expression for job "${job.name}": ${job.schedule}`);
         continue;
       }
 
@@ -232,11 +244,11 @@ class CronManager {
       entry[key] = type === 'number' ? 0 : '';
     }
 
-    // Use config.outputKey if set so aggregate_data jobs can reference this data by name.
-    // Fall back to the job-id-based key for backwards compatibility.
-    const storageKey = typeof config.outputKey === 'string' && config.outputKey
+    // Validate outputKey against the same regex used by the data endpoint.
+    const rawLogKey = typeof config.outputKey === 'string' && config.outputKey
       ? config.outputKey.slice(0, 100)
       : `log_entry_${jobId}`;
+    const storageKey = CRON_KEY_REGEX.test(rawLogKey) ? rawLogKey : `log_entry_${jobId}`;
     await db.insert(appData).values({ appId, key: storageKey, value: entry } as any);
   }
 
@@ -257,8 +269,8 @@ class CronManager {
     if (
       bare === '::1' ||
       bare === '::' ||
-      bare.startsWith('fc') ||
-      bare.startsWith('fd') ||
+      bare.toLowerCase().startsWith('fc') ||
+      bare.toLowerCase().startsWith('fd') ||
       bare.toLowerCase().startsWith('fe80') || // link-local
       bare.toLowerCase().startsWith('ff')       // multicast
     ) return true;
@@ -321,44 +333,78 @@ class CronManager {
 
     const MAX_BODY_BYTES = 1_048_576; // 1 MB
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000), redirect: 'manual' });
-    // Block redirects entirely to prevent SSRF via redirect to a private/internal URL
-    if (response.status >= 300 && response.status < 400) {
-      console.warn(`[CronManager] fetch_url rejected redirect response for app ${appId}: ${url}`);
-      return;
-    }
-    const contentLength = response.headers.get('content-length');
-    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
-      console.warn(`[CronManager] fetch_url response too large (${contentLength} bytes) for app ${appId}, skipping`);
+    // Use https.request with the pre-resolved IP to prevent DNS rebinding TOCTOU:
+    // connecting to the IP directly avoids a second OS-level DNS lookup while
+    // still sending the correct Host header and TLS SNI for certificate validation.
+    const port = parsedUrl.port ? parseInt(parsedUrl.port, 10) : 443;
+    const path = parsedUrl.pathname + parsedUrl.search;
+
+    type FetchResult =
+      | { ok: true; body: Buffer }
+      | { ok: false; reason: 'redirect' | 'too_large' | 'error'; detail?: unknown };
+
+    const fetchResult: FetchResult = await new Promise((resolve) => {
+      let settled = false;
+      const done = (r: FetchResult) => { if (!settled) { settled = true; resolve(r); } };
+
+      const req = https.request(
+        {
+          hostname: resolvedIp,        // Pinned resolved IP — prevents DNS rebinding
+          port,
+          path,
+          method: 'GET',
+          headers: { Host: parsedUrl.hostname },
+          servername: parsedUrl.hostname, // TLS SNI for certificate validation
+          rejectUnauthorized: true,
+        },
+        (res) => {
+          // Block redirects to prevent SSRF via redirect to a private/internal URL
+          if (res.statusCode !== undefined && res.statusCode >= 300 && res.statusCode < 400) {
+            res.destroy();
+            done({ ok: false, reason: 'redirect' });
+            return;
+          }
+          const cl = res.headers['content-length'];
+          if (cl && parseInt(cl as string, 10) > MAX_BODY_BYTES) {
+            res.destroy();
+            done({ ok: false, reason: 'too_large' });
+            return;
+          }
+          const chunks: Buffer[] = [];
+          let totalSize = 0;
+          res.on('data', (chunk: Buffer) => {
+            totalSize += chunk.length;
+            if (totalSize > MAX_BODY_BYTES) {
+              res.destroy();
+              done({ ok: false, reason: 'too_large' });
+            } else {
+              chunks.push(chunk);
+            }
+          });
+          res.on('end', () => done({ ok: true, body: Buffer.concat(chunks) }));
+          res.on('error', (err) => done({ ok: false, reason: 'error', detail: err }));
+        }
+      );
+      req.setTimeout(10_000, () => {
+        req.destroy();
+        done({ ok: false, reason: 'error', detail: new Error('Request timeout') });
+      });
+      req.on('error', (err) => done({ ok: false, reason: 'error', detail: err }));
+      req.end();
+    });
+
+    if (fetchResult.ok === false) {
+      if (fetchResult.reason === 'redirect') {
+        console.warn(`[CronManager] fetch_url rejected redirect response for app ${appId}: ${url}`);
+      } else if (fetchResult.reason === 'too_large') {
+        console.warn(`[CronManager] fetch_url body exceeds 1 MB for app ${appId}, skipping`);
+      } else {
+        console.warn(`[CronManager] fetch_url request failed for app ${appId}:`, fetchResult.detail);
+      }
       return;
     }
 
-    // Stream the body and enforce the size limit incrementally to avoid buffering a full
-    // large response into memory before the check fires (e.g. chunked-transfer responses).
-    const reader = response.body?.getReader();
-    if (!reader) {
-      console.warn(`[CronManager] fetch_url no response body for app ${appId}, skipping`);
-      return;
-    }
-    const chunks: Uint8Array[] = [];
-    let totalSize = 0;
-    let truncated = false;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      totalSize += value.length;
-      if (totalSize > MAX_BODY_BYTES) {
-        reader.cancel();
-        truncated = true;
-        break;
-      }
-      chunks.push(value);
-    }
-    if (truncated) {
-      console.warn(`[CronManager] fetch_url body exceeds 1 MB for app ${appId}, skipping`);
-      return;
-    }
-    const body = new TextDecoder().decode(Buffer.concat(chunks));
+    const body = fetchResult.body.toString('utf8');
     let value: unknown = body;
 
     try {
@@ -382,26 +428,34 @@ class CronManager {
       // keep raw text as value
     }
 
-    // Use config.outputKey if set so aggregate_data jobs can reference this data by name.
-    const fetchStorageKey = typeof config.outputKey === 'string' && config.outputKey
+    // Validate outputKey against the same regex used by the data endpoint.
+    const rawFetchKey = typeof config.outputKey === 'string' && config.outputKey
       ? config.outputKey.slice(0, 100)
       : `fetch_url_${jobId}`;
-    // Store the extracted value directly (not the full {url, result, fetchedAt} object)
-    // so UI components can bind to it via dataKey without extra nesting.
+    const fetchStorageKey = CRON_KEY_REGEX.test(rawFetchKey) ? rawFetchKey : `fetch_url_${jobId}`;
     await db.insert(appData).values({ appId, key: fetchStorageKey, value } as any);
   }
 
   private async handleSendReminder(jobId: number, appId: number, config: ActionConfig): Promise<void> {
     const text = (config.text as string) ?? 'Reminder';
-
-    await db.insert(appData).values({ appId, key: `reminder_${jobId}`, value: { text, sentAt: new Date().toISOString() } } as any);
+    // Support outputKey so the reminder's storage key can be referenced by a UI component's dataKey.
+    const rawKey = typeof config.outputKey === 'string' && config.outputKey
+      ? config.outputKey.slice(0, 100)
+      : `reminder_${jobId}`;
+    const storageKey = CRON_KEY_REGEX.test(rawKey) ? rawKey : `reminder_${jobId}`;
+    await db.insert(appData).values({ appId, key: storageKey, value: { text, sentAt: new Date().toISOString() } } as any);
   }
 
   private async handleAggregateData(appId: number, config: ActionConfig): Promise<void> {
     const dataKey = ((config.dataKey as string) ?? '').slice(0, 100);
     const operation = (config.operation as string) ?? 'avg';
-    const outputKey = ((config.outputKey as string) ?? `${dataKey}_${operation}`).slice(0, 100);
-    const windowDays = Math.min(Math.max(1, (config.windowDays as number) ?? 7), 365);
+    const rawOutputKey = ((config.outputKey as string) ?? `${dataKey}_${operation}`).slice(0, 100);
+    const outputKey = CRON_KEY_REGEX.test(rawOutputKey) ? rawOutputKey : `${dataKey}_${operation}`.slice(0, 100);
+    // Guard against non-numeric windowDays which would produce NaN and crash toISOString().
+    const rawWindowDays = config.windowDays;
+    const windowDays = typeof rawWindowDays === 'number' && isFinite(rawWindowDays)
+      ? Math.min(Math.max(1, rawWindowDays), 365)
+      : 7;
 
     if (!dataKey) {
       console.warn('[CronManager] aggregate_data action missing dataKey config');
@@ -463,7 +517,9 @@ class CronManager {
         return;
     }
 
-    await db.insert(appData).values({ appId, key: outputKey, value: { result, operation, dataKey, windowDays, sampleCount: numbers.length, computedAt: new Date().toISOString() } } as any);
+    // Store the plain numeric result so UI components (Knob, ProgressBar, Tag, etc.) can
+    // bind directly via dataKey without needing to unwrap a metadata object.
+    await db.insert(appData).values({ appId, key: outputKey, value: result } as any);
   }
 }
 

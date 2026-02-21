@@ -20,10 +20,12 @@ export const useChatStore = defineStore('chat', () => {
   const sessionId = ref<string>('')
   const mood = ref<string>('idle')
   const phase = ref<string>('brainstorm')
-  const appHash = ref<string | null>(null)
+  // Restore appHash and creationToken from sessionStorage so they survive a page refresh
+  // during the window between app creation and setting a password.
+  const appHash = ref<string | null>(sessionStorage.getItem('smailo_appHash'))
   const appConfig = ref<AppConfig | null>(null)
   // One-time token returned at app creation; required to call set-password
-  const creationToken = ref<string | null>(null)
+  const creationToken = ref<string | null>(sessionStorage.getItem('smailo_creationToken'))
 
   async function sendMessage(text: string) {
     messages.value.push({ role: 'user', content: text })
@@ -40,9 +42,11 @@ export const useChatStore = defineStore('chat', () => {
 
     if (data.appHash) {
       appHash.value = data.appHash
+      sessionStorage.setItem('smailo_appHash', data.appHash)
     }
     if (data.creationToken) {
       creationToken.value = data.creationToken
+      sessionStorage.setItem('smailo_creationToken', data.creationToken)
     }
     if (data.appConfig) {
       appConfig.value = data.appConfig

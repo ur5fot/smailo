@@ -98,10 +98,8 @@ const componentMap: Record<string, any> = {
 }
 
 // Strip event handler props (keys starting with 'on') to prevent stored XSS.
-const BLOCKED_PROP_PREFIXES = ['on']
 function isSafeProp(key: string): boolean {
-  const lower = key.toLowerCase()
-  return !BLOCKED_PROP_PREFIXES.some((prefix) => lower.startsWith(prefix))
+  return !key.toLowerCase().startsWith('on')
 }
 
 function resolvedProps(item: UiConfigItem): Record<string, any> {

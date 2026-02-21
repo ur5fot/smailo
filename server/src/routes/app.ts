@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import { eq, desc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory } from '../db/schema.js';
-import { chatWithAI } from '../services/aiService.js';
+import { chatWithAI, validateUiComponents } from '../services/aiService.js';
 
 export const appRouter = Router();
 
@@ -39,11 +39,8 @@ const chatLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET env var is not set');
-  return secret;
-}
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET env var is not set');
 
 // Middleware: verify JWT if the app has a password
 async function requireAuthIfProtected(
@@ -74,7 +71,7 @@ async function requireAuthIfProtected(
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, getJwtSecret()) as { hash: string };
+    const payload = jwt.verify(token, JWT_SECRET) as { hash: string };
     if (payload.hash !== hash) {
       res.status(401).json({ error: 'Invalid token for this app' });
       return;
@@ -201,7 +198,7 @@ appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: strin
       return res.status(401).json({ error: 'Invalid password' });
     }
 
-    const token = jwt.sign({ hash }, getJwtSecret(), { expiresIn: '7d' });
+    const token = jwt.sign({ hash }, JWT_SECRET, { expiresIn: '7d' });
     return res.json({ token });
   } catch (error) {
     console.error('[POST /api/app/:hash/verify] Error:', error);
@@ -321,28 +318,7 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
     // validItems is hoisted so the response can reuse it without re-filtering.
     let validUiItems: any[] | undefined;
     if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
-      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable', 'Button', 'InputText', 'Form'];
-      const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
-      validUiItems = (claudeResponse.uiUpdate as any[])
-        .filter((item: any) =>
-          item &&
-          typeof item.component === 'string' &&
-          ALLOWED_COMPONENTS.includes(item.component) &&
-          (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props))) &&
-          // Button and InputText require action with a valid key — without it they silently vanish in the renderer
-          ((['Button', 'InputText'].includes(item.component))
-            ? (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))
-            : (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key)))) &&
-          // Form requires outputKey and a non-empty fields array — without them it silently vanishes in the renderer
-          // 'timestamp' is reserved: AppForm always injects it as the submission time; a field with that name would silently lose user input
-          (item.component === 'Form'
-            ? (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey) &&
-               Array.isArray(item.fields) && item.fields.length > 0 &&
-               item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp'))
-            : (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
-              (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp')))
-        )
-        .slice(0, 20);
+      validUiItems = validateUiComponents(claudeResponse.uiUpdate);
       if (validUiItems.length > 0) {
         const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: validUiItems };
         await db.update(apps).set({ config: updatedConfig } as any).where(eq(apps.id, row.id));

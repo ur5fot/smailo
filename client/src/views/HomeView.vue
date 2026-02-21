@@ -161,8 +161,10 @@ async function handleSetPassword() {
       creationToken: chatStore.creationToken,
     })
     passwordSet.value = true
-    // Clear the one-time token from the store — the server already invalidated it
+    // Clear the one-time token from the store and sessionStorage — the server already invalidated it
     chatStore.creationToken = null
+    sessionStorage.removeItem('smailo_creationToken')
+    sessionStorage.removeItem('smailo_appHash')
   } catch (err: any) {
     passwordError.value = err?.response?.data?.error ?? 'Failed to set password. Please try again.'
   } finally {

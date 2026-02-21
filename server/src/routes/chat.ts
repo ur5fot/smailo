@@ -4,7 +4,7 @@ import { randomBytes, createHash } from 'crypto';
 import { eq, desc, isNull, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory } from '../db/schema.js';
-import { chatWithAI } from '../services/aiService.js';
+import { chatWithAI, validateUiComponents } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 
 export const chatRouter = Router();
@@ -108,31 +108,12 @@ chatRouter.post('/', limiter, async (req, res) => {
       // configs are never written to apps.config (they live in the cronJobs table).
       const { cronJobs: _cj, ...appConfigToStore } = claudeResponse.appConfig as any;
 
-      // Validate uiComponents against the allowed component whitelist to match the same
-      // boundary enforced on in-app chat uiUpdate responses.
-      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable', 'Button', 'InputText', 'Form'];
-      const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
+      // Validate uiComponents against the allowed component whitelist.
       if (Array.isArray(appConfigToStore.uiComponents)) {
-        appConfigToStore.uiComponents = (appConfigToStore.uiComponents as any[])
-          .filter(
-            (item: any) =>
-              item &&
-              typeof item.component === 'string' &&
-              ALLOWED_COMPONENTS.includes(item.component) &&
-              (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props))) &&
-              // Button and InputText require action with a valid key — without it they silently vanish in the renderer
-              ((['Button', 'InputText'].includes(item.component))
-                ? (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))
-                : (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key)))) &&
-              // Form requires outputKey and a non-empty fields array — without them it silently vanishes in the renderer
-              (item.component === 'Form'
-                ? (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey) &&
-                   Array.isArray(item.fields) && item.fields.length > 0 &&
-                   item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp'))
-                : (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
-                  (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp')))
-          )
-          .slice(0, 20);
+        appConfigToStore.uiComponents = validateUiComponents(appConfigToStore.uiComponents);
+      } else {
+        // Non-array value (null, string, object) — reset to empty so no untrusted data reaches the client.
+        appConfigToStore.uiComponents = [];
       }
 
       const [inserted] = await db
@@ -162,20 +143,22 @@ chatRouter.post('/', limiter, async (req, res) => {
       }
     }
 
-    // Persist assistant response
-    await db.insert(chatHistory).values({
-      sessionId,
-      role: 'assistant',
-      content: claudeResponse.message,
-      phase: claudeResponse.phase,
-    } as any);
-
     // If Claude skipped confirm and jumped to created (blocked server-side),
     // downgrade the phase to confirm so the client doesn't show a broken "created" state.
+    // Compute this BEFORE persisting so the DB row also reflects the corrected phase —
+    // otherwise the next request would read phase='created' and switch to the in-app AI prompt.
     let responsePhase = claudeResponse.phase;
     if (claudeResponse.phase === 'created' && !appHashResult) {
       responsePhase = 'confirm';
     }
+
+    // Persist assistant response with the corrected phase
+    await db.insert(chatHistory).values({
+      sessionId,
+      role: 'assistant',
+      content: claudeResponse.message,
+      phase: responsePhase,
+    } as any);
 
     return res.json({
       mood: claudeResponse.mood,

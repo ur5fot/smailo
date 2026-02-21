@@ -4,18 +4,18 @@
     <template v-if="subtitle" #subtitle>{{ subtitle }}</template>
     <template #content>
       <!-- No data at all -->
-      <div v-if="resolvedValue === undefined || resolvedValue === null" class="app-card__empty">
+      <div v-if="props.value === undefined || props.value === null" class="app-card__empty">
         <i class="pi pi-inbox app-card__empty-icon" />
         <span>No data yet. Ask Smailo below to add entries.</span>
       </div>
 
       <!-- Array: render as list -->
-      <ul v-else-if="Array.isArray(resolvedValue)" class="app-card__list">
-        <li v-if="resolvedValue.length === 0" class="app-card__empty-item">
+      <ul v-else-if="Array.isArray(props.value)" class="app-card__list">
+        <li v-if="props.value.length === 0" class="app-card__empty-item">
           No entries yet.
         </li>
         <li
-          v-for="(item, i) in resolvedValue"
+          v-for="(item, i) in props.value"
           :key="i"
           class="app-card__list-item"
         >
@@ -30,21 +30,20 @@
       </ul>
 
       <!-- Object: render key-value pairs -->
-      <dl v-else-if="typeof resolvedValue === 'object'" class="app-card__dl">
-        <template v-for="(val, key) in resolvedValue" :key="key">
+      <dl v-else-if="typeof props.value === 'object'" class="app-card__dl">
+        <template v-for="(val, key) in props.value" :key="key">
           <dt class="app-card__dt">{{ key }}</dt>
           <dd class="app-card__dd">{{ val }}</dd>
         </template>
       </dl>
 
       <!-- Primitive: render as text -->
-      <p v-else class="app-card__text">{{ resolvedValue }}</p>
+      <p v-else class="app-card__text">{{ props.value }}</p>
     </template>
   </Card>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import Card from 'primevue/card'
 
 const props = defineProps<{
@@ -53,8 +52,6 @@ const props = defineProps<{
   // value is bound from dataKey resolution in AppRenderer
   value?: any
 }>()
-
-const resolvedValue = computed(() => props.value)
 </script>
 
 <style scoped>

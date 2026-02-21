@@ -127,7 +127,7 @@ CRON SCHEDULE RULES (strictly enforced):
 ACTION CONFIG EXAMPLES:
 - log_entry: { "fields": { "note": "string", "value": "number" } }
 - fetch_url: { "url": "https://example.com/api", "dataPath": "$.price", "outputKey": "myDataKey" }
-- send_reminder: { "text": "Don't forget to log your mood!" }
+- send_reminder: { "text": "Don't forget to log your mood!", "outputKey": "reminder" }
 - aggregate_data: { "dataKey": "weight", "operation": "avg", "outputKey": "weight_avg_7d", "windowDays": 7 }
 
 CRITICAL fetch_url rules:
@@ -170,6 +170,39 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - NEVER use components not listed above.
 
 Keep responses concise and helpful. Focus on the user's data and app context.`;
+
+const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
+const ALLOWED_UI_COMPONENTS = [
+  'Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar',
+  'Calendar', 'DataTable', 'Button', 'InputText', 'Form',
+];
+
+/**
+ * Filter an array of AI-generated UI component configs against the allowed whitelist.
+ * Shared by the home-chat and in-app-chat routes to avoid duplicating validation logic.
+ */
+export function validateUiComponents(items: unknown[]): UiComponent[] {
+  return (items as any[])
+    .filter((item: any) =>
+      item &&
+      typeof item.component === 'string' &&
+      ALLOWED_UI_COMPONENTS.includes(item.component) &&
+      (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props))) &&
+      // Button and InputText require action with a valid key — without it they silently vanish in the renderer
+      ((['Button', 'InputText'].includes(item.component))
+        ? (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))
+        : (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key)))) &&
+      // Form requires outputKey and a non-empty fields array — without them it silently vanishes in the renderer
+      // 'timestamp' is reserved: AppForm always injects it as the submission time
+      (item.component === 'Form'
+        ? (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey) &&
+           Array.isArray(item.fields) && item.fields.length > 0 &&
+           item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp'))
+        : (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
+          (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp')))
+    )
+    .slice(0, 20) as UiComponent[];
+}
 
 let anthropicClient: Anthropic | null = null;
 let deepseekClient: OpenAI | null = null;

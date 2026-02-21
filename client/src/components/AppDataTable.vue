@@ -7,22 +7,16 @@
     striped-rows
     class="app-datatable"
   >
-    <template v-if="rows.length === 0">
-      <Column header="Data">
-        <template #body>
-          <span class="app-datatable__empty">No entries yet. Ask Smailo below to add data.</span>
-        </template>
-      </Column>
+    <template #empty>
+      <span class="app-datatable__empty">No entries yet. Ask Smailo below to add data.</span>
     </template>
-    <template v-else>
-      <Column
-        v-for="col in effectiveColumns"
-        :key="col.field"
-        :field="col.field"
-        :header="col.header"
-        sortable
-      />
-    </template>
+    <Column
+      v-for="col in effectiveColumns"
+      :key="col.field"
+      :field="col.field"
+      :header="col.header"
+      sortable
+    />
   </DataTable>
 </template>
 
