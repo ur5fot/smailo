@@ -329,12 +329,17 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
           typeof item.component === 'string' &&
           ALLOWED_COMPONENTS.includes(item.component) &&
           (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props))) &&
-          // Validate action.key for Button/InputText — invalid keys cause perpetual write failures
-          (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))) &&
-          // Validate outputKey for Form
-          (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
-          // Validate field names for Form
-          (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name)))
+          // Button and InputText require action with a valid key — without it they silently vanish in the renderer
+          ((['Button', 'InputText'].includes(item.component))
+            ? (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))
+            : (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key)))) &&
+          // Form requires outputKey and a non-empty fields array — without them it silently vanishes in the renderer
+          (item.component === 'Form'
+            ? (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey) &&
+               Array.isArray(item.fields) && item.fields.length > 0 &&
+               item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name)))
+            : (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
+              (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name))))
         )
         .slice(0, 20);
       if (validUiItems.length > 0) {

@@ -14,7 +14,7 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 app.use(helmet());
 app.use(cors({ origin: CLIENT_URL }));
-app.use(express.json());
+app.use(express.json({ limit: '50kb' }));
 
 app.use('/api/chat', chatRouter);
 app.use('/api/app', appRouter);

@@ -60,6 +60,7 @@ watch(() => props.fields, (newFields) => {
   for (const f of newFields) {
     fieldValues[f.name] = f.type === 'number' ? null : ''
   }
+  errorMsg.value = ''
 })
 
 async function handleSubmit() {
