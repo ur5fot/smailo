@@ -27,10 +27,10 @@
         @click="handleSubmit"
       />
       <button
+        v-if="speechSupported"
         class="input-bar__mic"
         :class="{ 'input-bar__mic--recording': isRecording }"
         :aria-label="isRecording ? 'Stop recording' : 'Start recording'"
-        :disabled="!speechSupported"
         @click="toggleRecording"
       >
         <i class="pi pi-microphone" />

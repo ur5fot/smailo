@@ -1,5 +1,5 @@
 <template>
-  <Accordion :value="openTabs">
+  <Accordion v-model:value="openTabs">
     <AccordionPanel
       v-for="(tab, index) in tabs"
       :key="index"
@@ -21,6 +21,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -31,8 +32,8 @@ const props = defineProps<{
   appData?: Record<string, any>
 }>()
 
-// Keep first tab open by default
-const openTabs = ['0']
+// Keep first tab open by default; must be a ref so PrimeVue v-model can update it on toggle
+const openTabs = ref(['0'])
 
 function resolvedData(dataKey: string): any {
   return props.appData?.[dataKey]

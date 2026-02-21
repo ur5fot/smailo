@@ -259,9 +259,14 @@ async function handleChatSubmit(message: string) {
     }
     chatMessages.value.push({ role: 'assistant', content: res.message, mood: res.mood })
 
-    // If Claude returned a uiUpdate, refresh the full app (config + appData)
+    // If Claude returned a uiUpdate, refresh the full app (config + appData).
+    // Failures here are non-fatal: the AI response is already shown; data refreshes on next interaction.
     if (res.uiUpdate) {
-      await appStore.fetchApp(hash.value)
+      try {
+        await appStore.fetchApp(hash.value)
+      } catch {
+        // Ignore — stale data visible until next refresh
+      }
     }
   } catch {
     // Remove the optimistically-pushed user message so it doesn't linger on failure.

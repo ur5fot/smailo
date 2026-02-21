@@ -30,6 +30,7 @@ usersRouter.post('/', async (req, res) => {
     for (let attempt = 0; attempt < 3; attempt++) {
       const existing = await db.select().from(users).where(eq(users.userId, userId));
       if (existing.length === 0) break;
+      if (attempt === 2) throw new Error('Failed to generate unique userId after retries');
       userId = generateUserId();
     }
 
