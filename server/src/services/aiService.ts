@@ -355,7 +355,7 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
 async function callAnthropic(messages: ChatMessage[], systemPrompt: string): Promise<string> {
   const response = await getAnthropicClient().messages.create({
     model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: systemPrompt,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
   });
@@ -369,7 +369,7 @@ async function callAnthropic(messages: ChatMessage[], systemPrompt: string): Pro
 async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Promise<string> {
   const response = await getDeepSeekClient().chat.completions.create({
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
-    max_tokens: 2048,
+    max_tokens: 4096,
     messages: [
       { role: 'system', content: systemPrompt },
       ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),

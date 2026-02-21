@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import rateLimit from 'express-rate-limit';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { users, apps } from '../db/schema.js';
 
@@ -35,8 +35,7 @@ usersRouter.post('/', async (req, res) => {
     }
 
     await db.insert(users).values({ userId });
-    const [row] = await db.select().from(users).where(eq(users.userId, userId));
-    res.json({ userId: row.userId });
+    res.json({ userId });
   } catch (err) {
     console.error('[users] POST /api/users error:', err);
     res.status(500).json({ error: 'Failed to create user' });
@@ -86,7 +85,8 @@ usersRouter.get('/:userId/apps', async (req, res) => {
         lastVisit: apps.lastVisit,
       })
       .from(apps)
-      .where(eq(apps.userId, userId));
+      .where(eq(apps.userId, userId))
+      .orderBy(desc(apps.createdAt));
 
     res.json(userApps);
   } catch (err) {

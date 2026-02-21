@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 export const users = sqliteTable('users', {
@@ -34,7 +34,9 @@ export const cronJobs = sqliteTable('cron_jobs', {
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   lastRun: text('last_run'),
   nextRun: text('next_run'),
-});
+}, (table) => ({
+  appIdIdx: index('cron_jobs_app_id_idx').on(table.appId),
+}));
 
 export const appData = sqliteTable('app_data', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -42,7 +44,9 @@ export const appData = sqliteTable('app_data', {
   key: text('key').notNull(),
   value: text('value', { mode: 'json' }),
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
-});
+}, (table) => ({
+  appIdKeyIdx: index('app_data_app_id_key_idx').on(table.appId, table.key),
+}));
 
 export const chatHistory = sqliteTable('chat_history', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -52,4 +56,6 @@ export const chatHistory = sqliteTable('chat_history', {
   content: text('content').notNull(),
   phase: text('phase'),
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
-});
+}, (table) => ({
+  sessionIdIdx: index('chat_history_session_id_idx').on(table.sessionId),
+}));

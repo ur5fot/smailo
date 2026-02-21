@@ -125,6 +125,7 @@
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
 import Smailo from '../components/Smailo.vue'
@@ -294,7 +295,7 @@ async function handleChatSubmit(message: string) {
 }
 
 function renderMd(text: string): string {
-  return marked.parse(text) as string
+  return DOMPurify.sanitize(marked.parse(text) as string)
 }
 
 function scrollToBottom() {

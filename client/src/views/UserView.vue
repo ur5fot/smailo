@@ -140,6 +140,7 @@
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import Button from 'primevue/button'
 import Smailo from '../components/Smailo.vue'
 import InputBar from '../components/InputBar.vue'
@@ -220,7 +221,7 @@ async function handleChatSubmit(message: string) {
 }
 
 function renderMd(text: string): string {
-  return marked.parse(text) as string
+  return DOMPurify.sanitize(marked.parse(text) as string)
 }
 
 function scrollToBottom() {

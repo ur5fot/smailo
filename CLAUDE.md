@@ -87,7 +87,7 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     dataKey?: string                // key into appData to bind as value/data prop
     // Input component fields (top-level, NOT inside props):
     action?: { key: string; value?: unknown }  // Button: fixed value; InputText: value from user input
-    fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only
+    fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only; `name` must match /^[a-zA-Z0-9_]{1,100}$/ and 'timestamp' is reserved (auto-injected)
     outputKey?: string             // Form only: appData key for the submitted object
   }>
 }
@@ -100,9 +100,23 @@ Iterates `uiConfig` array and renders each component dynamically. Eight componen
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
 - `Accordion` → `AppAccordion.vue`, `Panel` → `AppPanel.vue`, `Tabs` → `AppTabs.vue` (slot-based layout)
 
-All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map; for `Chart` it binds to `data` prop, for all others to `value` prop. Props starting with `on` are stripped **client-side only** (in `resolvedProps`); the server whitelist validates component names and prop object shape but does not remove individual `on*` keys.
+All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map with the following prop bindings:
+- `Chart` → binds to `data` prop
+- `Image` → binds to `src` prop
+- `Chip` → binds to `label` prop
+- All others → binds to `value` prop
+
+`dataKey` supports dot notation for nested access: `"rates.USD"` first looks up `appData["rates"]`, auto-parses it from JSON if it is a string, then accesses `["USD"]`. The resolver returns `undefined` if any segment is missing or non-object.
+
+`Calendar` is aliased in `componentMap` to PrimeVue's `DatePicker` component (`primevue/datepicker`); the AI config uses `'Calendar'`.
+
+`Slider` and `Rating` are forced read-only by the renderer (`disabled: true` and `readonly: true` respectively), regardless of AI config props.
+
+Props starting with `on` are stripped **client-side only** (in `resolvedProps`); the server whitelist validates component names and prop object shape but does not remove individual `on*` keys.
 
 New display-only components: `Chip` (label tag), `Badge` (numeric badge with severity), `Slider` (read-only range slider), `Rating` (star display), `Image` (image from URL), `MeterGroup` (multi-segment progress). `Accordion` and `Tabs` use `props.tabs` array (each item: `{ header, dataKey }`) instead of top-level `dataKey`. `Panel` uses top-level `dataKey` (bound to `value` prop) plus `props.header` and `props.toggleable`.
+
+The server validates and truncates `uiComponents` to a maximum of 20 items after filtering invalid ones.
 
 Input wrapper components call `POST /api/app/:hash/data` on user interaction and emit `'data-written'`, which bubbles up through `AppRenderer` to `AppView.vue`, triggering `appStore.fetchData(hash)` to refresh displayed data.
 
@@ -110,9 +124,9 @@ Input wrapper components call `POST /api/app/:hash/data` on user interaction and
 
 `CronManager` singleton. Four action types:
 - `log_entry` — inserts a timestamped entry into `appData`
-- `fetch_url` — fetches external HTTPS URL, extracts via `dataPath` (dot notation from `$.`), stores result; has SSRF protection (private IP check + DNS rebinding check + redirect blocking + 1 MB limit)
-- `send_reminder` — logs reminder text to `appData`
-- `aggregate_data` — computes avg/sum/count/max/min over a time window from existing `appData` rows
+- `fetch_url` — fetches external HTTPS URL, extracts via `dataPath` (dot notation from `$.`), stores result; has SSRF protection (private IP check + DNS rebinding check + redirect blocking + 1 MB limit + 10-second timeout). If the response body is not valid JSON, raw text is stored and `dataPath` extraction is skipped.
+- `send_reminder` — stores `{ text: string, sentAt: ISO8601 }` under `outputKey` (not a raw string)
+- `aggregate_data` — computes avg/sum/count/max/min over a time window; result stored as a plain `number` under `outputKey`
 
 All cron expressions must be 5-field only (no seconds). Minimum frequency: every 5 minutes. Jobs are loaded from DB on server start via `cronManager.loadAll()`. Max 5 jobs per app.
 
@@ -130,7 +144,7 @@ Five tables, all using Drizzle ORM with SQLite via better-sqlite3:
 
 ### Auth
 
-Password-protected apps use bcrypt (cost 12) + JWT (7d expiry). A one-time `creationToken` (SHA-256 stored, plaintext returned once at creation) gates the `set-password` endpoint to prevent race-condition hijacking. JWT is stored in client `localStorage` and sent as `Authorization: Bearer`.
+Password-protected apps use bcrypt (cost 12) + JWT (7d expiry). A one-time `creationToken` (SHA-256 stored, plaintext returned once at creation) gates the `set-password` endpoint to prevent race-condition hijacking. JWT is stored per-app in `localStorage` under key `smailo_token_<hash>`; the Axios interceptor selects the correct token by extracting the hash from the request URL. The `creationToken` is stored in `sessionStorage` (lost on tab close) — users must set a password before closing the tab if they want password protection. `GET /api/app/:hash` strips `cronJobs` from `apps.config` before returning to the client.
 
 ### User-triggered data writes (`POST /api/app/:hash/data`)
 
@@ -168,7 +182,7 @@ Three views:
 
 `InputBar.vue` — chat input with two extra controls: (1) quick number buttons (1–N, up to 5) shown when the last assistant message contains a numbered list; (2) a microphone button for browser-native speech recognition (Web Speech API), hidden when unsupported. Number buttons auto-submit the digit immediately.
 
-`chat.ts` store exposes a `reset()` method that clears messages, resets phase to `brainstorm`, generates a new sessionId, and removes `smailo_appHash`/`smailo_creationToken` from sessionStorage. `UserView` calls it on mount to ensure each visit starts a fresh creation chat.
+`chat.ts` store exposes two session management methods: `initSession(userId)` — called by `UserView` on mount — sets `sessionId = home-<userId>` (deterministic, persistent across visits) and reloads chat history; and `reset()` — generates a new random UUID session ID, used for a full clean break. The voice input microphone (`InputBar.vue`) uses Web Speech API configured for Russian (`lang: 'ru-RU'`).
 
 Axios instance (`client/src/api/index.ts`) auto-attaches JWT from localStorage.
 
