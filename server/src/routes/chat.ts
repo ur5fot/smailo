@@ -158,10 +158,20 @@ chatRouter.post('/', limiter, async (req, res) => {
       phase: claudeResponse.phase,
     } as any);
 
+    // If Claude skipped confirm and jumped to created (blocked server-side),
+    // downgrade the phase to confirm so the client doesn't show a broken "created" state.
+    let responsePhase = claudeResponse.phase;
+    if (claudeResponse.phase === 'created' && !appHashResult) {
+      responsePhase = 'confirm';
+    }
+
     return res.json({
       mood: claudeResponse.mood,
       message: claudeResponse.message,
-      phase: claudeResponse.phase,
+      phase: responsePhase,
+      appConfig: (responsePhase === 'confirm' || responsePhase === 'created')
+        ? claudeResponse.appConfig
+        : undefined,
       appHash: appHashResult,
       creationToken: creationTokenResult,
     });

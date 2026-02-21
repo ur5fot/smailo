@@ -386,7 +386,9 @@ class CronManager {
     const fetchStorageKey = typeof config.outputKey === 'string' && config.outputKey
       ? config.outputKey.slice(0, 100)
       : `fetch_url_${jobId}`;
-    await db.insert(appData).values({ appId, key: fetchStorageKey, value: { url, result: value, fetchedAt: new Date().toISOString() } } as any);
+    // Store the extracted value directly (not the full {url, result, fetchedAt} object)
+    // so UI components can bind to it via dataKey without extra nesting.
+    await db.insert(appData).values({ appId, key: fetchStorageKey, value } as any);
   }
 
   private async handleSendReminder(jobId: number, appId: number, config: ActionConfig): Promise<void> {

@@ -32,6 +32,36 @@
         </div>
       </div>
 
+      <!-- App plan card (confirm phase) -->
+      <div
+        v-if="chatStore.phase === 'confirm' && chatStore.appConfig"
+        class="home__plan-card"
+      >
+        <div class="home__plan-header">
+          <i class="pi pi-file-edit" />
+          <strong>{{ chatStore.appConfig.appName }}</strong>
+        </div>
+        <p class="home__plan-desc">{{ chatStore.appConfig.description }}</p>
+        <div v-if="chatStore.appConfig.uiComponents?.length" class="home__plan-section">
+          <span class="home__plan-label">UI:</span>
+          <span
+            v-for="c in chatStore.appConfig.uiComponents"
+            :key="c.component"
+            class="home__plan-tag"
+          >{{ c.component }}</span>
+        </div>
+        <div v-if="chatStore.appConfig.cronJobs?.length" class="home__plan-section">
+          <span class="home__plan-label">Автоматизация:</span>
+          <div
+            v-for="job in chatStore.appConfig.cronJobs"
+            :key="job.name"
+            class="home__plan-job"
+          >
+            <i class="pi pi-clock" /> {{ job.name }} — {{ job.humanReadable }}
+          </div>
+        </div>
+      </div>
+
       <!-- App created card -->
       <div
         v-if="chatStore.phase === 'created' && chatStore.appHash"
@@ -245,6 +275,62 @@ watch(
 @keyframes blink {
   0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1); }
+}
+
+/* ── App plan card (confirm) ───────────────────── */
+.home__plan-card {
+  margin: 0.5rem 0 0.5rem 3rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 420px;
+}
+
+.home__plan-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: #1d4ed8;
+}
+
+.home__plan-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #374151;
+}
+
+.home__plan-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.home__plan-label {
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.home__plan-tag {
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.8rem;
+}
+
+.home__plan-job {
+  width: 100%;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 /* ── App created card ──────────────────────────── */

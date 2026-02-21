@@ -282,24 +282,22 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
     } as any);
 
     // If the AI returned an updated UI layout, validate it before persisting.
-    // Each item must have a component name from the allowed whitelist and a plain object props.
-    if (claudeResponse.uiUpdate) {
-      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar'];
-      const isValidUiUpdate =
-        Array.isArray(claudeResponse.uiUpdate) &&
-        claudeResponse.uiUpdate.length <= 20 &&
-        (claudeResponse.uiUpdate as any[]).every(
-          (item: any) =>
-            item &&
-            typeof item.component === 'string' &&
-            ALLOWED_COMPONENTS.includes(item.component) &&
-            (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props)))
-        );
-      if (isValidUiUpdate) {
-        const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: claudeResponse.uiUpdate };
+    // Filter uiUpdate to only allowed components; save whatever passes the whitelist.
+    if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
+      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable'];
+      const validItems = (claudeResponse.uiUpdate as any[])
+        .filter((item: any) =>
+          item &&
+          typeof item.component === 'string' &&
+          ALLOWED_COMPONENTS.includes(item.component) &&
+          (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props)))
+        )
+        .slice(0, 20);
+      if (validItems.length > 0) {
+        const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: validItems };
         await db.update(apps).set({ config: updatedConfig } as any).where(eq(apps.id, row.id));
       } else {
-        console.warn(`[POST /api/app/:hash/chat] AI returned invalid uiUpdate for app ${row.id}, ignoring`);
+        console.warn(`[POST /api/app/:hash/chat] uiUpdate had no valid components for app ${row.id}`);
       }
     }
 

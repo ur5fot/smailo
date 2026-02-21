@@ -83,18 +83,46 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
   ],
   "uiComponents": [
     {
-      "component": "Chart" | "Card" | "Timeline" | "Carousel" | "Knob" | "Tag" | "ProgressBar" | "Calendar",
-      "props": { /* PrimeVue component props */ },
-      "dataKey": "optional key from appData to bind as value/data"
+      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar",
+      "props": { /* component-specific props — see component guide below */ },
+      "dataKey": "key from appData to bind as value prop"
     }
   ]
 }
 
+COMPONENT GUIDE (always follow this — wrong props render blank):
+- Card: use "title" prop for the heading. Use "dataKey" to bind the data as "value". No "content" prop.
+  Example: { "component": "Card", "props": { "title": "My Notes" }, "dataKey": "notes" }
+- DataTable: use "dataKey" to bind an array as "value". Use "columns" prop for column definitions.
+  Example: { "component": "DataTable", "props": { "columns": [{ "field": "date", "header": "Date" }, { "field": "note", "header": "Note" }] }, "dataKey": "entries" }
+- Chart: requires "type" prop ("bar", "line", "pie", "doughnut") and "dataKey" for chart data object.
+  Example: { "component": "Chart", "props": { "type": "line" }, "dataKey": "weightData" }
+- Knob: use "value" prop (number 0-100). Use "dataKey" to bind numeric data.
+  Example: { "component": "Knob", "props": { "min": 0, "max": 10 }, "dataKey": "moodScore" }
+- Tag: use "value" prop (string). Use "dataKey" to bind string data.
+- ProgressBar: use "value" prop (number 0-100). Use "dataKey" for numeric data.
+- Calendar: displays a date picker, no dataKey needed.
+- Timeline: use "dataKey" to bind array of { date, content } objects.
+
+NEVER use: Form, Input, Button, or any component not listed above.
+
+CRON SCHEDULE RULES (strictly enforced):
+- Use 5-field format only: "minute hour dom month dow" — NO seconds field
+- Minimum frequency: every 5 minutes ("*/5 * * * *") — faster schedules are rejected
+- Examples: "*/5 * * * *" (every 5 min), "*/30 * * * *" (every 30 min), "0 * * * *" (hourly), "0 9 * * *" (daily 9am)
+- NEVER use 6-field expressions like "*/30 * * * * *" (they will be rejected)
+
 ACTION CONFIG EXAMPLES:
 - log_entry: { "fields": { "note": "string", "value": "number" } }
-- fetch_url: { "url": "https://example.com/api", "dataPath": "$.price" }
+- fetch_url: { "url": "https://example.com/api", "dataPath": "$.price", "outputKey": "myDataKey" }
 - send_reminder: { "text": "Don't forget to log your mood!" }
 - aggregate_data: { "dataKey": "weight", "operation": "avg", "outputKey": "weight_avg_7d", "windowDays": 7 }
+
+CRITICAL fetch_url rules:
+- Always set "outputKey" in the config — this is the key under which data is stored
+- "outputKey" MUST match the "dataKey" of the UI component that displays this data
+- "dataPath" uses dot notation to extract a value from the JSON response (e.g. "$.bitcoin.usd")
+- Example: UI has { "component": "Card", "dataKey": "btc_price" } → job config must have "outputKey": "btc_price"
 
 Be conversational and engaging. Keep messages concise (1-3 sentences). Ask one question at a time during brainstorm.`;
 
@@ -117,6 +145,14 @@ MOOD GUIDELINES:
 - talking: when explaining something
 - happy: when sharing positive insights
 - confused: when you need more context
+
+UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
+- Card: { "component": "Card", "props": { "title": "Title" }, "dataKey": "key" }
+- DataTable: { "component": "DataTable", "props": { "columns": [{"field":"f","header":"H"}] }, "dataKey": "key" }
+- Chart: { "component": "Chart", "props": { "type": "line" }, "dataKey": "key" }
+- Knob: { "component": "Knob", "props": { "min": 0, "max": 100 }, "dataKey": "key" }
+- Tag, ProgressBar, Timeline, Calendar — supported.
+- NEVER use: Form, Input, Button, or unlisted components.
 
 Keep responses concise and helpful. Focus on the user's data and app context.`;
 
@@ -186,7 +222,7 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse {
 
 async function callAnthropic(messages: ChatMessage[], systemPrompt: string): Promise<string> {
   const response = await getAnthropicClient().messages.create({
-    model: 'claude-sonnet-4-6',
+    model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
     max_tokens: 2048,
     system: systemPrompt,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),

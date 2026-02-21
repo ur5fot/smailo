@@ -1,9 +1,22 @@
 <template>
   <div class="app-renderer">
     <template v-for="(item, index) in uiConfig" :key="index">
+      <!-- Card: PrimeVue Card uses slots, not props — use wrapper -->
+      <AppCard
+        v-if="item.component === 'Card'"
+        v-bind="resolvedProps(item)"
+      />
+
+      <!-- DataTable: needs auto-column generation -->
+      <AppDataTable
+        v-else-if="item.component === 'DataTable'"
+        v-bind="resolvedProps(item)"
+      />
+
+      <!-- All other PrimeVue components via dynamic :is -->
       <component
+        v-else-if="componentMap[item.component]"
         :is="componentMap[item.component]"
-        v-if="componentMap[item.component]"
         v-bind="resolvedProps(item)"
       />
     </template>
@@ -11,7 +24,6 @@
 </template>
 
 <script setup lang="ts">
-import Card from 'primevue/card'
 import Chart from 'primevue/chart'
 import Timeline from 'primevue/timeline'
 import Carousel from 'primevue/carousel'
@@ -19,6 +31,8 @@ import Knob from 'primevue/knob'
 import Tag from 'primevue/tag'
 import ProgressBar from 'primevue/progressbar'
 import DatePicker from 'primevue/datepicker'
+import AppCard from './AppCard.vue'
+import AppDataTable from './AppDataTable.vue'
 
 interface UiConfigItem {
   component: string
@@ -32,7 +46,6 @@ const props = defineProps<{
 }>()
 
 const componentMap: Record<string, any> = {
-  Card,
   Chart,
   Timeline,
   Carousel,
@@ -42,8 +55,7 @@ const componentMap: Record<string, any> = {
   Calendar: DatePicker,
 }
 
-// Strip event handler props (keys starting with 'on') from AI-controlled component
-// configs to prevent stored XSS via injected event handler bindings.
+// Strip event handler props (keys starting with 'on') to prevent stored XSS.
 const BLOCKED_PROP_PREFIXES = ['on']
 function isSafeProp(key: string): boolean {
   const lower = key.toLowerCase()
