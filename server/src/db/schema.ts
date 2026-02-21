@@ -1,9 +1,16 @@
 import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+export const users = sqliteTable('users', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().unique(),
+  createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+});
+
 export const apps = sqliteTable('apps', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   hash: text('hash').notNull().unique(),
+  userId: text('user_id'),
   passwordHash: text('password_hash'),
   // SHA-256 hash of the one-time creation token returned at app creation time.
   // Required to call set-password; cleared after first use.
