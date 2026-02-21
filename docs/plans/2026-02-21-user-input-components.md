@@ -77,13 +77,13 @@ Currently all `appData` writes go through cron jobs or AI responses. After this 
 
 ### Task 3: `AppButton.vue` wrapper component
 
-- [ ] Create `client/src/components/AppButton.vue`
-- [ ] Accept props: `label: string`, `severity?: string`, `action: { key: string; value: unknown }`, `hash: string`
-- [ ] On click: call `api.post('/app/' + hash + '/data', { key: action.key, value: action.value })`
-- [ ] Show loading state on the button while request is in flight
-- [ ] On success: emit `'data-written'` event so parent can refresh appData
-- [ ] On error: show brief error message (use PrimeVue `Toast` or inline text)
-- [ ] Manual check: Button renders, click writes to appData
+- [x] Create `client/src/components/AppButton.vue`
+- [x] Accept props: `label: string`, `severity?: string`, `action: { key: string; value: unknown }`, `hash: string`
+- [x] On click: call `api.post('/app/' + hash + '/data', { key: action.key, value: action.value })`
+- [x] Show loading state on the button while request is in flight
+- [x] On success: emit `'data-written'` event so parent can refresh appData
+- [x] On error: show brief error message (use PrimeVue `Toast` or inline text)
+- [x] Manual check: Button renders, click writes to appData
 
 ### Task 4: `AppInputText.vue` wrapper component
 
