@@ -87,13 +87,13 @@ Currently all `appData` writes go through cron jobs or AI responses. After this 
 
 ### Task 4: `AppInputText.vue` wrapper component
 
-- [ ] Create `client/src/components/AppInputText.vue`
-- [ ] Accept props: `label?: string`, `type?: 'text' | 'number'`, `placeholder?: string`, `action: { key: string }`, `hash: string`
-- [ ] Render PrimeVue `InputText` (or `InputNumber` for type=number) + inline "Сохранить" button
-- [ ] On save: call `api.post('/app/' + hash + '/data', { key: action.key, value: inputValue })`
-- [ ] Clear the field after successful save
-- [ ] Emit `'data-written'` on success
-- [ ] Manual check: Enter value, click Save, verify appData updated
+- [x] Create `client/src/components/AppInputText.vue`
+- [x] Accept props: `label?: string`, `type?: 'text' | 'number'`, `placeholder?: string`, `action: { key: string }`, `hash: string`
+- [x] Render PrimeVue `InputText` (or `InputNumber` for type=number) + inline "Сохранить" button
+- [x] On save: call `api.post('/app/' + hash + '/data', { key: action.key, value: inputValue })`
+- [x] Clear the field after successful save
+- [x] Emit `'data-written'` on success
+- [x] Manual check: Enter value, click Save, verify appData updated
 
 ### Task 5: `AppForm.vue` wrapper component
 
