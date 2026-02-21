@@ -122,16 +122,16 @@ Currently all `appData` writes go through cron jobs or AI responses. After this 
 
 ### Task 8: Update AI system prompts
 
-- [ ] `server/src/services/aiService.ts` — remove `Form, Input, Button` from the "NEVER use" line in `BRAINSTORM_SYSTEM_PROMPT` (line ~107)
-- [ ] Remove `Form, Input, Button` from "NEVER use" in `IN_APP_SYSTEM_PROMPT` (line ~155)
-- [ ] Add `Button` to COMPONENT GUIDE in `BRAINSTORM_SYSTEM_PROMPT` with example:
+- [x] `server/src/services/aiService.ts` — remove `Form, Input, Button` from the "NEVER use" line in `BRAINSTORM_SYSTEM_PROMPT` (line ~107)
+- [x] Remove `Form, Input, Button` from "NEVER use" in `IN_APP_SYSTEM_PROMPT` (line ~155)
+- [x] Add `Button` to COMPONENT GUIDE in `BRAINSTORM_SYSTEM_PROMPT` with example:
   ```
   - Button: use "label" prop. Use "action" with { key, value } to write on click.
     Example: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
   ```
-- [ ] Add `InputText` to COMPONENT GUIDE with example showing `action: { key }` (value comes from input)
-- [ ] Add `Form` to COMPONENT GUIDE with `fields` array and `outputKey` example
-- [ ] Update IN_APP_SYSTEM_PROMPT UIUPDATE section with same three components
+- [x] Add `InputText` to COMPONENT GUIDE with example showing `action: { key }` (value comes from input)
+- [x] Add `Form` to COMPONENT GUIDE with `fields` array and `outputKey` example
+- [x] Update IN_APP_SYSTEM_PROMPT UIUPDATE section with same three components
 
 ### Task 9: Update documentation
 

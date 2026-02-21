@@ -83,9 +83,12 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
   ],
   "uiComponents": [
     {
-      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar",
+      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form",
       "props": { /* component-specific props — see component guide below */ },
-      "dataKey": "key from appData to bind as value prop"
+      "dataKey": "key from appData to bind as value prop",
+      "action": { "key": "appDataKey", "value": "optional fixed value" },  // for Button
+      "fields": [ { "name": "field_name", "type": "text|number", "label": "Display label" } ],  // for Form
+      "outputKey": "appDataKey"  // for Form
     }
   ]
 }
@@ -103,8 +106,14 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
 - ProgressBar: use "value" prop (number 0-100). Use "dataKey" for numeric data.
 - Calendar: displays a date picker, no dataKey needed.
 - Timeline: use "dataKey" to bind array of { date, content } objects.
+- Button: use "label" prop and optional "severity" ("success", "danger", "warning", "info"). Use "action" with { key, value } to write a fixed value on click.
+  Example: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
+- InputText: use "label", "type" ("text" or "number"), "placeholder" props. Use "action" with { key } — value comes from user input.
+  Example: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
+- Form: use "fields" array with { name, type, label } objects and "outputKey" for the appData key. Use "props.submitLabel" to customize button text.
+  Example: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }, { "name": "note", "type": "text", "label": "Заметка" }], "outputKey": "weight_entry" }
 
-NEVER use: Form, Input, Button, or any component not listed above.
+NEVER use any component not listed above.
 
 CRON SCHEDULE RULES (strictly enforced):
 - Use 5-field format only: "minute hour dom month dow" — NO seconds field
@@ -152,7 +161,10 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Chart: { "component": "Chart", "props": { "type": "line" }, "dataKey": "key" }
 - Knob: { "component": "Knob", "props": { "min": 0, "max": 100 }, "dataKey": "key" }
 - Tag, ProgressBar, Timeline, Calendar — supported.
-- NEVER use: Form, Input, Button, or unlisted components.
+- Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
+- InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
+- Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry" }
+- NEVER use components not listed above.
 
 Keep responses concise and helpful. Focus on the user's data and app context.`;
 
