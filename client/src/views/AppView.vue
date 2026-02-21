@@ -93,7 +93,12 @@
               class="app-view__bubble-row"
               :class="msg.role === 'user' ? 'app-view__bubble-row--user' : 'app-view__bubble-row--assistant'"
             >
-              <div class="app-view__bubble">{{ msg.content }}</div>
+              <div
+                v-if="msg.role === 'assistant'"
+                class="app-view__bubble"
+                v-html="renderMd(msg.content)"
+              />
+              <div v-else class="app-view__bubble">{{ msg.content }}</div>
             </div>
 
             <!-- Typing indicator -->
@@ -119,6 +124,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { marked } from 'marked'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
 import Smailo from '../components/Smailo.vue'
@@ -285,6 +291,10 @@ async function handleChatSubmit(message: string) {
     await nextTick()
     scrollToBottom()
   }
+}
+
+function renderMd(text: string): string {
+  return marked.parse(text) as string
 }
 
 function scrollToBottom() {
@@ -521,6 +531,13 @@ onMounted(() => {
   color: #111827;
   border-bottom-left-radius: 0.25rem;
 }
+
+:deep(.app-view__bubble p) { margin: 0 0 0.4em; }
+:deep(.app-view__bubble p:last-child) { margin-bottom: 0; }
+:deep(.app-view__bubble strong) { font-weight: 600; }
+:deep(.app-view__bubble ol),
+:deep(.app-view__bubble ul) { margin: 0.25em 0; padding-left: 1.4em; }
+:deep(.app-view__bubble li) { margin-bottom: 0.15em; }
 
 /* Typing dots */
 .app-view__bubble--typing {

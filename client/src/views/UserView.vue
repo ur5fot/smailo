@@ -46,7 +46,6 @@
 
           <!-- Empty state -->
           <div v-else-if="userStore.apps.length === 0" class="user-view__empty">
-            <Smailo mood="idle" :size="60" />
             <p>Пока нет приложений.</p>
             <p class="user-view__empty-hint">Создайте первое с помощью ассистента!</p>
           </div>
@@ -82,7 +81,12 @@
                 class="user-view__bubble-row"
                 :class="msg.role === 'user' ? 'user-view__bubble-row--user' : 'user-view__bubble-row--assistant'"
               >
-                <div class="user-view__bubble">{{ msg.content }}</div>
+                <div
+                  v-if="msg.role === 'assistant'"
+                  class="user-view__bubble"
+                  v-html="renderMd(msg.content)"
+                />
+                <div v-else class="user-view__bubble">{{ msg.content }}</div>
               </div>
               <!-- App config preview card shown in confirm phase -->
               <div v-if="msg.appConfig" class="user-view__confirm-card">
@@ -135,6 +139,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { marked } from 'marked'
 import Button from 'primevue/button'
 import Smailo from '../components/Smailo.vue'
 import InputBar from '../components/InputBar.vue'
@@ -212,6 +217,10 @@ async function handleChatSubmit(message: string) {
     await nextTick()
     scrollToBottom()
   }
+}
+
+function renderMd(text: string): string {
+  return marked.parse(text) as string
 }
 
 function scrollToBottom() {
@@ -455,6 +464,13 @@ watch(
   color: #111827;
   border-bottom-left-radius: 0.25rem;
 }
+
+:deep(.user-view__bubble p) { margin: 0 0 0.4em; }
+:deep(.user-view__bubble p:last-child) { margin-bottom: 0; }
+:deep(.user-view__bubble strong) { font-weight: 600; }
+:deep(.user-view__bubble ol),
+:deep(.user-view__bubble ul) { margin: 0.25em 0; padding-left: 1.4em; }
+:deep(.user-view__bubble li) { margin-bottom: 0.15em; }
 
 /* Typing dots */
 .user-view__bubble--typing {

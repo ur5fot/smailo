@@ -3,7 +3,7 @@
     ref="svgRef"
     :width="size"
     :height="size"
-    viewBox="0 0 100 100"
+    viewBox="-10 0 120 115"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     class="smailo"
@@ -14,6 +14,7 @@
       cx="50"
       cy="50"
       r="38"
+      fill="none"
       stroke="#333"
       stroke-width="2.5"
       stroke-linecap="round"
@@ -40,8 +41,7 @@
     />
 
     <!-- Left eye white -->
-    <ellipse cx="34" cy="42" rx="7" ry="8" stroke="#333" stroke-width="2" />
-
+    <ellipse cx="34" cy="42" rx="7" ry="8" fill="white" stroke="#333" stroke-width="2" />
     <!-- Left pupil -->
     <ellipse
       ref="leftPupilRef"
@@ -51,10 +51,11 @@
       ry="4"
       fill="#333"
     />
+    <!-- Left eye glint -->
+    <ellipse cx="35.5" cy="41.5" rx="1.2" ry="1.2" fill="white" />
 
     <!-- Right eye white -->
-    <ellipse cx="66" cy="42" rx="7" ry="8" stroke="#333" stroke-width="2" />
-
+    <ellipse cx="66" cy="42" rx="7" ry="8" fill="white" stroke="#333" stroke-width="2" />
     <!-- Right pupil -->
     <ellipse
       ref="rightPupilRef"
@@ -64,6 +65,8 @@
       ry="4"
       fill="#333"
     />
+    <!-- Right eye glint -->
+    <ellipse cx="67.5" cy="41.5" rx="1.2" ry="1.2" fill="white" />
 
     <!-- Mouth -->
     <path
@@ -74,6 +77,28 @@
       stroke-linecap="round"
       fill="none"
     />
+
+    <!-- Left arm + hand -->
+    <path
+      ref="leftArmRef"
+      d="M 15 62 Q 2 68 5 78"
+      stroke="#333"
+      stroke-width="3"
+      stroke-linecap="round"
+      fill="none"
+    />
+    <circle ref="leftHandRef" cx="5" cy="80" r="5" fill="#333" />
+
+    <!-- Right arm + hand -->
+    <path
+      ref="rightArmRef"
+      d="M 85 62 Q 98 68 95 78"
+      stroke="#333"
+      stroke-width="3"
+      stroke-linecap="round"
+      fill="none"
+    />
+    <circle ref="rightHandRef" cx="95" cy="80" r="5" fill="#333" />
 
     <!-- Confused "?" text (hidden by default) -->
     <text
@@ -108,13 +133,36 @@ const rightPupilRef = ref<SVGEllipseElement | null>(null)
 const mouthRef = ref<SVGPathElement | null>(null)
 const leftBrowRef = ref<SVGPathElement | null>(null)
 const rightBrowRef = ref<SVGPathElement | null>(null)
+const leftArmRef = ref<SVGPathElement | null>(null)
+const rightArmRef = ref<SVGPathElement | null>(null)
+const leftHandRef = ref<SVGCircleElement | null>(null)
+const rightHandRef = ref<SVGCircleElement | null>(null)
 const questionRef = ref<SVGTextElement | null>(null)
 
 let activeTimeline: gsap.core.Timeline | null = null
 let headVibrateTween: gsap.core.Tween | null = null
 
+// Default arm path points: [mx, my, qx, qy, ex, ey]
+const L_ARM_DEFAULT = [15, 62, 2, 68, 5, 78]
+const R_ARM_DEFAULT = [85, 62, 98, 68, 95, 78]
+
+function morphArm(el: SVGPathElement | null, from: number[], to: number[], t: number) {
+  if (!el) return
+  const p = from.map((v, i) => +(v + (to[i] - v) * t).toFixed(2))
+  el.setAttribute('d', `M ${p[0]} ${p[1]} Q ${p[2]} ${p[3]} ${p[4]} ${p[5]}`)
+}
+
+function morphHand(el: SVGCircleElement | null, fx: number, fy: number, tx: number, ty: number, t: number) {
+  if (!el) return
+  el.setAttribute('cx', String(+(fx + (tx - fx) * t).toFixed(2)))
+  el.setAttribute('cy', String(+(fy + (ty - fy) * t).toFixed(2)))
+}
+
 function killActive() {
   if (activeTimeline) {
+    if ((activeTimeline as any)._sway) (activeTimeline as any)._sway.kill()
+    if ((activeTimeline as any)._breathe) (activeTimeline as any)._breathe.kill()
+    if ((activeTimeline as any)._blink) (activeTimeline as any)._blink.kill()
     activeTimeline.kill()
     activeTimeline = null
   }
@@ -127,12 +175,37 @@ function killActive() {
 function resetElements() {
   if (!headRef.value || !leftPupilRef.value || !rightPupilRef.value || !mouthRef.value) return
 
-  gsap.set(headRef.value, { rotation: 0, x: 0, y: 0, transformOrigin: '50px 50px' })
-  gsap.set(leftPupilRef.value, { scaleY: 1, x: 0, transformOrigin: '34px 44px' })
-  gsap.set(rightPupilRef.value, { scaleY: 1, x: 0, transformOrigin: '66px 44px' })
+  // Kill any lingering one-shot tweens before resetting values
+  gsap.killTweensOf([
+    headRef.value, leftPupilRef.value, rightPupilRef.value,
+    mouthRef.value, leftBrowRef.value, rightBrowRef.value,
+    leftArmRef.value, rightArmRef.value, leftHandRef.value, rightHandRef.value,
+  ])
+
+  gsap.set(headRef.value, { rotation: 0, x: 0, y: 0, scaleX: 1, scaleY: 1, transformOrigin: '50px 50px' })
+  gsap.set(leftPupilRef.value, { scaleY: 1, scaleX: 1, x: 0, y: 0, transformOrigin: '34px 44px' })
+  gsap.set(rightPupilRef.value, { scaleY: 1, scaleX: 1, x: 0, y: 0, transformOrigin: '66px 44px' })
   gsap.set(mouthRef.value, { scaleY: 1, transformOrigin: '50px 69px' })
   gsap.set(leftBrowRef.value, { y: 0 })
   gsap.set(rightBrowRef.value, { y: 0 })
+  if (leftArmRef.value) {
+    gsap.set(leftArmRef.value, { y: 0 })
+    leftArmRef.value.setAttribute('d', 'M 15 62 Q 2 68 5 78')
+  }
+  if (rightArmRef.value) {
+    gsap.set(rightArmRef.value, { y: 0 })
+    rightArmRef.value.setAttribute('d', 'M 85 62 Q 98 68 95 78')
+  }
+  if (leftHandRef.value) {
+    gsap.set(leftHandRef.value, { y: 0 })
+    leftHandRef.value.setAttribute('cx', '5')
+    leftHandRef.value.setAttribute('cy', '80')
+  }
+  if (rightHandRef.value) {
+    gsap.set(rightHandRef.value, { y: 0 })
+    rightHandRef.value.setAttribute('cx', '95')
+    rightHandRef.value.setAttribute('cy', '80')
+  }
   if (questionRef.value) gsap.set(questionRef.value, { opacity: 0 })
 
   // Reset mouth path to neutral smile
@@ -146,18 +219,24 @@ function startIdle() {
 
   const tl = gsap.timeline({ repeat: -1, repeatDelay: 2 })
 
-  // Slow blink every ~3s
+  // Blink — pupils close + brows lift slightly (natural eyebrow flash)
   tl.to([leftPupilRef.value, rightPupilRef.value], {
     scaleY: 0.05,
     duration: 0.1,
     transformOrigin: 'center center',
     ease: 'power2.in',
   })
+  tl.to([leftBrowRef.value, rightBrowRef.value], {
+    y: -2, duration: 0.1, ease: 'power2.in',
+  }, '<')
   tl.to([leftPupilRef.value, rightPupilRef.value], {
     scaleY: 1,
     duration: 0.15,
     ease: 'power2.out',
   })
+  tl.to([leftBrowRef.value, rightBrowRef.value], {
+    y: 0, duration: 0.15, ease: 'power2.out',
+  }, '<')
 
   // Gentle sway
   const sway = gsap.timeline({ repeat: -1, yoyo: true })
@@ -168,9 +247,20 @@ function startIdle() {
     transformOrigin: '50px 50px',
   })
 
+  // Subtle breathing — very gentle scale pulse on the head
+  const breathe = gsap.to(headRef.value, {
+    scaleX: 1.018,
+    scaleY: 1.018,
+    duration: 2.5,
+    ease: 'sine.inOut',
+    yoyo: true,
+    repeat: -1,
+    transformOrigin: '50px 50px',
+  })
+
   activeTimeline = tl
-  // Keep sway reference to kill on cleanup
   ;(activeTimeline as any)._sway = sway
+  ;(activeTimeline as any)._breathe = breathe
 }
 
 function startThinking() {
@@ -178,25 +268,41 @@ function startThinking() {
 
   const tl = gsap.timeline({ repeat: -1, yoyo: true })
 
-  // Eyes shift left-right
+  // Eyes scan in a gentle arc (up-left → down-right)
   tl.to([leftPupilRef.value, rightPupilRef.value], {
-    x: 8,
-    duration: 0.4,
+    x: 3, y: -2,
+    duration: 0.5,
     ease: 'power1.inOut',
   })
   tl.to([leftPupilRef.value, rightPupilRef.value], {
-    x: -8,
-    duration: 0.4,
+    x: -3, y: 2,
+    duration: 0.5,
     ease: 'power1.inOut',
   })
 
-  // Head vibrate — store reference so it can be killed on mood change
+  // Furrow brows — concentration look
+  gsap.to([leftBrowRef.value, rightBrowRef.value], {
+    y: 3, duration: 0.4, ease: 'power2.out',
+  })
+
+  // Right arm raises toward temple (thinking pose)
+  const rProxy = { t: 0 }
+  const rThink = [85, 62, 100, 52, 96, 44]
+  gsap.to(rProxy, {
+    t: 1, duration: 0.5, ease: 'power2.out',
+    onUpdate() {
+      morphArm(rightArmRef.value, R_ARM_DEFAULT, rThink, rProxy.t)
+      morphHand(rightHandRef.value, 95, 80, 96, 43, rProxy.t)
+    },
+  })
+
+  // Slow uncertain head tilt
   headVibrateTween = gsap.to(headRef.value, {
-    x: 2,
-    duration: 0.08,
-    repeat: -1,
+    rotation: 4,
+    duration: 0.7,
+    ease: 'sine.inOut',
     yoyo: true,
-    ease: 'none',
+    repeat: -1,
     transformOrigin: '50px 50px',
   })
 
@@ -204,24 +310,56 @@ function startThinking() {
 }
 
 function startTalking() {
-  if (!mouthRef.value) return
+  if (!mouthRef.value || !leftPupilRef.value || !rightPupilRef.value) return
+
+  // Proxy object to interpolate mouth openness (0 = closed, 1 = fully open)
+  const proxy = { open: 0 }
+
+  function updateMouth() {
+    const o = proxy.open
+    const cy = 65 - o * 2
+    const qy = 74 + o * 4
+    if (mouthRef.value) {
+      mouthRef.value.setAttribute('d', `M 36 ${cy} Q 50 ${qy} 64 ${cy}`)
+    }
+  }
 
   const tl = gsap.timeline({ repeat: -1 })
 
-  tl.to(mouthRef.value, {
-    scaleY: 1.5,
-    duration: 0.15,
-    ease: 'power1.in',
-    transformOrigin: '50px 65px',
+  // Syllable 1 — full open → close (brows + arms lift on open)
+  tl.to(proxy, { open: 1, duration: 0.15, ease: 'power1.in', onUpdate: updateMouth })
+  tl.to([leftBrowRef.value, rightBrowRef.value], { y: -2, duration: 0.15, ease: 'power1.in' }, '<')
+  tl.to([leftArmRef.value, rightArmRef.value], { y: -4, duration: 0.15, ease: 'power1.in' }, '<')
+  tl.to([leftHandRef.value, rightHandRef.value], { y: -4, duration: 0.15, ease: 'power1.in' }, '<')
+  tl.to(proxy, { open: 0, duration: 0.12, ease: 'power1.out', onUpdate: updateMouth })
+  tl.to([leftBrowRef.value, rightBrowRef.value], { y: 0, duration: 0.12, ease: 'power1.out' }, '<')
+  tl.to([leftArmRef.value, rightArmRef.value], { y: 0, duration: 0.12, ease: 'power1.out' }, '<')
+  tl.to([leftHandRef.value, rightHandRef.value], { y: 0, duration: 0.12, ease: 'power1.out' }, '<')
+  // Short pause between syllables
+  tl.to({}, { duration: 0.06 })
+  // Syllable 2 — half open → close
+  tl.to(proxy, { open: 0.65, duration: 0.12, ease: 'power1.in', onUpdate: updateMouth })
+  tl.to([leftBrowRef.value, rightBrowRef.value], { y: -1, duration: 0.12, ease: 'power1.in' }, '<')
+  tl.to([leftArmRef.value, rightArmRef.value], { y: -2, duration: 0.12, ease: 'power1.in' }, '<')
+  tl.to([leftHandRef.value, rightHandRef.value], { y: -2, duration: 0.12, ease: 'power1.in' }, '<')
+  tl.to(proxy, { open: 0, duration: 0.1, ease: 'power1.out', onUpdate: updateMouth })
+  tl.to([leftBrowRef.value, rightBrowRef.value], { y: 0, duration: 0.1, ease: 'power1.out' }, '<')
+  tl.to([leftArmRef.value, rightArmRef.value], { y: 0, duration: 0.1, ease: 'power1.out' }, '<')
+  tl.to([leftHandRef.value, rightHandRef.value], { y: 0, duration: 0.1, ease: 'power1.out' }, '<')
+  // Longer pause before next cycle
+  tl.to({}, { duration: 0.18 })
+
+  // Periodic blink while talking — separate tween
+  const blink = gsap.timeline({ repeat: -1, repeatDelay: 2.05 })
+  blink.to([leftPupilRef.value, rightPupilRef.value], {
+    scaleY: 0.05, duration: 0.08, ease: 'power2.in', transformOrigin: 'center center',
   })
-  tl.to(mouthRef.value, {
-    scaleY: 0.5,
-    duration: 0.15,
-    ease: 'power1.out',
-    transformOrigin: '50px 65px',
+  blink.to([leftPupilRef.value, rightPupilRef.value], {
+    scaleY: 1, duration: 0.12, ease: 'power2.out', transformOrigin: 'center center',
   })
 
   activeTimeline = tl
+  ;(activeTimeline as any)._blink = blink
 }
 
 function startHappy() {
@@ -238,11 +376,38 @@ function startHappy() {
     },
   })
 
-  // Raise eyebrows for happiness
+  // Raise eyebrows + squint pupils (happiness squint)
   gsap.to([leftBrowRef.value, rightBrowRef.value], {
-    y: -4,
-    duration: 0.3,
-    ease: 'back.out(2)',
+    y: -4, duration: 0.3, ease: 'back.out(2)',
+  })
+  gsap.to([leftPupilRef.value, rightPupilRef.value], {
+    scaleY: 0.6, duration: 0.3, ease: 'back.out(2)',
+    transformOrigin: 'center center',
+  })
+
+  // Both arms raise in celebration
+  const lProxy = { t: 0 }, rProxy = { t: 0 }
+  const lHappy = [15, 62, -2, 46, 3, 32]
+  const rHappy = [85, 62, 102, 46, 97, 32]
+  gsap.to(lProxy, {
+    t: 1, duration: 0.4, ease: 'back.out(1.5)',
+    onUpdate() {
+      morphArm(leftArmRef.value, L_ARM_DEFAULT, lHappy, lProxy.t)
+      morphHand(leftHandRef.value, 5, 80, 3, 30, lProxy.t)
+    },
+  })
+  gsap.to(rProxy, {
+    t: 1, duration: 0.4, ease: 'back.out(1.5)',
+    onUpdate() {
+      morphArm(rightArmRef.value, R_ARM_DEFAULT, rHappy, rProxy.t)
+      morphHand(rightHandRef.value, 95, 80, 97, 30, rProxy.t)
+    },
+  })
+
+  // One-shot head scale pulse, then bounce loop
+  gsap.to(headRef.value, {
+    scaleX: 1.08, scaleY: 1.08, duration: 0.2, ease: 'power2.out',
+    transformOrigin: '50px 50px', yoyo: true, repeat: 1,
   })
 
   const tl = gsap.timeline({ repeat: -1, yoyo: true })
@@ -274,6 +439,29 @@ function startConfused() {
     transformOrigin: '50px 50px',
   })
 
+  // Asymmetric brows — left up, right furrowed (classic confused look)
+  tl.to(leftBrowRef.value, { y: -3, duration: 0.35, ease: 'back.out(2)' }, '<')
+  tl.to(rightBrowRef.value, { y: 2, duration: 0.35, ease: 'power2.out' }, '<')
+
+  // Both arms shrug (raise outward)
+  const lProxy = { t: 0 }, rProxy = { t: 0 }
+  const lShrug = [15, 62, 1, 57, -2, 58]
+  const rShrug = [85, 62, 99, 57, 102, 58]
+  gsap.to(lProxy, {
+    t: 1, duration: 0.4, ease: 'back.out(1.7)',
+    onUpdate() {
+      morphArm(leftArmRef.value, L_ARM_DEFAULT, lShrug, lProxy.t)
+      morphHand(leftHandRef.value, 5, 80, -3, 59, lProxy.t)
+    },
+  })
+  gsap.to(rProxy, {
+    t: 1, duration: 0.4, ease: 'back.out(1.7)',
+    onUpdate() {
+      morphArm(rightArmRef.value, R_ARM_DEFAULT, rShrug, rProxy.t)
+      morphHand(rightHandRef.value, 95, 80, 103, 59, rProxy.t)
+    },
+  })
+
   // Fade in "?"
   tl.to(questionRef.value, {
     opacity: 1,
@@ -281,14 +469,20 @@ function startConfused() {
     ease: 'power1.in',
   }, '-=0.1')
 
+  // Gentle uncertain wobble around the tilted position
+  tl.to(headRef.value, {
+    rotation: 12,
+    duration: 1,
+    ease: 'sine.inOut',
+    yoyo: true,
+    repeat: -1,
+    transformOrigin: '50px 50px',
+  })
+
   activeTimeline = tl
 }
 
 function applyMood(mood: Mood) {
-  // Kill any existing sway timeline
-  if (activeTimeline && (activeTimeline as any)._sway) {
-    ;(activeTimeline as any)._sway.kill()
-  }
   killActive()
   resetElements()
 
@@ -310,9 +504,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (activeTimeline && (activeTimeline as any)._sway) {
-    ;(activeTimeline as any)._sway.kill()
-  }
   killActive()
   gsap.killTweensOf([
     headRef.value,
@@ -321,6 +512,10 @@ onUnmounted(() => {
     mouthRef.value,
     leftBrowRef.value,
     rightBrowRef.value,
+    leftArmRef.value,
+    rightArmRef.value,
+    leftHandRef.value,
+    rightHandRef.value,
     questionRef.value,
   ])
 })
