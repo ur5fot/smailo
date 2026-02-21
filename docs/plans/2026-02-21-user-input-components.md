@@ -97,14 +97,14 @@ Currently all `appData` writes go through cron jobs or AI responses. After this 
 
 ### Task 5: `AppForm.vue` wrapper component
 
-- [ ] Create `client/src/components/AppForm.vue`
-- [ ] Accept props: `fields: Array<{name,type,label}>`, `outputKey: string`, `submitLabel?: string`, `hash: string`
-- [ ] Render each field as PrimeVue `InputText` / `InputNumber` based on `type`
-- [ ] Show `submitLabel` button (default "Сохранить")
-- [ ] On submit: build object `{ field1: val1, field2: val2, timestamp: new Date().toISOString() }`, call `api.post('/app/' + hash + '/data', { key: outputKey, value: formObject })`
-- [ ] Clear all fields after successful submit
-- [ ] Emit `'data-written'` on success
-- [ ] Manual check: Fill form, submit, verify appData contains full object under outputKey
+- [x] Create `client/src/components/AppForm.vue`
+- [x] Accept props: `fields: Array<{name,type,label}>`, `outputKey: string`, `submitLabel?: string`, `hash: string`
+- [x] Render each field as PrimeVue `InputText` / `InputNumber` based on `type`
+- [x] Show `submitLabel` button (default "Сохранить")
+- [x] On submit: build object `{ field1: val1, field2: val2, timestamp: new Date().toISOString() }`, call `api.post('/app/' + hash + '/data', { key: outputKey, value: formObject })`
+- [x] Clear all fields after successful submit
+- [x] Emit `'data-written'` on success
+- [x] Manual check: Fill form, submit, verify appData contains full object under outputKey
 
 ### Task 6: Register new components in `AppRenderer.vue`
 
