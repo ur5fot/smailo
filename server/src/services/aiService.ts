@@ -23,6 +23,9 @@ export type UiComponent = {
   component: string;
   props: Record<string, unknown>;
   dataKey?: string;
+  action?: { key: string; value?: unknown };
+  fields?: Array<{ name: string; type: string; label: string }>;
+  outputKey?: string;
 };
 
 export type AppConfig = {

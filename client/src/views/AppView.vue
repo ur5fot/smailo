@@ -207,7 +207,11 @@ async function handleRefresh() {
 }
 
 async function handleDataWritten() {
-  await appStore.fetchData(hash.value)
+  try {
+    await appStore.fetchData(hash.value)
+  } catch {
+    // Ignore refresh failures — the write succeeded; data will be stale until next refresh
+  }
 }
 
 async function handleChatSubmit(message: string) {

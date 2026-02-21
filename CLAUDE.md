@@ -89,7 +89,7 @@ Iterates `uiConfig` array and renders each component dynamically. Five component
 - `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue` (data display)
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
 
-All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map; for `Chart` it binds to `data` prop, for all others to `value` prop. Props starting with `on` are stripped server-side (whitelist check in routes) and client-side (in `resolvedProps`).
+All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map; for `Chart` it binds to `data` prop, for all others to `value` prop. Props starting with `on` are stripped **client-side only** (in `resolvedProps`); the server whitelist validates component names and prop object shape but does not remove individual `on*` keys.
 
 Input wrapper components call `POST /api/app/:hash/data` on user interaction and emit `'data-written'`, which bubbles up through `AppRenderer` to `AppView.vue`, triggering `appStore.fetchData(hash)` to refresh displayed data.
 
@@ -124,7 +124,10 @@ Input components write to `appData` directly without AI involvement:
 - `key`: string matching `/^[a-zA-Z0-9_]{1,100}$/`
 - `value`: any JSON-serializable value; JSON-stringified size must not exceed 10 KB
 - Protected by `requireAuthIfProtected` middleware (JWT required if app has password)
-- Returns `{ ok: true }` on success; 400 for invalid key; 413 for oversized value
+- Returns `{ ok: true }` on success; 400 for invalid key or null/undefined value; 413 for oversized value
+- Value size check uses `Buffer.byteLength(serialized, 'utf8')` (byte count, not character count)
+- `AppForm` always injects a `timestamp: ISO8601` field into the submitted object alongside declared fields
+- `AppInputText`'s Save button label is hardcoded to "Сохранить"; `AppForm`'s submit label is configurable via `props.submitLabel` (passed as `item.props.submitLabel` in the AI config)
 
 ### Rate limits
 

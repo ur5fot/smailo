@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -50,7 +50,25 @@ const fieldValues = reactive<Record<string, string | number | null>>(
 const loading = ref(false)
 const errorMsg = ref('')
 
+// Re-initialize fieldValues when fields prop changes (e.g. after a uiUpdate from chat)
+watch(() => props.fields, (newFields) => {
+  for (const key of Object.keys(fieldValues)) {
+    delete fieldValues[key]
+  }
+  for (const f of newFields) {
+    fieldValues[f.name] = null
+  }
+}, { deep: true })
+
 async function handleSubmit() {
+  // Validate: all fields must be non-null and non-empty before submitting
+  for (const field of props.fields) {
+    const v = fieldValues[field.name]
+    if (v === null || v === '') {
+      errorMsg.value = `"${field.label}" is required.`
+      return
+    }
+  }
   loading.value = true
   errorMsg.value = ''
   try {

@@ -35,7 +35,8 @@ async function handleClick() {
   try {
     await api.post(`/app/${props.hash}/data`, {
       key: props.action.key,
-      value: props.action.value,
+      // action.value is optional; default to true (records a click event)
+      value: props.action.value !== undefined ? props.action.value : true,
     })
     emit('data-written')
   } catch {

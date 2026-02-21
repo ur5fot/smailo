@@ -56,6 +56,8 @@ smailo/
 │       │   ├── Smailo.vue        # Animated SVG character (5 moods)
 │       │   ├── InputBar.vue      # Text input with speech recognition
 │       │   ├── AppRenderer.vue   # Dynamic PrimeVue component renderer
+│       │   ├── AppCard.vue       # Card wrapper (uses PrimeVue slots)
+│       │   ├── AppDataTable.vue  # DataTable wrapper (auto-generates columns)
 │       │   ├── AppButton.vue     # Clickable button that writes to appData
 │       │   ├── AppInputText.vue  # Text/number input with Save button
 │       │   └── AppForm.vue       # Multi-field form that writes a combined object

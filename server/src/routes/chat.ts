@@ -110,7 +110,7 @@ chatRouter.post('/', limiter, async (req, res) => {
 
       // Validate uiComponents against the allowed component whitelist to match the same
       // boundary enforced on in-app chat uiUpdate responses.
-      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'Button', 'InputText', 'Form'];
+      const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable', 'Button', 'InputText', 'Form'];
       if (Array.isArray(appConfigToStore.uiComponents)) {
         appConfigToStore.uiComponents = (appConfigToStore.uiComponents as any[])
           .filter(

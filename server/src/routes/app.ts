@@ -239,14 +239,16 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
       return res.status(400).json({ error: 'value is required' });
     }
     const serialized = JSON.stringify(value);
-    if (serialized.length > VALUE_MAX_BYTES) {
+    if (Buffer.byteLength(serialized, 'utf8') > VALUE_MAX_BYTES) {
       return res.status(413).json({ error: 'value too large' });
     }
 
+    // Pass value directly — Drizzle's mode:'json' column handles serialization.
+    // Do NOT pre-serialize: passing an already-stringified value causes double-encoding.
     await db.insert(appData).values({
       appId: row.id,
       key,
-      value: serialized,
+      value,
     } as any);
 
     return res.json({ ok: true });
