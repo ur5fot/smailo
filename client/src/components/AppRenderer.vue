@@ -146,9 +146,18 @@ function resolvedProps(item: UiConfigItem): Record<string, any> {
       resolved.data = data
     } else if (item.component === 'Image') {
       resolved.src = data
+    } else if (item.component === 'Chip') {
+      // PrimeVue Chip displays the `label` prop, not `value`
+      resolved.label = data
     } else {
       resolved.value = data
     }
+  }
+  // Ensure display-only components are not interactive
+  if (item.component === 'Slider') {
+    resolved.disabled = true
+  } else if (item.component === 'Rating') {
+    resolved.readonly = true
   }
   return resolved
 }

@@ -33,10 +33,10 @@ const props = defineProps<{
 }>()
 
 // Keep first tab open by default; must be a ref so PrimeVue v-model can update it on toggle
-const openTabs = ref(['0'])
+const openTabs = ref('0')
 
 // Reset open state when tabs are replaced (e.g. after a uiUpdate from AI chat)
-watch(() => props.tabs, () => { openTabs.value = ['0'] })
+watch(() => props.tabs, () => { openTabs.value = '0' })
 
 function resolvedData(dataKey: string): any {
   return props.appData?.[dataKey]

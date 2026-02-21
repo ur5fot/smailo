@@ -347,7 +347,7 @@ class CronManager {
       url = url.replace(/\{([a-zA-Z0-9_]{1,100})\}/g, (_match, key: string) => {
         const val = dataMap.get(key);
         if (val === undefined || val === null) return '';
-        return typeof val === 'string' ? val : String(val);
+        return encodeURIComponent(typeof val === 'string' ? val : String(val));
       });
     }
 
