@@ -98,13 +98,13 @@
 
 ### Task 7: Обновить роутер
 
-- [ ] `client/src/router/index.ts`:
+- [x] `client/src/router/index.ts`:
   - `'/'` → `HomeView`
   - `'/:userId'` → `UserView` (lazy)
   - `'/:userId/:hash'` → `AppView` (lazy)
   - `'/app/:hash'` → `AppView` (обратная совместимость, userId = null)
-- [ ] В `AppView.vue` читать `userId` из `route.params` (если есть — используем для ссылок назад, если нет — работаем как раньше)
-- [ ] В `UserView.vue` читать `userId` из `route.params`
+- [x] В `AppView.vue` читать `userId` из `route.params` (если есть — используем для ссылок назад, если нет — работаем как раньше)
+- [x] В `UserView.vue` читать `userId` из `route.params`
 
 ### Task 8: Добавить PrimeVue компоненты в AppRenderer
 
