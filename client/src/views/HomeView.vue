@@ -72,6 +72,10 @@ async function handleCreate() {
 async function handleGoto() {
   const userId = enteredUserId.value.trim()
   if (!userId) return
+  if (!USER_ID_REGEX.test(userId)) {
+    errorMsg.value = 'Некорректный формат ID пользователя.'
+    return
+  }
   checking.value = true
   errorMsg.value = ''
   try {

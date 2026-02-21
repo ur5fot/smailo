@@ -17,7 +17,7 @@
       >
         <div v-if="tab.dataKey && resolvedData(tab.dataKey) !== undefined">
           <p v-if="typeof resolvedData(tab.dataKey) === 'string' || typeof resolvedData(tab.dataKey) === 'number'">
-            {{ resolvedData(tab.dataKey) }}
+            {{ formatIfDate(resolvedData(tab.dataKey)) }}
           </p>
           <pre v-else style="margin: 0; white-space: pre-wrap; font-size: 0.875rem;">{{ JSON.stringify(resolvedData(tab.dataKey), null, 2) }}</pre>
         </div>
@@ -45,8 +45,34 @@ const activeTab = ref('0')
 // Reset active tab when tabs are replaced (e.g. after a uiUpdate from AI chat)
 watch(() => props.tabs, () => { activeTab.value = '0' })
 
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
+
+function formatIfDate(val: any): any {
+  if (typeof val !== 'string' || !ISO_RE.test(val)) return val
+  try {
+    const d = new Date(val)
+    if (isNaN(d.getTime())) return val
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }).format(d)
+  } catch {
+    return val
+  }
+}
+
 function resolvedData(dataKey: string): any {
-  return props.appData?.[dataKey]
+  if (props.appData?.[dataKey] !== undefined) return props.appData[dataKey]
+  const dotIdx = dataKey.indexOf('.')
+  if (dotIdx === -1 || !props.appData) return undefined
+  const topKey = dataKey.slice(0, dotIdx)
+  const raw = props.appData[topKey]
+  let value = typeof raw === 'string' ? (() => { try { return JSON.parse(raw) } catch { return raw } })() : raw
+  for (const part of dataKey.slice(dotIdx + 1).split('.')) {
+    if (value === null || value === undefined || typeof value !== 'object') return undefined
+    value = (value as Record<string, unknown>)[part]
+  }
+  return value
 }
 </script>
 

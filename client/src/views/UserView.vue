@@ -128,7 +128,7 @@
 
           <!-- Input bar -->
           <div class="user-view__input-wrapper">
-            <InputBar :last-assistant-message="lastAssistantMessage" @submit="handleChatSubmit" />
+            <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading" @submit="handleChatSubmit" />
           </div>
         </div>
       </div>
@@ -207,12 +207,18 @@ async function handleChatSubmit(message: string) {
   chatLoading.value = true
   try {
     const data = await chatStore.sendMessage(message, userId.value)
+    // Reset transient moods back to idle after a short delay (mirrors AppView behaviour)
+    if (data.mood === 'talking' || data.mood === 'thinking') {
+      setTimeout(() => { chatStore.mood = 'idle' }, 3000)
+    }
     if (data.phase === 'created' && data.appHash) {
       await loadApps()
       router.push(`/${userId.value}/${data.appHash}`)
     }
   } catch {
-    // Error handled inside store (message popped, mood set to confused)
+    // Store already popped the user message and set mood to confused.
+    // Push a visible error message so the user knows something went wrong.
+    chatStore.messages.push({ role: 'assistant', content: 'Что-то пошло не так. Попробуйте ещё раз.' })
   } finally {
     chatLoading.value = false
     await nextTick()

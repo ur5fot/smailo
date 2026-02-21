@@ -113,7 +113,7 @@
 
           <!-- Input bar -->
           <div class="app-view__input-wrapper">
-            <InputBar :last-assistant-message="lastAssistantMessage" @submit="handleChatSubmit" />
+            <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading" @submit="handleChatSubmit" />
           </div>
         </div>
       </div>

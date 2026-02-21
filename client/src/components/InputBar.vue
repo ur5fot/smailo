@@ -23,7 +23,7 @@
       <Button
         icon="pi pi-send"
         class="input-bar__send"
-        :disabled="!text.trim()"
+        :disabled="!text.trim() || disabled"
         @click="handleSubmit"
       />
       <button
@@ -46,6 +46,7 @@ import Button from 'primevue/button'
 
 const props = defineProps<{
   lastAssistantMessage?: string
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -76,12 +77,13 @@ const detectedCount = computed(() => {
 
 function handleSubmit() {
   const message = text.value.trim()
-  if (!message) return
+  if (!message || props.disabled) return
   emit('submit', message)
   text.value = ''
 }
 
 function sendNumber(n: number) {
+  if (props.disabled) return
   emit('submit', String(n))
 }
 
