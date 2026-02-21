@@ -318,9 +318,11 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
 
     // If the AI returned an updated UI layout, validate it before persisting.
     // Filter uiUpdate to only allowed components; save whatever passes the whitelist.
+    // validItems is hoisted so the response can reuse it without re-filtering.
+    let validUiItems: any[] | undefined;
     if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
       const ALLOWED_COMPONENTS = ['Card', 'Chart', 'Timeline', 'Carousel', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'DataTable', 'Button', 'InputText', 'Form'];
-      const validItems = (claudeResponse.uiUpdate as any[])
+      validUiItems = (claudeResponse.uiUpdate as any[])
         .filter((item: any) =>
           item &&
           typeof item.component === 'string' &&
@@ -328,8 +330,8 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
           (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props)))
         )
         .slice(0, 20);
-      if (validItems.length > 0) {
-        const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: validItems };
+      if (validUiItems.length > 0) {
+        const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: validUiItems };
         await db.update(apps).set({ config: updatedConfig } as any).where(eq(apps.id, row.id));
       } else {
         console.warn(`[POST /api/app/:hash/chat] uiUpdate had no valid components for app ${row.id}`);
@@ -339,7 +341,9 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
     return res.json({
       mood: claudeResponse.mood,
       message: claudeResponse.message,
-      uiUpdate: claudeResponse.uiUpdate,
+      // Only include uiUpdate when at least one component passed validation so the client
+      // does not call fetchApp() when the AI's proposed update was entirely rejected.
+      uiUpdate: validUiItems && validUiItems.length > 0 ? validUiItems : undefined,
     });
   } catch (error) {
     console.error('[POST /api/app/:hash/chat] Error:', error);

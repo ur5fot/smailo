@@ -50,7 +50,9 @@ const fieldValues = reactive<Record<string, string | number | null>>(
 const loading = ref(false)
 const errorMsg = ref('')
 
-// Re-initialize fieldValues when fields prop changes (e.g. after a uiUpdate from chat)
+// Re-initialize fieldValues when the fields array itself changes (e.g. after a uiUpdate from chat).
+// Shallow watch: only fires when the array reference or its items are added/removed, not when
+// individual field properties (like label) mutate — that would discard the user's in-progress input.
 watch(() => props.fields, (newFields) => {
   for (const key of Object.keys(fieldValues)) {
     delete fieldValues[key]
@@ -58,7 +60,7 @@ watch(() => props.fields, (newFields) => {
   for (const f of newFields) {
     fieldValues[f.name] = null
   }
-}, { deep: true })
+})
 
 async function handleSubmit() {
   // Validate: all fields must be non-null and non-empty before submitting

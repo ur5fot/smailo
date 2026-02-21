@@ -261,6 +261,13 @@ watch(
   }
 )
 
+// Vue Router reuses this component instance when navigating between /app/:hash routes.
+// Clear per-app local state and reload whenever the hash param changes.
+watch(hash, () => {
+  chatMessages.value = []
+  loadApp()
+})
+
 onMounted(() => {
   loadApp()
 })
