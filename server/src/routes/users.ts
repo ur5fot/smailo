@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
+import rateLimit from 'express-rate-limit';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { users, apps } from '../db/schema.js';
 
 export const usersRouter = Router();
+
+const usersLimiter = rateLimit({ windowMs: 60 * 1000, max: 30 });
+usersRouter.use(usersLimiter);
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 

@@ -7,6 +7,7 @@ export interface AppSummary {
   appName: string
   description: string
   createdAt: string
+  lastVisit: string | null
 }
 
 export const useUserStore = defineStore('user', () => {

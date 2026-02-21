@@ -151,6 +151,8 @@ async function loadApps() {
 }
 
 onMounted(async () => {
+  // Reset chat state so returning users always start a fresh brainstorm session.
+  chatStore.reset()
   try {
     await userStore.fetchUser(userId.value)
     localStorage.setItem('smailo_user_id', userId.value)

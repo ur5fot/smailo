@@ -2,7 +2,7 @@ import { schedule, validate } from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { lookup } from 'dns/promises';
 import https from 'node:https';
-import { eq, and, gte, desc } from 'drizzle-orm';
+import { eq, and, gte, desc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
 import type { CronJobConfig } from './aiService.js';
@@ -102,6 +102,19 @@ const CRON_VALUE_MAX_BYTES = 10_000;
 
 class CronManager {
   private tasks = new Map<number, ScheduledTask>();
+
+  /** Return the most-recent value per key for a given app as a Map. */
+  private async getLatestDataMap(appId: number): Promise<Map<string, unknown>> {
+    const rows = await db
+      .select()
+      .from(appData)
+      .where(
+        sql`${appData.appId} = ${appId} AND ${appData.id} IN (
+          SELECT MAX(id) FROM app_data WHERE app_id = ${appId} GROUP BY key
+        )`
+      );
+    return new Map(rows.map((r) => [r.key, r.value]));
+  }
 
   async loadAll(): Promise<void> {
     const activeJobs = await db
@@ -320,10 +333,22 @@ class CronManager {
   }
 
   private async handleFetchUrl(jobId: number, appId: number, config: ActionConfig): Promise<void> {
-    const url = config.url as string;
+    let url = config.url as string;
     if (!url) {
       console.warn('[CronManager] fetch_url action missing url config');
       return;
+    }
+
+    // Template substitution: replace {key} placeholders with current appData values.
+    // Allows URLs like https://api.example.com/v1/{api_key}/data where api_key is
+    // stored via an InputText component and saved to appData.
+    if (url.includes('{')) {
+      const dataMap = await this.getLatestDataMap(appId);
+      url = url.replace(/\{([a-zA-Z0-9_]{1,100})\}/g, (_match, key: string) => {
+        const val = dataMap.get(key);
+        if (val === undefined || val === null) return '';
+        return typeof val === 'string' ? val : String(val);
+      });
     }
 
     let parsedUrl: URL;
@@ -452,7 +477,7 @@ class CronManager {
         if (current === undefined) {
           // Path not found — do not fall back to the full response: a misconfigured
           // dataPath should not silently store an unintended multi-KB blob.
-          console.warn(`[CronManager] fetch_url dataPath "${dataPath}" not found in response for app ${appId}, skipping storage`);
+          console.warn(`[CronManager] fetch_url dataPath "${dataPath}" not found in response for app ${appId}, skipping storage. Response: ${body.slice(0, 300)}`);
           return;
         }
         value = current;
@@ -471,6 +496,14 @@ class CronManager {
       return;
     }
     await db.insert(appData).values({ appId, key: fetchStorageKey, value } as any);
+
+    // Also store a fetch timestamp under "{outputKey}_updated_at" so UI components
+    // can display "last updated" time without needing a separate cron job.
+    // Limit base key to 89 chars so the "_updated_at" suffix (11 chars) always fits in the 100-char limit.
+    const updatedAtKey = `${fetchStorageKey.slice(0, 89)}_updated_at`;
+    if (CRON_KEY_REGEX.test(updatedAtKey)) {
+      await db.insert(appData).values({ appId, key: updatedAtKey, value: new Date().toISOString() } as any);
+    }
   }
 
   private async handleSendReminder(jobId: number, appId: number, config: ActionConfig): Promise<void> {
@@ -570,6 +603,26 @@ class CronManager {
       return;
     }
     await db.insert(appData).values({ appId, key: outputKey, value: result } as any);
+  }
+
+  /**
+   * Run all active jobs for an app that have `config.triggerOnKey` matching the given key.
+   * Called after a value is written to appData so buttons can trigger on-demand URL fetches
+   * (e.g. an "Обновить курс" button writing `refresh_rate` triggers a `fetch_url` job).
+   */
+  async runTriggeredJobs(appId: number, triggerKey: string): Promise<void> {
+    const jobs = await db
+      .select()
+      .from(cronJobs)
+      .where(and(eq(cronJobs.appId, appId), eq(cronJobs.isActive, true)));
+
+    for (const job of jobs) {
+      const config = (job.config ?? {}) as ActionConfig;
+      if (config.triggerOnKey === triggerKey) {
+        console.log(`[CronManager] Triggered job ${job.id} "${job.name}" on key "${triggerKey}"`);
+        await this.runJob(job.id, appId, job.action, config);
+      }
+    }
   }
 }
 

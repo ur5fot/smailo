@@ -38,16 +38,20 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Smailo from '../components/Smailo.vue'
 import api from '../api'
+import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const creating = ref(false)
 const checking = ref(false)
 const enteredUserId = ref('')
 const errorMsg = ref('')
 
+const USER_ID_REGEX = /^[A-Za-z0-9]{1,50}$/
+
 onMounted(() => {
   const stored = localStorage.getItem('smailo_user_id')
-  if (stored) {
+  if (stored && USER_ID_REGEX.test(stored)) {
     router.replace(`/${stored}`)
   }
 })
@@ -56,9 +60,7 @@ async function handleCreate() {
   creating.value = true
   errorMsg.value = ''
   try {
-    const res = await api.post('/users')
-    const userId: string = res.data.userId
-    localStorage.setItem('smailo_user_id', userId)
+    const userId = await userStore.createUser()
     router.push(`/${userId}`)
   } catch {
     errorMsg.value = 'Не удалось создать пользователя. Попробуйте ещё раз.'

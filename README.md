@@ -43,7 +43,7 @@ The client runs at http://localhost:5173 and the server at http://localhost:3000
 | ANTHROPIC_API_KEY  | Your Anthropic API key (required for anthropic)  | —                         |
 | ANTHROPIC_MODEL    | Anthropic model name                             | claude-sonnet-4-6         |
 | JWT_SECRET         | Secret used to sign app access tokens            | —                         |
-| DATABASE_URL       | Path to the SQLite database file                 | ./data.sqlite             |
+| DATABASE_URL       | Path to the SQLite database file                 | smailo.sqlite             |
 | CLIENT_URL         | Origin allowed by CORS                           | http://localhost:5173     |
 | AI_PROVIDER        | AI provider to use: anthropic or deepseek        | anthropic                 |
 | DEEPSEEK_API_KEY   | Your DeepSeek API key (required for deepseek)    | —                         |

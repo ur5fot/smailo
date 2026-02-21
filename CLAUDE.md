@@ -102,7 +102,7 @@ Iterates `uiConfig` array and renders each component dynamically. Eight componen
 
 All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map; for `Chart` it binds to `data` prop, for all others to `value` prop. Props starting with `on` are stripped **client-side only** (in `resolvedProps`); the server whitelist validates component names and prop object shape but does not remove individual `on*` keys.
 
-New display-only components: `Chip` (label tag), `Badge` (numeric badge with severity), `Slider` (read-only range slider), `Rating` (star display), `Image` (image from URL), `MeterGroup` (multi-segment progress). Accordion/Panel/Tabs use `props.tabs` array instead of `dataKey`.
+New display-only components: `Chip` (label tag), `Badge` (numeric badge with severity), `Slider` (read-only range slider), `Rating` (star display), `Image` (image from URL), `MeterGroup` (multi-segment progress). `Accordion` and `Tabs` use `props.tabs` array (each item: `{ header, dataKey }`) instead of top-level `dataKey`. `Panel` uses top-level `dataKey` (bound to `value` prop) plus `props.header` and `props.toggleable`.
 
 Input wrapper components call `POST /api/app/:hash/data` on user interaction and emit `'data-written'`, which bubbles up through `AppRenderer` to `AppView.vue`, triggering `appStore.fetchData(hash)` to refresh displayed data.
 
@@ -143,11 +143,16 @@ Input components write to `appData` directly without AI involvement:
 - `AppForm` always injects a `timestamp: ISO8601` field into the submitted object alongside declared fields
 - `AppInputText`'s Save button label is hardcoded to "Сохранить"; `AppForm`'s submit label is configurable via `props.submitLabel` (passed as `item.props.submitLabel` in the AI config)
 
+### App data read (`GET /api/app/:hash/data`)
+
+Returns `{ appData: [...] }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`.
+
 ### Rate limits
 
 - `POST /api/chat` and `POST /api/app/:hash/chat`: 30 req/min
 - `POST /api/app/:hash/data`: 30 req/min (same limiter as chat)
 - `POST /api/app/:hash/verify` and `set-password`: 5 req/min
+- All `/api/users` routes: 30 req/min
 
 ### Client state
 
@@ -160,6 +165,10 @@ Three views:
 - `HomeView.vue` — minimal landing: create new userId or enter existing one; no chat
 - `UserView.vue` — two-column: left = list of user's apps, right = Smailo + AI chat for creating apps
 - `AppView.vue` — two-column: left = AppRenderer + app data, right = Smailo + in-app chat
+
+`InputBar.vue` — chat input with two extra controls: (1) quick number buttons (1–N, up to 5) shown when the last assistant message contains a numbered list; (2) a microphone button for browser-native speech recognition (Web Speech API), hidden when unsupported. Number buttons auto-submit the digit immediately.
+
+`chat.ts` store exposes a `reset()` method that clears messages, resets phase to `brainstorm`, generates a new sessionId, and removes `smailo_appHash`/`smailo_creationToken` from sessionStorage. `UserView` calls it on mount to ensure each visit starts a fresh creation chat.
 
 Axios instance (`client/src/api/index.ts`) auto-attaches JWT from localStorage.
 

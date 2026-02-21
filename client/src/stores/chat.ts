@@ -74,5 +74,17 @@ export const useChatStore = defineStore('chat', () => {
     return data
   }
 
-  return { messages, sessionId, mood, phase, appHash, appConfig, creationToken, sendMessage }
+  function reset() {
+    messages.value = []
+    sessionId.value = generateSessionId()
+    mood.value = 'idle'
+    phase.value = 'brainstorm'
+    appHash.value = null
+    appConfig.value = null
+    creationToken.value = null
+    sessionStorage.removeItem('smailo_appHash')
+    sessionStorage.removeItem('smailo_creationToken')
+  }
+
+  return { messages, sessionId, mood, phase, appHash, appConfig, creationToken, sendMessage, reset }
 })
