@@ -1,11 +1,13 @@
 # Smailo
 
-A personal AI applications builder. Chat with Smailo — an expressive AI assistant — to design and create personal apps like trackers, schedulers, and data visualizers. Each app gets a dynamic PrimeVue UI and optional cron jobs that run automatically in the background.
+> ⚡ **Vibe coding project** — built entirely through AI-assisted development (Claude Code). The code works, but it is not production-hardened. Use at your own risk: no thorough test coverage, security audit, or stability guarantees. Not recommended for storing sensitive data.
+
+A personal AI applications builder. Chat with Smailo — an expressive AI assistant — to design and create personal apps like trackers, task lists, schedulers, and data visualizers. Each app gets a dynamic PrimeVue UI and optional cron jobs that run automatically in the background.
 
 ## How It Works
 
 1. Open the home page — create a new personal user ID or enter an existing one
-2. On your user page, describe your app idea to Smailo in the AI chat
+2. On your user page, pick an example app or describe your idea to Smailo in the AI chat
 3. Smailo walks you through a brainstorm → confirm → created flow
 4. Once created, your app gets a unique URL at `/:userId/:hash` you can bookmark
 5. Optionally set a password to protect your app
@@ -58,20 +60,21 @@ smailo/
 ├── client/                 # Vue 3 + Vite frontend
 │   └── src/
 │       ├── components/
-│       │   ├── Smailo.vue        # Animated SVG character (5 moods)
-│       │   ├── InputBar.vue      # Text input with quick-number buttons for numbered options
+│       │   ├── Smailo.vue        # Animated SVG character (5 moods + thinking animation)
+│       │   ├── InputBar.vue      # Text input with quick-number buttons and voice input
 │       │   ├── AppRenderer.vue   # Dynamic PrimeVue component renderer
 │       │   ├── AppCard.vue       # Card wrapper (uses PrimeVue slots)
 │       │   ├── AppDataTable.vue  # DataTable wrapper (auto-generates columns)
 │       │   ├── AppButton.vue     # Clickable button that writes to appData
-│       │   ├── AppInputText.vue  # Text/number input with Save button
+│       │   ├── AppInputText.vue  # Text/number/date input with Save button
 │       │   ├── AppForm.vue       # Multi-field form that writes a combined object
+│       │   ├── AppCardList.vue   # Dynamic card-per-item list from appData array (with delete)
 │       │   ├── AppAccordion.vue  # Accordion wrapper for collapsible sections
 │       │   ├── AppPanel.vue      # Panel wrapper with header slot
 │       │   └── AppTabs.vue       # Tabs wrapper showing data per tab
 │       ├── views/
 │       │   ├── HomeView.vue      # Landing: create/enter user ID
-│       │   ├── UserView.vue      # User page: app list (left) + AI chat for creating apps (right)
+│       │   ├── UserView.vue      # User page: app list (left) + AI chat with example prompts (right)
 │       │   └── AppView.vue       # Two-column: AppRenderer (left) + in-app AI chat (right)
 │       ├── stores/
 │       │   ├── user.ts           # Pinia store for user identity and app list
@@ -91,7 +94,7 @@ smailo/
         ├── routes/
         │   ├── users.ts          # POST/GET /api/users — user creation and lookup
         │   ├── chat.ts           # POST/GET /api/chat — home brainstorm flow + chat history
-        │   └── app.ts            # GET/POST /api/app/:hash — app access, chat, chat history
+        │   └── app.ts            # GET/POST /api/app/:hash — app access, chat, data writes
         └── index.ts              # Express entry point
 ```
 
@@ -109,13 +112,15 @@ smailo/
 - User creation: client → `POST /api/users` → returns `{ userId }` → stored in `localStorage`
 - App list: client → `GET /api/users/:userId/apps` → list of user's apps
 - Creation chat: client → `POST /api/chat` (with `userId`) → AI service (brainstorm phase) → response with mood/phase
-- App creation: when the AI service returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row (with `userId`), and schedules any cron jobs
+- App creation: when the AI returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, and schedules cron jobs
 - App access: client → `GET /api/app/:hash` → returns config + latest appData (JWT required if password set)
-- In-app chat: client → `POST /api/app/:hash/chat` → AI service (chat phase) → optional UI update and/or memory update
-- Chat history: client → `GET /api/chat?sessionId=home-<userId>` / `GET /api/app/:hash/chat` → last 20 messages restored on page load
-- AI memory: each in-app chat response may include a `memoryUpdate` — concise notes (up to 2000 chars) saved to `apps.notes` and injected into future AI calls for that app
-- User-triggered writes: Button/InputText/Form components → `POST /api/app/:hash/data` → appData updated, UI refreshes
-- Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data) and writes results to appData
+- In-app chat: client → `POST /api/app/:hash/chat` → AI service → optional UI update and/or memory update
+- Chat history: restored on page load from `GET /api/chat?sessionId=...` / `GET /api/app/:hash/chat`
+- AI memory: each in-app response may include a `memoryUpdate` saved to `apps.notes` and injected into future AI calls
+- User-triggered writes: Button/InputText/Form/CardList → `POST /api/app/:hash/data` → appData updated, UI refreshes
+- Append mode: InputText/Form support `mode: "append"` — each save adds an item to an array
+- Delete item: CardList delete button → `POST /api/app/:hash/data` with `mode: "delete-item"` + `index`
+- Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data, compute) and writes results to appData
 
 ### Key Technologies
 
