@@ -47,6 +47,10 @@ usersRouter.post('/', async (req, res) => {
 usersRouter.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+    if (!/^[A-Za-z0-9]{1,50}$/.test(userId)) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
     const [row] = await db.select().from(users).where(eq(users.userId, userId));
     if (!row) {
       res.status(404).json({ error: 'User not found' });
@@ -63,6 +67,10 @@ usersRouter.get('/:userId', async (req, res) => {
 usersRouter.get('/:userId/apps', async (req, res) => {
   try {
     const { userId } = req.params;
+    if (!/^[A-Za-z0-9]{1,50}$/.test(userId)) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
     const [user] = await db.select().from(users).where(eq(users.userId, userId));
     if (!user) {
       res.status(404).json({ error: 'User not found' });

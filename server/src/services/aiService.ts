@@ -384,7 +384,10 @@ export async function chatWithAI(
       const str = typeof value === 'string' ? value : JSON.stringify(value);
       return { key, value: str.length > MAX_VALUE_CHARS ? str.slice(0, MAX_VALUE_CHARS) + '…' : str };
     });
-    systemPrompt += `\n\nAPP CONTEXT:\nConfig: ${JSON.stringify(appContext.config)}\nData: ${JSON.stringify(safeData)}`;
+    const MAX_CONFIG_CHARS = 8000;
+    const configStr = JSON.stringify(appContext.config);
+    const safeConfig = configStr.length > MAX_CONFIG_CHARS ? configStr.slice(0, MAX_CONFIG_CHARS) + '…' : configStr;
+    systemPrompt += `\n\nAPP CONTEXT:\nConfig: ${safeConfig}\nData: ${JSON.stringify(safeData)}`;
   }
   const rawText =
     provider === 'deepseek'

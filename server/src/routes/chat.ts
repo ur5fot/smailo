@@ -109,20 +109,20 @@ chatRouter.post('/', limiter, async (req, res) => {
     // Call AI
     const claudeResponse = await chatWithAI(messages, currentPhase);
 
-    // Persist user message only after a successful AI response
-    await db.insert(chatHistory).values({
-      sessionId,
-      role: 'user',
-      content: message,
-      phase: currentPhase,
-    } as any);
-
     let appHashResult: string | undefined;
     let creationTokenResult: string | undefined;
+    let validJobs: any[] = [];
+    let insertedAppId: number | undefined;
 
-    // If Claude says the app is created, persist the app and schedule cron jobs.
-    // Enforce server-side that creation can only follow confirmation — the AI cannot
-    // skip the confirm phase by returning phase='created' from brainstorm.
+    // Pre-compute app creation data outside the transaction (no DB side effects)
+    let appCreationData: {
+      hash: string;
+      creationToken: string;
+      creationTokenHash: string;
+      appConfigToStore: any;
+      appName: string;
+    } | undefined;
+
     if (claudeResponse.phase === 'created' && claudeResponse.appConfig && (currentPhase as string) === 'confirm') {
       const appName = claudeResponse.appConfig.appName;
       if (!appName || typeof appName !== 'string' || appName.trim().length === 0) {
@@ -131,69 +131,81 @@ chatRouter.post('/', limiter, async (req, res) => {
       }
 
       const hash = randomBytes(32).toString('hex');
-      appHashResult = hash;
-      // Generate a one-time creation token so the client can call set-password without
-      // an unauthenticated race window. Store only the hash; return the plain token once.
       const creationToken = randomBytes(24).toString('hex');
-      creationTokenResult = creationToken;
       const creationTokenHash = createHash('sha256').update(creationToken).digest('hex');
 
-      // Strip cronJobs from the stored config so fetch_url targets and automation
-      // configs are never written to apps.config (they live in the cronJobs table).
       const { cronJobs: _cj, ...appConfigToStore } = claudeResponse.appConfig as any;
-
-      // Validate uiComponents against the allowed component whitelist.
       if (Array.isArray(appConfigToStore.uiComponents)) {
         appConfigToStore.uiComponents = validateUiComponents(appConfigToStore.uiComponents);
       } else {
-        // Non-array value (null, string, object) — reset to empty so no untrusted data reaches the client.
         appConfigToStore.uiComponents = [];
       }
 
-      const [inserted] = await db
-        .insert(apps)
-        .values({
-          hash,
-          userId: userId ?? null,
-          appName: appName.trim().slice(0, 200),
-          description: typeof claudeResponse.appConfig.description === 'string'
-            ? claudeResponse.appConfig.description.slice(0, 500)
-            : '',
-          config: appConfigToStore,
-          creationToken: creationTokenHash,
-        } as any)
-        .returning({ id: apps.id });
-
-      const validJobs = Array.isArray(claudeResponse.appConfig.cronJobs)
+      validJobs = Array.isArray(claudeResponse.appConfig.cronJobs)
         ? claudeResponse.appConfig.cronJobs.filter(
-            (j) =>
+            (j: any) =>
               j &&
               typeof j.name === 'string' &&
               typeof j.schedule === 'string' &&
               typeof j.action === 'string'
           )
         : [];
-      if (inserted && validJobs.length > 0) {
-        await cronManager.addJobs(inserted.id, validJobs);
-      }
+
+      appCreationData = { hash, creationToken, creationTokenHash, appConfigToStore, appName: appName.trim() };
+      appHashResult = hash;
+      creationTokenResult = creationToken;
     }
 
     // If Claude skipped confirm and jumped to created (blocked server-side),
     // downgrade the phase to confirm so the client doesn't show a broken "created" state.
     // Compute this BEFORE persisting so the DB row also reflects the corrected phase —
     // otherwise the next request would read phase='created' and switch to the in-app AI prompt.
-    let responsePhase = claudeResponse.phase;
-    if (claudeResponse.phase === 'created' && !appHashResult) {
-      responsePhase = 'confirm';
-    }
+    const responsePhase = claudeResponse.phase === 'created' && !appHashResult
+      ? 'confirm'
+      : claudeResponse.phase;
 
-    // Persist assistant response with the corrected phase
-    await db.insert(chatHistory).values({
-      sessionId,
-      role: 'assistant',
-      content: claudeResponse.message,
-      phase: responsePhase,
-    } as any);
+    // Wrap all DB writes in a transaction so a crash between user-message and
+    // assistant-message inserts cannot leave orphaned rows that corrupt conversation state.
+    await db.transaction(async (tx) => {
+      // Persist user message only after a successful AI response
+      await tx.insert(chatHistory).values({
+        sessionId,
+        role: 'user',
+        content: message,
+        phase: currentPhase,
+      } as any);
+
+      if (appCreationData) {
+        const { hash, creationTokenHash, appConfigToStore, appName } = appCreationData;
+        const [inserted] = await tx
+          .insert(apps)
+          .values({
+            hash,
+            userId: userId ?? null,
+            appName: appName.slice(0, 200),
+            description: typeof claudeResponse.appConfig!.description === 'string'
+              ? claudeResponse.appConfig!.description.slice(0, 500)
+              : '',
+            config: appConfigToStore,
+            creationToken: creationTokenHash,
+          } as any)
+          .returning({ id: apps.id });
+        if (inserted) insertedAppId = inserted.id;
+      }
+
+      await tx.insert(chatHistory).values({
+        sessionId,
+        role: 'assistant',
+        content: claudeResponse.message,
+        phase: responsePhase,
+      } as any);
+    });
+
+    // Schedule cron jobs after the transaction commits — if this fails the app exists
+    // but has no automation; the user can recreate via chat.
+    if (insertedAppId !== undefined && validJobs.length > 0) {
+      await cronManager.addJobs(insertedAppId, validJobs);
+    }
 
     return res.json({
       mood: claudeResponse.mood,
