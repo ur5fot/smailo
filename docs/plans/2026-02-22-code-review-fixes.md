@@ -39,10 +39,10 @@
 ## Implementation Steps
 
 ### Task 1: Fix unbounded app_data growth (C1)
-- [ ] Add `pruneOldAppData(maxRowsPerKey: number)` function in `server/src/routes/app.ts` (or a shared db module) using `DELETE ... WHERE id NOT IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER ...) WHERE rn <= N)`
-- [ ] Call pruning on server startup in `server/src/index.ts` (after `cronManager.loadAll()`)
-- [ ] Add a scheduled cleanup in `cronManager` or a separate setInterval (run hourly)
-- [ ] Verify compilation: `npm run build --workspace=server`
+- [x] Add `pruneOldAppData(maxRowsPerKey: number)` function in `server/src/routes/app.ts` (or a shared db module) using `DELETE ... WHERE id NOT IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER ...) WHERE rn <= N)`
+- [x] Call pruning on server startup in `server/src/index.ts` (after `cronManager.loadAll()`)
+- [x] Add a scheduled cleanup in `cronManager` or a separate setInterval (run hourly)
+- [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 2: Fix unauthenticated chat history read (C2)
 - [ ] Add `userId` query parameter to `GET /api/chat` in `server/src/routes/chat.ts`

@@ -13,6 +13,18 @@ export const appRouter = Router();
 
 const CHAT_HISTORY_LIMIT = 20;
 
+/** Delete old app_data rows, keeping only the N most recent per (app_id, key). */
+export async function pruneOldAppData(maxRowsPerKey = 100) {
+  await db.run(sql`
+    DELETE FROM app_data WHERE id NOT IN (
+      SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (PARTITION BY app_id, key ORDER BY id DESC) AS rn
+        FROM app_data
+      ) WHERE rn <= ${maxRowsPerKey}
+    )
+  `);
+}
+
 /** Return only the most-recent row per key for a given app. */
 async function getLatestAppData(appId: number) {
   // Use a subquery to find the max id per key, then join back
