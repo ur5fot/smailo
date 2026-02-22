@@ -12,6 +12,11 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // Send userId for ownership verification on unprotected apps
+  const userId = localStorage.getItem('smailo_user_id')
+  if (userId) {
+    config.headers['X-User-Id'] = userId
+  }
   return config
 })
 

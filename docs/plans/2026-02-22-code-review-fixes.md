@@ -51,10 +51,10 @@
 - [x] Verify compilation: both server and client
 
 ### Task 3: Add ownership check for unprotected apps (C3)
-- [ ] Extend `requireAuthIfProtected` in `server/src/routes/app.ts` to check `userId` header/body for write ops when app has no password
-- [ ] Apply ownership check to `POST /api/app/:hash/data` and `POST /api/app/:hash/chat`
-- [ ] Update client to send `userId` (from localStorage) in write requests — Axios interceptor or per-request
-- [ ] Verify compilation: both server and client
+- [x] Extend `requireAuthIfProtected` in `server/src/routes/app.ts` to check `userId` header/body for write ops when app has no password
+- [x] Apply ownership check to `POST /api/app/:hash/data` and `POST /api/app/:hash/chat`
+- [x] Update client to send `userId` (from localStorage) in write requests — Axios interceptor or per-request
+- [x] Verify compilation: both server and client
 
 ### Task 4: Fix client-side prototype pollution (I1)
 - [ ] Add `BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])` check to `resolveDataKey` in `AppRenderer.vue`

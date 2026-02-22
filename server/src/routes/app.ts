@@ -74,6 +74,15 @@ async function requireAuthIfProtected(
   (req as any).app_row = row;
 
   if (!row.passwordHash) {
+    // For write operations on unprotected apps, verify userId ownership
+    // so that only the app creator can modify data. Read ops remain open.
+    if (req.method === 'POST' && row.userId) {
+      const headerUserId = req.headers['x-user-id'];
+      if (headerUserId !== row.userId) {
+        res.status(403).json({ error: 'Not the owner of this app' });
+        return;
+      }
+    }
     next();
     return;
   }
