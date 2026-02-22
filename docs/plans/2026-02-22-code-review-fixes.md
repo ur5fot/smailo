@@ -115,12 +115,12 @@
 - [x] Verify compilation: both server and client
 
 ### Task 13: Fix remaining Minor issues (M5, M7, M8, M9, M10, M11, M12)
-- [ ] Add route constraint `/:userId([A-Za-z0-9]{1,50})` in `client/src/router/index.ts` (M7)
-- [ ] Add `'compute'` to `CronJobConfig` action type union in `aiService.ts` (M8)
-- [ ] Configure Helmet with Content-Security-Policy in `server/src/index.ts` (M11)
-- [ ] Fix GSAP sub-tweens storage in `Smailo.vue` — use a `Map` instead of ad-hoc properties (M10)
-- [ ] Verify compilation: both server and client
-- [ ] Note: M5 (error message localization), M9 (JWT claims), M12 (Image URL validation) are deferred — low impact, would require broader changes
+- [x] Add route constraint `/:userId([A-Za-z0-9]{1,50})` in `client/src/router/index.ts` (M7)
+- [x] Add `'compute'` to `CronJobConfig` action type union in `aiService.ts` (M8)
+- [x] Configure Helmet with Content-Security-Policy in `server/src/index.ts` (M11)
+- [x] Fix GSAP sub-tweens storage in `Smailo.vue` — use a `Map` instead of ad-hoc properties (M10)
+- [x] Verify compilation: both server and client
+- [x] Note: M5 (error message localization), M9 (JWT claims), M12 (Image URL validation) are deferred — low impact, would require broader changes
 
 ### Task 14: Verify all changes
 - [ ] Run full TypeScript compilation: `npm run build --workspace=server`

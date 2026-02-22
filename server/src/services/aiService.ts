@@ -16,7 +16,7 @@ export type CronJobConfig = {
   name: string;
   schedule: string;
   humanReadable: string;
-  action: 'log_entry' | 'fetch_url' | 'send_reminder' | 'aggregate_data';
+  action: 'log_entry' | 'fetch_url' | 'send_reminder' | 'aggregate_data' | 'compute';
   config: Record<string, unknown>;
 };
 
