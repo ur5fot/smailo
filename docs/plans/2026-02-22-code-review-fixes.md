@@ -123,10 +123,10 @@
 - [x] Note: M5 (error message localization), M9 (JWT claims), M12 (Image URL validation) are deferred — low impact, would require broader changes
 
 ### Task 14: Verify all changes
-- [ ] Run full TypeScript compilation: `npm run build --workspace=server`
-- [ ] Run client type check: `npx vue-tsc --workspace=client`
-- [ ] Start dev server and verify basic functionality: `npm run dev`
-- [ ] Verify all requirements from Overview are implemented
+- [x] Run full TypeScript compilation: `npm run build --workspace=server`
+- [x] Run client type check: `npx vue-tsc --workspace=client`
+- [x] Start dev server and verify basic functionality: `npm run dev`
+- [x] Verify all requirements from Overview are implemented
 
 ### Task 15: Update documentation
 - [ ] Update `README.md` with any new setup/config changes (trust proxy, CSP)
