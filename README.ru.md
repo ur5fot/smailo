@@ -80,13 +80,18 @@ smailo/
 │       │   ├── user.ts           # Pinia-стор для идентификации пользователя и списка приложений
 │       │   ├── chat.ts           # Pinia-стор для состояния чата создания приложений
 │       │   └── app.ts            # Pinia-стор для данных приложения и авторизации
-│       ├── api/index.ts          # Axios с JWT-интерцептором
-│       └── router/index.ts       # Vue Router: /, /:userId, /:userId/:hash, /app/:hash
+│       ├── utils/
+│       │   ├── format.ts         # Общий formatIfDate (ISO → локализованная RU дата)
+│       │   ├── markdown.ts       # Общий renderMd (marked + DOMPurify)
+│       │   └── dataKey.ts        # Общий resolveDataKey с защитой от prototype pollution
+│       ├── api/index.ts          # Axios с JWT + X-User-Id интерцептором
+│       └── router/index.ts       # Vue Router с regex-ограничениями параметров
 │
 └── server/                 # Бэкенд на Express + TypeScript
     └── src/
         ├── db/
         │   ├── schema.ts         # Drizzle-схема: users, apps, cronJobs, appData, chatHistory
+        │   ├── queries.ts        # Общие DB-запросы (getLatestAppData)
         │   └── index.ts          # Подключение SQLite + Drizzle
         ├── services/
         │   ├── aiService.ts      # Единый AI-сервис: Anthropic или DeepSeek через AI_PROVIDER
@@ -121,6 +126,17 @@ smailo/
 - Режим накопления: InputText/Form поддерживают `mode: "append"` — каждое сохранение добавляет элемент в массив
 - Удаление элемента: кнопка удаления в CardList → `POST /api/app/:hash/data` с `mode: "delete-item"` и `index`
 - Cron-задания: node-cron выполняет запланированные действия (log_entry, fetch_url, send_reminder, aggregate_data, compute) и записывает результаты в appData
+
+### Безопасность
+
+- **Проверка владельца**: Операции записи в незащищённых приложениях требуют заголовок `X-User-Id`, совпадающий с владельцем (отправляется автоматически через Axios-интерцептор)
+- **Очистка данных**: Старые строки `app_data` автоматически удаляются при старте сервера и каждый час (хранятся последние 100 строк на ключ на приложение)
+- **CSP-заголовки**: Helmet настраивает Content-Security-Policy (`'self'` для скриптов, `'unsafe-inline'` для стилей PrimeVue)
+- **Trust proxy**: `app.set('trust proxy', 1)` обеспечивает корректную работу rate limiting за обратным прокси
+- **Защита от prototype pollution**: Резолвер `dataKey` блокирует сегменты `__proto__`, `constructor`, `prototype` (на клиенте и сервере)
+- **Защита от race condition**: Операции append и delete-item обёрнуты в транзакции базы данных
+- **Защита от prompt injection**: Пользовательская память приложения оборачивается в XML-теги перед инъекцией в промпт AI
+- **Валидация cron-заданий**: Конфигурации проверяются по типу действия перед сохранением (например, `fetch_url` требует HTTPS URL)
 
 ### Ключевые технологии
 

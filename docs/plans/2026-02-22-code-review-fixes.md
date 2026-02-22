@@ -129,9 +129,9 @@
 - [x] Verify all requirements from Overview are implemented
 
 ### Task 15: Update documentation
-- [ ] Update `README.md` with any new setup/config changes (trust proxy, CSP)
-- [ ] Update `README.ru.md` to match
-- [ ] Update `CLAUDE.md` if architectural changes warrant it
+- [x] Update `README.md` with any new setup/config changes (trust proxy, CSP)
+- [x] Update `README.ru.md` to match
+- [x] Update `CLAUDE.md` if architectural changes warrant it
 
 ## Technical Details
 

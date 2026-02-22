@@ -80,13 +80,18 @@ smailo/
 │       │   ├── user.ts           # Pinia store for user identity and app list
 │       │   ├── chat.ts           # Pinia store for app creation chat state
 │       │   └── app.ts            # Pinia store for app data and auth
-│       ├── api/index.ts          # Axios instance with JWT interceptor
-│       └── router/index.ts       # Vue Router: /, /:userId, /:userId/:hash, /app/:hash
+│       ├── utils/
+│       │   ├── format.ts         # Shared formatIfDate utility (ISO → localized RU date)
+│       │   ├── markdown.ts       # Shared renderMd (marked + DOMPurify)
+│       │   └── dataKey.ts        # Shared resolveDataKey with prototype-pollution guard
+│       ├── api/index.ts          # Axios instance with JWT + X-User-Id interceptor
+│       └── router/index.ts       # Vue Router with regex-constrained params
 │
 └── server/                 # Express + TypeScript backend
     └── src/
         ├── db/
         │   ├── schema.ts         # Drizzle schema: users, apps, cronJobs, appData, chatHistory
+        │   ├── queries.ts        # Shared DB queries (getLatestAppData)
         │   └── index.ts          # SQLite + Drizzle connection
         ├── services/
         │   ├── aiService.ts      # Unified AI service: Anthropic or DeepSeek via AI_PROVIDER
@@ -121,6 +126,17 @@ smailo/
 - Append mode: InputText/Form support `mode: "append"` — each save adds an item to an array
 - Delete item: CardList delete button → `POST /api/app/:hash/data` with `mode: "delete-item"` + `index`
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data, compute) and writes results to appData
+
+### Security
+
+- **Ownership verification**: Write operations on unprotected apps require the `X-User-Id` header to match the app owner (sent automatically by the Axios interceptor)
+- **Data pruning**: Old `app_data` rows are automatically pruned on startup and hourly (keeps latest 100 rows per key per app)
+- **CSP headers**: Helmet configures Content-Security-Policy (`'self'` for scripts/default, `'unsafe-inline'` for styles needed by PrimeVue)
+- **Trust proxy**: `app.set('trust proxy', 1)` ensures rate limiting works correctly behind a reverse proxy
+- **Prototype pollution guard**: `dataKey` resolution blocks `__proto__`, `constructor`, `prototype` segments (client and server)
+- **Race condition protection**: Append and delete-item operations are wrapped in database transactions
+- **Prompt injection containment**: User-generated app memory is wrapped in XML delimiters before injection into AI prompts
+- **Cron job validation**: Action-specific config objects are validated per type before storage (e.g., `fetch_url` requires HTTPS URL)
 
 ### Key Technologies
 
