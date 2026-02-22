@@ -64,8 +64,8 @@
 - [x] Verify compilation: both server and client
 
 ### Task 5: Fix rate limiter behind reverse proxy (I2)
-- [ ] Add `app.set('trust proxy', 1)` to `server/src/index.ts` before middleware
-- [ ] Verify compilation: `npm run build --workspace=server`
+- [x] Add `app.set('trust proxy', 1)` to `server/src/index.ts` before middleware
+- [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 6: Fix append/delete-item race condition (I5)
 - [ ] Wrap `delete-item` read-modify-write in synchronous `db.transaction()` in `server/src/routes/app.ts`
