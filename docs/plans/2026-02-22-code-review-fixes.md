@@ -83,9 +83,9 @@
 - [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 9: Fix userId generation modulo bias (I6)
-- [ ] Replace `bytes[i] % 62` with rejection sampling in `generateUserId` in `users.ts`
-- [ ] Use `248` (62*4) as threshold for rejection
-- [ ] Verify compilation: `npm run build --workspace=server`
+- [x] Replace `bytes[i] % 62` with rejection sampling in `generateUserId` in `users.ts`
+- [x] Use `248` (62*4) as threshold for rejection
+- [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 10: Validate cron job config objects (I4)
 - [ ] Add per-action-type validation function in `server/src/routes/chat.ts` (or cronManager)
