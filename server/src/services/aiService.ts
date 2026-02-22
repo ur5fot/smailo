@@ -339,10 +339,29 @@ function getDeepSeekClient(): OpenAI {
   return deepseekClient;
 }
 
+function extractJson(raw: string): string {
+  const start = raw.indexOf('{');
+  if (start === -1) return raw.trim();
+
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inString) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === '{') depth++;
+    else if (ch === '}') { depth--; if (depth === 0) return raw.slice(start, i + 1); }
+  }
+  // Fallback: unbalanced braces, return from first { to end
+  return raw.slice(start);
+}
+
 function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse | null {
-  const start = rawText.indexOf('{');
-  const end = rawText.lastIndexOf('}');
-  const jsonText = start !== -1 && end > start ? rawText.slice(start, end + 1) : rawText.trim();
+  const jsonText = extractJson(rawText);
 
   try {
     const parsed = JSON.parse(jsonText) as ClaudeResponse;

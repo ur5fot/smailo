@@ -78,9 +78,9 @@
 - [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 8: Fix fragile JSON parsing (I8)
-- [ ] Replace first-`{`/last-`}` heuristic with brace-counting parser in `parseResponse` in `aiService.ts`
-- [ ] Handle nested braces, string literals, and escape sequences correctly
-- [ ] Verify compilation: `npm run build --workspace=server`
+- [x] Replace first-`{`/last-`}` heuristic with brace-counting parser in `parseResponse` in `aiService.ts`
+- [x] Handle nested braces, string literals, and escape sequences correctly
+- [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 9: Fix userId generation modulo bias (I6)
 - [ ] Replace `bytes[i] % 62` with rejection sampling in `generateUserId` in `users.ts`
