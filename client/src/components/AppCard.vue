@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import Card from 'primevue/card'
+import { formatIfDate } from '../utils/format'
 
 const props = defineProps<{
   title?: string
@@ -52,22 +53,6 @@ const props = defineProps<{
   // value is bound from dataKey resolution in AppRenderer
   value?: any
 }>()
-
-const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
-
-function formatIfDate(val: any): any {
-  if (typeof val !== 'string' || !ISO_RE.test(val)) return val
-  try {
-    const d = new Date(val)
-    if (isNaN(d.getTime())) return val
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    }).format(d)
-  } catch {
-    return val
-  }
-}
 </script>
 
 <style scoped>

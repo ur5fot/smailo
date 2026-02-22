@@ -2,9 +2,10 @@ import { schedule, validate } from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { lookup } from 'dns/promises';
 import https from 'node:https';
-import { eq, and, gte, desc, sql } from 'drizzle-orm';
+import { eq, and, gte, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
+import { getLatestAppData } from '../db/queries.js';
 import type { CronJobConfig } from './aiService.js';
 
 type CronJobsInsert = typeof cronJobs.$inferInsert;
@@ -108,14 +109,7 @@ class CronManager {
 
   /** Return the most-recent value per key for a given app as a Map. */
   private async getLatestDataMap(appId: number): Promise<Map<string, unknown>> {
-    const rows = await db
-      .select()
-      .from(appData)
-      .where(
-        sql`${appData.appId} = ${appId} AND ${appData.id} IN (
-          SELECT MAX(id) FROM app_data WHERE app_id = ${appId} GROUP BY key
-        )`
-      );
+    const rows = await getLatestAppData(appId);
     return new Map(rows.map((r) => [r.key, r.value]));
   }
 

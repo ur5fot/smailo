@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory } from '../db/schema.js';
+import { getLatestAppData } from '../db/queries.js';
 import { chatWithAI, validateUiComponents } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 
@@ -33,20 +34,6 @@ export async function pruneOldAppData(maxRowsPerKey = 100) {
   `);
 }
 
-/** Return only the most-recent row per key for a given app. */
-async function getLatestAppData(appId: number) {
-  // Use a subquery to find the max id per key, then join back
-  const rows = await db
-    .select()
-    .from(appData)
-    .where(
-      sql`${appData.appId} = ${appId} AND ${appData.id} IN (
-        SELECT MAX(id) FROM app_data WHERE app_id = ${appId} GROUP BY key
-      )`
-    )
-    .orderBy(desc(appData.createdAt));
-  return rows;
-}
 
 const verifyLimiter = rateLimit({
   windowMs: 60 * 1000,

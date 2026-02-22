@@ -104,15 +104,15 @@
 - [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 12: Extract duplicated utilities (M1, M2, M3, M4)
-- [ ] Create `client/src/utils/format.ts` with shared `formatIfDate` function
-- [ ] Update all 5 components (AppCard, AppCardList, AppAccordion, AppPanel, AppTabs) to import from utils
-- [ ] Create `client/src/utils/markdown.ts` with shared `renderMd` function
-- [ ] Update AppView and UserView to import from utils
-- [ ] Extract shared `resolveDataKey` into `client/src/utils/dataKey.ts` (also fixes M3)
-- [ ] Update AppRenderer, AppAccordion, AppTabs to use shared resolver
-- [ ] Extract shared `getLatestAppData` query into `server/src/db/queries.ts` (M4)
-- [ ] Update `server/src/routes/app.ts` and `server/src/services/cronManager.ts` to import from queries
-- [ ] Verify compilation: both server and client
+- [x] Create `client/src/utils/format.ts` with shared `formatIfDate` function
+- [x] Update all 5 components (AppCard, AppCardList, AppAccordion, AppPanel, AppTabs) to import from utils
+- [x] Create `client/src/utils/markdown.ts` with shared `renderMd` function
+- [x] Update AppView and UserView to import from utils
+- [x] Extract shared `resolveDataKey` into `client/src/utils/dataKey.ts` (also fixes M3)
+- [x] Update AppRenderer, AppAccordion, AppTabs to use shared resolver
+- [x] Extract shared `getLatestAppData` query into `server/src/db/queries.ts` (M4)
+- [x] Update `server/src/routes/app.ts` and `server/src/services/cronManager.ts` to import from queries
+- [x] Verify compilation: both server and client
 
 ### Task 13: Fix remaining Minor issues (M5, M7, M8, M9, M10, M11, M12)
 - [ ] Add route constraint `/:userId([A-Za-z0-9]{1,50})` in `client/src/router/index.ts` (M7)
