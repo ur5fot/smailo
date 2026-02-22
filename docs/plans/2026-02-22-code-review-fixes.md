@@ -68,9 +68,9 @@
 - [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 6: Fix append/delete-item race condition (I5)
-- [ ] Wrap `delete-item` read-modify-write in synchronous `db.transaction()` in `server/src/routes/app.ts`
-- [ ] Wrap `append` read-modify-write in synchronous `db.transaction()` in `server/src/routes/app.ts`
-- [ ] Verify compilation: `npm run build --workspace=server`
+- [x] Wrap `delete-item` read-modify-write in synchronous `db.transaction()` in `server/src/routes/app.ts`
+- [x] Wrap `append` read-modify-write in synchronous `db.transaction()` in `server/src/routes/app.ts`
+- [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 7: Fix prompt injection via memoryUpdate (I7)
 - [ ] Wrap `appContext.notes` in `<app-memory>` delimiters in `aiService.ts`

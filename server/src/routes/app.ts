@@ -290,17 +290,22 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
       if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) {
         return res.status(400).json({ error: 'index must be a non-negative integer' });
       }
-      const [existing] = await db
-        .select()
-        .from(appData)
-        .where(
-          sql`${appData.appId} = ${row.id} AND ${appData.id} IN (
-            SELECT MAX(id) FROM app_data WHERE app_id = ${row.id} AND key = ${key}
-          )`
-        );
-      const current = Array.isArray(existing?.value) ? existing.value : [];
-      const updated = current.filter((_: unknown, i: number) => i !== index);
-      await db.insert(appData).values({ appId: row.id, key, value: updated } as any);
+      // Wrap read-modify-write in a transaction to prevent race conditions.
+      // better-sqlite3 transactions are synchronous — no interleaving possible.
+      db.transaction((tx) => {
+        const existing = tx
+          .select()
+          .from(appData)
+          .where(
+            sql`${appData.appId} = ${row.id} AND ${appData.id} IN (
+              SELECT MAX(id) FROM app_data WHERE app_id = ${row.id} AND key = ${key}
+            )`
+          )
+          .get();
+        const current = Array.isArray(existing?.value) ? existing.value : [];
+        const updated = current.filter((_: unknown, i: number) => i !== index);
+        tx.insert(appData).values({ appId: row.id, key, value: updated } as any).run();
+      });
       return res.json({ ok: true });
     }
 
@@ -311,35 +316,51 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
     let storedValue: unknown = value;
 
     if (mode === 'append') {
-      // Read the current array value for this key and append the new item.
-      const [existing] = await db
-        .select()
-        .from(appData)
-        .where(
-          sql`${appData.appId} = ${row.id} AND ${appData.id} IN (
-            SELECT MAX(id) FROM app_data WHERE app_id = ${row.id} AND key = ${key}
-          )`
-        );
-      const current = existing?.value;
-      // Wrap primitive values as objects so DataTable can bind to named fields.
-      const item = (typeof value === 'string' || typeof value === 'number')
-        ? { value, timestamp: new Date().toISOString() }
-        : value;
-      storedValue = Array.isArray(current) ? [...current, item] : [item];
-    }
+      // Wrap read-modify-write in a transaction to prevent race conditions.
+      // better-sqlite3 transactions are synchronous — no interleaving possible.
+      const tooLarge = db.transaction((tx) => {
+        const existing = tx
+          .select()
+          .from(appData)
+          .where(
+            sql`${appData.appId} = ${row.id} AND ${appData.id} IN (
+              SELECT MAX(id) FROM app_data WHERE app_id = ${row.id} AND key = ${key}
+            )`
+          )
+          .get();
+        const current = existing?.value;
+        // Wrap primitive values as objects so DataTable can bind to named fields.
+        const item = (typeof value === 'string' || typeof value === 'number')
+          ? { value, timestamp: new Date().toISOString() }
+          : value;
+        storedValue = Array.isArray(current) ? [...current, item] : [item];
 
-    const serialized = JSON.stringify(storedValue);
-    if (Buffer.byteLength(serialized, 'utf8') > VALUE_MAX_BYTES) {
-      return res.status(413).json({ error: 'value too large' });
-    }
+        const serialized = JSON.stringify(storedValue);
+        if (Buffer.byteLength(serialized, 'utf8') > VALUE_MAX_BYTES) {
+          return true;
+        }
 
-    // Pass value directly — Drizzle's mode:'json' column handles serialization.
-    // Do NOT pre-serialize: passing an already-stringified value causes double-encoding.
-    await db.insert(appData).values({
-      appId: row.id,
-      key,
-      value: storedValue,
-    } as any);
+        tx.insert(appData).values({ appId: row.id, key, value: storedValue } as any).run();
+        return false;
+      });
+
+      if (tooLarge) {
+        return res.status(413).json({ error: 'value too large' });
+      }
+    } else {
+      const serialized = JSON.stringify(storedValue);
+      if (Buffer.byteLength(serialized, 'utf8') > VALUE_MAX_BYTES) {
+        return res.status(413).json({ error: 'value too large' });
+      }
+
+      // Pass value directly — Drizzle's mode:'json' column handles serialization.
+      // Do NOT pre-serialize: passing an already-stringified value causes double-encoding.
+      await db.insert(appData).values({
+        appId: row.id,
+        key,
+        value: storedValue,
+      } as any);
+    }
 
     // Run triggered jobs and wait for them so the client gets fresh data on the next
     // fetchData() call. Cap at 15s to avoid blocking indefinitely on slow external APIs.
