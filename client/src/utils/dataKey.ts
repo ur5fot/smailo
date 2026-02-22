@@ -1,6 +1,7 @@
 const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
 export function resolveDataKey(appData: Record<string, unknown>, dataKey: string): unknown {
+  if (BLOCKED_KEYS.has(dataKey)) return undefined
   if (appData[dataKey] !== undefined) return appData[dataKey]
   const dotIdx = dataKey.indexOf('.')
   if (dotIdx === -1) return undefined

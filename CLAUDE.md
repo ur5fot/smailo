@@ -122,13 +122,14 @@ Input wrapper components call `POST /api/app/:hash/data` on user interaction and
 
 ### Cron automation (`server/src/services/cronManager.ts`)
 
-`CronManager` singleton. Four action types:
+`CronManager` singleton. Five action types:
 - `log_entry` — inserts a timestamped entry into `appData`
 - `fetch_url` — fetches external HTTPS URL, extracts via `dataPath` (dot notation from `$.`), stores result; has SSRF protection (private IP check + DNS rebinding check + redirect blocking + 1 MB limit + 10-second timeout). If the response body is not valid JSON, raw text is stored and `dataPath` extraction is skipped.
 - `send_reminder` — stores `{ text: string, sentAt: ISO8601 }` under `outputKey` (not a raw string)
 - `aggregate_data` — computes avg/sum/count/max/min over a time window; result stored as a plain `number` under `outputKey`
+- `compute` — performs calculated operations (currently supports `date_diff`: computes difference between two dates from `inputKeys`, stores `{ totalDays, years, months, days }` under `outputKey`)
 
-All cron expressions must be 5-field only (no seconds). Minimum frequency: every 5 minutes. Jobs are loaded from DB on server start via `cronManager.loadAll()`. Max 5 jobs per app. Cron job configs are validated per action type before storage (e.g., `fetch_url` requires `url` starting with `https://`).
+All cron expressions must be 5-field only (no seconds). Minimum frequency: every 5 minutes. Jobs are loaded from DB on server start via `cronManager.loadAll()`. Max 5 jobs per app. Cron job configs are validated per action type in `isValidCronJobConfig()` (`server/src/routes/chat.ts`) before storage (e.g., `fetch_url` requires `url` starting with `https://` and a non-empty `outputKey`).
 
 ### Database (`server/src/db/schema.ts`)
 

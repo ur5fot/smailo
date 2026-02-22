@@ -25,13 +25,16 @@ function isValidCronJobConfig(action: string, config: unknown): boolean {
   switch (action) {
     case 'fetch_url':
       return typeof c.url === 'string' && c.url.startsWith('https://') &&
-        (c.outputKey === undefined || typeof c.outputKey === 'string');
+        typeof c.outputKey === 'string' && c.outputKey.length > 0;
     case 'send_reminder':
       return typeof c.text === 'string';
     case 'aggregate_data':
-      return typeof c.dataKey === 'string' && typeof c.operation === 'string';
+      return typeof c.dataKey === 'string' && typeof c.operation === 'string' &&
+        typeof c.outputKey === 'string' && c.outputKey.length > 0;
     case 'compute':
-      return typeof c.operation === 'string';
+      return typeof c.operation === 'string' &&
+        typeof c.outputKey === 'string' && c.outputKey.length > 0 &&
+        Array.isArray(c.inputKeys) && c.inputKeys.length >= 1;
     case 'log_entry':
       return true; // log_entry has no required config fields
     default:

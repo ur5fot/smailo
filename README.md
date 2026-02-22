@@ -120,7 +120,7 @@ smailo/
 - App creation: when the AI returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, and schedules cron jobs
 - App access: client → `GET /api/app/:hash` → returns config + latest appData (JWT required if password set)
 - In-app chat: client → `POST /api/app/:hash/chat` → AI service → optional UI update and/or memory update
-- Chat history: restored on page load from `GET /api/chat?sessionId=...` / `GET /api/app/:hash/chat`
+- Chat history: restored on page load from `GET /api/chat?sessionId=...&userId=...` / `GET /api/app/:hash/chat`
 - AI memory: each in-app response may include a `memoryUpdate` saved to `apps.notes` and injected into future AI calls
 - User-triggered writes: Button/InputText/Form/CardList → `POST /api/app/:hash/data` → appData updated, UI refreshes
 - Append mode: InputText/Form support `mode: "append"` — each save adds an item to an array
