@@ -27,7 +27,8 @@ function isValidCronJobConfig(action: string, config: unknown): boolean {
       return typeof c.url === 'string' && c.url.startsWith('https://') &&
         typeof c.outputKey === 'string' && c.outputKey.length > 0;
     case 'send_reminder':
-      return typeof c.text === 'string';
+      return typeof c.text === 'string' &&
+        typeof c.outputKey === 'string' && c.outputKey.length > 0;
     case 'aggregate_data':
       return typeof c.dataKey === 'string' && typeof c.operation === 'string' &&
         typeof c.outputKey === 'string' && c.outputKey.length > 0;
@@ -60,7 +61,9 @@ function sanitizeAppConfigForClient(appConfig: Record<string, unknown>, phase: s
     ...rest,
     ...(Array.isArray(cronJobs)
       ? {
-          cronJobs: cronJobs.map(({ config: _c, ...jobRest }: Record<string, unknown>) => jobRest),
+          cronJobs: cronJobs
+            .filter((j: unknown): j is Record<string, unknown> => j != null && typeof j === 'object' && !Array.isArray(j))
+            .map(({ config: _c, ...jobRest }: Record<string, unknown>) => jobRest),
         }
       : {}),
   };
