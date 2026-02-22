@@ -61,14 +61,18 @@ function formatIfDate(val: any): any {
   }
 }
 
+const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 function resolvedData(dataKey: string): any {
   if (props.appData?.[dataKey] !== undefined) return props.appData[dataKey]
   const dotIdx = dataKey.indexOf('.')
   if (dotIdx === -1 || !props.appData) return undefined
   const topKey = dataKey.slice(0, dotIdx)
+  if (BLOCKED_KEYS.has(topKey)) return undefined
   const raw = props.appData[topKey]
   let value = typeof raw === 'string' ? (() => { try { return JSON.parse(raw) } catch { return raw } })() : raw
   for (const part of dataKey.slice(dotIdx + 1).split('.')) {
+    if (BLOCKED_KEYS.has(part)) return undefined
     if (value === null || value === undefined || typeof value !== 'object') return undefined
     value = (value as Record<string, unknown>)[part]
   }

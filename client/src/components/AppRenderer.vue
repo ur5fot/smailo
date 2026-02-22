@@ -147,17 +147,22 @@ function isSafeProp(key: string): boolean {
   return !key.toLowerCase().startsWith('on')
 }
 
+const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 // Resolve a dataKey with optional dot notation: "rates.USD" → appData["rates"]["USD"]
 function resolveDataKey(dataKey: string): any {
   if (props.appData[dataKey] !== undefined) return props.appData[dataKey]
   const dotIdx = dataKey.indexOf('.')
   if (dotIdx === -1) return undefined
-  let value: any = props.appData[dataKey.slice(0, dotIdx)]
+  const topKey = dataKey.slice(0, dotIdx)
+  if (BLOCKED_KEYS.has(topKey)) return undefined
+  let value: any = props.appData[topKey]
   if (value === null || value === undefined) return undefined
   if (typeof value === 'string') {
     try { value = JSON.parse(value) } catch { return undefined }
   }
   for (const part of dataKey.slice(dotIdx + 1).split('.')) {
+    if (BLOCKED_KEYS.has(part)) return undefined
     if (value === null || value === undefined || typeof value !== 'object') return undefined
     value = value[part]
   }

@@ -268,6 +268,15 @@ Example: "memoryUpdate": "# Currency App\\n- User tracks USD/EUR/GBP\\n- API key
 Keep responses concise and helpful. Focus on the user's data and app context.`;
 
 const UI_KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
+const BLOCKED_DATA_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function isValidDataKey(dataKey: unknown): boolean {
+  if (typeof dataKey !== 'string' || dataKey.length === 0 || dataKey.length > 200) return false;
+  return dataKey.split('.').every(
+    segment => segment.length > 0 && !BLOCKED_DATA_KEY_SEGMENTS.has(segment)
+  );
+}
+
 const ALLOWED_UI_COMPONENTS = [
   'Card', 'Chart', 'Timeline', 'Knob', 'Tag', 'ProgressBar',
   'Calendar', 'DataTable', 'Button', 'InputText', 'Form',
@@ -296,7 +305,12 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
            Array.isArray(item.fields) && item.fields.length > 0 &&
            item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp'))
         : (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
-          (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp')))
+          (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp'))) &&
+      // Validate dataKey segments against prototype pollution
+      (item.dataKey == null || isValidDataKey(item.dataKey)) &&
+      // Validate dataKey inside tabs for Accordion/Tabs
+      (!Array.isArray(item.props?.tabs) ||
+        item.props.tabs.every((t: any) => t.dataKey == null || isValidDataKey(t.dataKey)))
     )
     .slice(0, 20) as UiComponent[];
 }

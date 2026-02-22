@@ -57,11 +57,11 @@
 - [x] Verify compilation: both server and client
 
 ### Task 4: Fix client-side prototype pollution (I1)
-- [ ] Add `BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])` check to `resolveDataKey` in `AppRenderer.vue`
-- [ ] Add same check to `resolvedData` in `AppAccordion.vue`
-- [ ] Add same check to `resolvedData` in `AppTabs.vue`
-- [ ] Add `dataKey` validation to `validateUiComponents` in `aiService.ts` (block dangerous path segments)
-- [ ] Verify compilation: both server and client
+- [x] Add `BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])` check to `resolveDataKey` in `AppRenderer.vue`
+- [x] Add same check to `resolvedData` in `AppAccordion.vue`
+- [x] Add same check to `resolvedData` in `AppTabs.vue`
+- [x] Add `dataKey` validation to `validateUiComponents` in `aiService.ts` (block dangerous path segments)
+- [x] Verify compilation: both server and client
 
 ### Task 5: Fix rate limiter behind reverse proxy (I2)
 - [ ] Add `app.set('trust proxy', 1)` to `server/src/index.ts` before middleware
