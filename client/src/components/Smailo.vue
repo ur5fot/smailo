@@ -140,6 +140,7 @@ const rightHandRef = ref<SVGCircleElement | null>(null)
 const questionRef = ref<SVGTextElement | null>(null)
 
 let activeTimeline: gsap.core.Timeline | null = null
+const subTweens = new Map<string, gsap.core.Tween | gsap.core.Timeline>()
 let headVibrateTween: gsap.core.Tween | null = null
 let thinkingActive = false
 
@@ -161,12 +162,9 @@ function morphHand(el: SVGCircleElement | null, fx: number, fy: number, tx: numb
 
 function killActive() {
   thinkingActive = false
+  for (const tween of subTweens.values()) tween.kill()
+  subTweens.clear()
   if (activeTimeline) {
-    if ((activeTimeline as any)._sway) (activeTimeline as any)._sway.kill()
-    if ((activeTimeline as any)._breathe) (activeTimeline as any)._breathe.kill()
-    if ((activeTimeline as any)._blink) (activeTimeline as any)._blink.kill()
-    if ((activeTimeline as any)._scratch) (activeTimeline as any)._scratch.kill()
-    if ((activeTimeline as any)._leftSway) (activeTimeline as any)._leftSway.kill()
     activeTimeline.kill()
     activeTimeline = null
   }
@@ -263,8 +261,8 @@ function startIdle() {
   })
 
   activeTimeline = tl
-  ;(activeTimeline as any)._sway = sway
-  ;(activeTimeline as any)._breathe = breathe
+  subTweens.set('sway', sway)
+  subTweens.set('breathe', breathe)
 }
 
 function startThinking() {
@@ -355,8 +353,8 @@ function startThinking() {
   raiseArmAndScratch()
 
   activeTimeline = tl
-  ;(activeTimeline as any)._scratch = scratchTween
-  ;(activeTimeline as any)._leftSway = leftSway
+  subTweens.set('scratch', scratchTween)
+  subTweens.set('leftSway', leftSway)
 }
 
 function startTalking() {
@@ -409,7 +407,7 @@ function startTalking() {
   })
 
   activeTimeline = tl
-  ;(activeTimeline as any)._blink = blink
+  subTweens.set('blink', blink)
 }
 
 function startHappy() {

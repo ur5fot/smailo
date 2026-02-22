@@ -13,11 +13,16 @@ usersRouter.use(usersLimiter);
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 function generateUserId(length = 10): string {
-  const bytes = randomBytes(length * 2);
+  const threshold = 248; // 62 * 4 — largest multiple of ALPHABET.length fitting in a byte
   let result = '';
-  for (let i = 0; i < bytes.length && result.length < length; i++) {
-    const idx = bytes[i] % ALPHABET.length;
-    result += ALPHABET[idx];
+  while (result.length < length) {
+    const bytes = randomBytes(length - result.length + 16);
+    for (let i = 0; i < bytes.length && result.length < length; i++) {
+      if (bytes[i] < threshold) {
+        result += ALPHABET[bytes[i] % ALPHABET.length];
+      }
+      // bytes >= 248 are discarded (rejection sampling)
+    }
   }
   return result;
 }

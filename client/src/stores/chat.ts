@@ -102,7 +102,9 @@ export const useChatStore = defineStore('chat', () => {
 
   async function loadHistory() {
     try {
-      const res = await api.get('/chat', { params: { sessionId: sessionId.value } })
+      // Extract userId from deterministic session ID ('home-<userId>') for server-side ownership check
+      const uid = sessionId.value.startsWith('home-') ? sessionId.value.slice(5) : undefined
+      const res = await api.get('/chat', { params: { sessionId: sessionId.value, userId: uid } })
       const history: Array<{ role: 'user' | 'assistant'; content: string; phase?: string }> =
         res.data.history || []
       if (history.length > 0) {

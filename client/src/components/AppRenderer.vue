@@ -106,6 +106,7 @@ import AppAccordion from './AppAccordion.vue'
 import AppPanel from './AppPanel.vue'
 import AppTabs from './AppTabs.vue'
 import AppCardList from './AppCardList.vue'
+import { resolveDataKey } from '../utils/dataKey'
 
 interface UiConfigItem {
   component: string
@@ -147,29 +148,12 @@ function isSafeProp(key: string): boolean {
   return !key.toLowerCase().startsWith('on')
 }
 
-// Resolve a dataKey with optional dot notation: "rates.USD" → appData["rates"]["USD"]
-function resolveDataKey(dataKey: string): any {
-  if (props.appData[dataKey] !== undefined) return props.appData[dataKey]
-  const dotIdx = dataKey.indexOf('.')
-  if (dotIdx === -1) return undefined
-  let value: any = props.appData[dataKey.slice(0, dotIdx)]
-  if (value === null || value === undefined) return undefined
-  if (typeof value === 'string') {
-    try { value = JSON.parse(value) } catch { return undefined }
-  }
-  for (const part of dataKey.slice(dotIdx + 1).split('.')) {
-    if (value === null || value === undefined || typeof value !== 'object') return undefined
-    value = value[part]
-  }
-  return value
-}
-
 function resolvedProps(item: UiConfigItem): Record<string, any> {
   const safeProps = Object.fromEntries(
     Object.entries(item.props ?? {}).filter(([key]) => isSafeProp(key))
   )
   const resolved = { ...safeProps }
-  const data = item.dataKey !== undefined ? resolveDataKey(item.dataKey) : undefined
+  const data = item.dataKey !== undefined ? resolveDataKey(props.appData, item.dataKey) : undefined
   if (item.dataKey && data !== undefined) {
     if (item.component === 'Chart') {
       resolved.data = data

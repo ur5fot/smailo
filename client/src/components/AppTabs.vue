@@ -34,6 +34,8 @@ import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
+import { formatIfDate } from '../utils/format'
+import { resolveDataKey } from '../utils/dataKey'
 
 const props = defineProps<{
   tabs: Array<{ label: string; dataKey?: string }>
@@ -45,34 +47,10 @@ const activeTab = ref('0')
 // Reset active tab when tabs are replaced (e.g. after a uiUpdate from AI chat)
 watch(() => props.tabs, () => { activeTab.value = '0' })
 
-const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
-
-function formatIfDate(val: any): any {
-  if (typeof val !== 'string' || !ISO_RE.test(val)) return val
-  try {
-    const d = new Date(val)
-    if (isNaN(d.getTime())) return val
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    }).format(d)
-  } catch {
-    return val
-  }
-}
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function resolvedData(dataKey: string): any {
-  if (props.appData?.[dataKey] !== undefined) return props.appData[dataKey]
-  const dotIdx = dataKey.indexOf('.')
-  if (dotIdx === -1 || !props.appData) return undefined
-  const topKey = dataKey.slice(0, dotIdx)
-  const raw = props.appData[topKey]
-  let value = typeof raw === 'string' ? (() => { try { return JSON.parse(raw) } catch { return raw } })() : raw
-  for (const part of dataKey.slice(dotIdx + 1).split('.')) {
-    if (value === null || value === undefined || typeof value !== 'object') return undefined
-    value = (value as Record<string, unknown>)[part]
-  }
-  return value
+  if (!props.appData) return undefined
+  return resolveDataKey(props.appData, dataKey)
 }
 </script>
 

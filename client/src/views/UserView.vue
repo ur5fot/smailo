@@ -151,13 +151,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import Button from 'primevue/button'
 import Smailo from '../components/Smailo.vue'
 import InputBar from '../components/InputBar.vue'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
+import { renderMd } from '../utils/markdown'
 
 const route = useRoute()
 const router = useRouter()
@@ -250,10 +249,6 @@ async function handleChatSubmit(message: string) {
     await nextTick()
     scrollToBottom()
   }
-}
-
-function renderMd(text: string): string {
-  return DOMPurify.sanitize(marked.parse(text) as string)
 }
 
 function scrollToBottom() {

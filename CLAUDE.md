@@ -40,7 +40,7 @@ smailo/
 └── server/   Express + TypeScript backend
 ```
 
-npm workspaces; root `package.json` has scripts that delegate to both.
+npm workspaces; root `package.json` has scripts that delegate to both. Server uses TypeScript strict mode.
 
 ### Routes
 
@@ -69,7 +69,7 @@ Single `chatWithAI(messages, phase, appContext?)` function. Always returns a JSO
 - **`BRAINSTORM_SYSTEM_PROMPT`** — used for `brainstorm`/`confirm`/`created` phases
 - **`IN_APP_SYSTEM_PROMPT`** — used for `chat` phase; receives truncated app config + data as context
 
-Provider is selected at runtime via `AI_PROVIDER` env var (`anthropic` or `deepseek`). The Anthropic model is overridable via `ANTHROPIC_MODEL` env var (default: `claude-sonnet-4-6`). Clients are lazily initialized singletons. AI response is always JSON — `parseResponse()` extracts JSON by finding the outermost `{`…`}` pair in the raw response, then validates/sanitizes all fields.
+Provider is selected at runtime via `AI_PROVIDER` env var (`anthropic` or `deepseek`). The Anthropic model is overridable via `ANTHROPIC_MODEL` env var (default: `claude-sonnet-4-6`). Clients are lazily initialized singletons. AI response is always JSON — `parseResponse()` uses a brace-counting parser (`extractJson()`) that tracks brace depth while respecting string literals and escape sequences, then validates/sanitizes all fields.
 
 ### App config JSON shape
 
@@ -106,7 +106,7 @@ All others use `<component :is="...">`. `dataKey` is resolved against the latest
 - `Chip` → binds to `label` prop
 - All others → binds to `value` prop
 
-`dataKey` supports dot notation for nested access: `"rates.USD"` first looks up `appData["rates"]`, auto-parses it from JSON if it is a string, then accesses `["USD"]`. The resolver returns `undefined` if any segment is missing or non-object.
+`dataKey` supports dot notation for nested access: `"rates.USD"` first looks up `appData["rates"]`, auto-parses it from JSON if it is a string, then accesses `["USD"]`. The resolver returns `undefined` if any segment is missing or non-object. Segments matching `__proto__`, `constructor`, or `prototype` are blocked to prevent prototype pollution. The resolver is shared from `client/src/utils/dataKey.ts`.
 
 `Calendar` is aliased in `componentMap` to PrimeVue's `DatePicker` component (`primevue/datepicker`); the AI config uses `'Calendar'`.
 
@@ -122,13 +122,14 @@ Input wrapper components call `POST /api/app/:hash/data` on user interaction and
 
 ### Cron automation (`server/src/services/cronManager.ts`)
 
-`CronManager` singleton. Four action types:
+`CronManager` singleton. Five action types:
 - `log_entry` — inserts a timestamped entry into `appData`
 - `fetch_url` — fetches external HTTPS URL, extracts via `dataPath` (dot notation from `$.`), stores result; has SSRF protection (private IP check + DNS rebinding check + redirect blocking + 1 MB limit + 10-second timeout). If the response body is not valid JSON, raw text is stored and `dataPath` extraction is skipped.
 - `send_reminder` — stores `{ text: string, sentAt: ISO8601 }` under `outputKey` (not a raw string)
 - `aggregate_data` — computes avg/sum/count/max/min over a time window; result stored as a plain `number` under `outputKey`
+- `compute` — performs calculated operations (currently supports `date_diff`: computes difference between two dates from `inputKeys`, stores `{ totalDays, years, months, days }` under `outputKey`)
 
-All cron expressions must be 5-field only (no seconds). Minimum frequency: every 5 minutes. Jobs are loaded from DB on server start via `cronManager.loadAll()`. Max 5 jobs per app.
+All cron expressions must be 5-field only (no seconds). Minimum frequency: every 5 minutes. Jobs are loaded from DB on server start via `cronManager.loadAll()`. Max 5 jobs per app. Cron job configs are validated per action type in `isValidCronJobConfig()` (`server/src/routes/chat.ts`) before storage (e.g., `fetch_url` requires `url` starting with `https://` and a non-empty `outputKey`).
 
 ### Database (`server/src/db/schema.ts`)
 
@@ -139,19 +140,21 @@ Five tables, all using Drizzle ORM with SQLite via better-sqlite3:
 | `users` | Anonymous users; `userId` is a 10-char nanoid (unique); no auth — just identity |
 | `apps` | One row per created app; `config` stores uiComponents JSON; `cronJobs` stripped before storage; `userId` FK (nullable for old apps) |
 | `cron_jobs` | Automation jobs per app; `config` is action-specific JSON |
-| `app_data` | Append-only log of key/value entries written by cron jobs and user input components (Button, InputText, Form); queries always get latest row per key |
+| `app_data` | Append-only log of key/value entries written by cron jobs and user input components (Button, InputText, Form); queries always get latest row per key; auto-pruned to 100 rows per key on startup and hourly |
 | `chat_history` | Full chat history; home chat rows have `appId = NULL`; in-app rows use `sessionId = 'app-<hash>'` |
 
 ### Auth
 
 Password-protected apps use bcrypt (cost 12) + JWT (7d expiry). A one-time `creationToken` (SHA-256 stored, plaintext returned once at creation) gates the `set-password` endpoint to prevent race-condition hijacking. JWT is stored per-app in `localStorage` under key `smailo_token_<hash>`; the Axios interceptor selects the correct token by extracting the hash from the request URL. The `creationToken` is stored in `sessionStorage` (lost on tab close) — users must set a password before closing the tab if they want password protection. `GET /api/app/:hash` strips `cronJobs` from `apps.config` before returning to the client.
 
+Unprotected apps (no password) use ownership verification via `X-User-Id` header for write operations (POST). The Axios interceptor sends this header automatically from `localStorage`. Apps without a `userId` (legacy) skip this check for backward compatibility. Read operations remain open to anyone with the hash.
+
 ### User-triggered data writes (`POST /api/app/:hash/data`)
 
 Input components write to `appData` directly without AI involvement:
 - `key`: string matching `/^[a-zA-Z0-9_]{1,100}$/`
 - `value`: any JSON-serializable value; JSON-stringified size must not exceed 10 KB
-- Protected by `requireAuthIfProtected` middleware (JWT required if app has password)
+- Protected by `requireAuthIfProtected` middleware (JWT required if app has password; `X-User-Id` ownership check for unprotected apps on write ops)
 - Returns `{ ok: true }` on success; 400 for invalid key or null/undefined value; 413 for oversized value
 - Value size check uses `Buffer.byteLength(serialized, 'utf8')` (byte count, not character count)
 - `AppForm` always injects a `timestamp: ISO8601` field into the submitted object alongside declared fields
@@ -159,7 +162,7 @@ Input components write to `appData` directly without AI involvement:
 
 ### App data read (`GET /api/app/:hash/data`)
 
-Returns `{ appData: [...] }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`.
+Returns `{ appData: [...] }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`. Shared query logic lives in `server/src/db/queries.ts`.
 
 ### Rate limits
 
@@ -182,9 +185,9 @@ Three views:
 
 `InputBar.vue` — chat input with two extra controls: (1) quick number buttons (1–N, up to 5) shown when the last assistant message contains a numbered list; (2) a microphone button for browser-native speech recognition (Web Speech API), hidden when unsupported. Number buttons auto-submit the digit immediately.
 
-`chat.ts` store exposes two session management methods: `initSession(userId)` — called by `UserView` on mount — sets `sessionId = home-<userId>` (deterministic, persistent across visits) and reloads chat history; and `reset()` — generates a new random UUID session ID, used for a full clean break. The voice input microphone (`InputBar.vue`) uses Web Speech API configured for Russian (`lang: 'ru-RU'`).
+`chat.ts` store exposes two session management methods: `initSession(userId)` — called by `UserView` on mount — sets `sessionId = home-<userId>` (deterministic, persistent across visits) and reloads chat history (server validates `userId` matches the session); and `reset()` — generates a new random UUID session ID, used for a full clean break. The voice input microphone (`InputBar.vue`) uses Web Speech API configured for Russian (`lang: 'ru-RU'`).
 
-Axios instance (`client/src/api/index.ts`) auto-attaches JWT from localStorage.
+Axios instance (`client/src/api/index.ts`) auto-attaches JWT from localStorage and sends `X-User-Id` header (from `smailo_user_id` in localStorage) for ownership verification.
 
 ### User API (`server/src/routes/users.ts`)
 
