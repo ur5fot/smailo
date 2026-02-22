@@ -12,6 +12,31 @@ export const chatRouter = Router();
 const CHAT_HISTORY_LIMIT = 20;
 
 /**
+ * Validate action-specific config for a cron job.
+ * Returns true if the config has the required fields for the given action type.
+ */
+function isValidCronJobConfig(action: string, config: unknown): boolean {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
+  const c = config as Record<string, unknown>;
+
+  switch (action) {
+    case 'fetch_url':
+      return typeof c.url === 'string' && c.url.startsWith('https://') &&
+        (c.outputKey === undefined || typeof c.outputKey === 'string');
+    case 'send_reminder':
+      return typeof c.text === 'string';
+    case 'aggregate_data':
+      return typeof c.dataKey === 'string' && typeof c.operation === 'string';
+    case 'compute':
+      return typeof c.operation === 'string';
+    case 'log_entry':
+      return true; // log_entry has no required config fields
+    default:
+      return false;
+  }
+}
+
+/**
  * Strip sensitive cron job data (action configs like fetch_url targets) before sending
  * appConfig to the browser. At 'created' phase cronJobs are fully removed (not needed
  * client-side after the app hash is returned). At 'confirm' phase, job display fields
@@ -156,7 +181,8 @@ chatRouter.post('/', limiter, async (req, res) => {
               j &&
               typeof j.name === 'string' &&
               typeof j.schedule === 'string' &&
-              typeof j.action === 'string'
+              typeof j.action === 'string' &&
+              isValidCronJobConfig(j.action, j.config)
           )
         : [];
 

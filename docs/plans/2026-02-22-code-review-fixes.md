@@ -88,13 +88,13 @@
 - [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 10: Validate cron job config objects (I4)
-- [ ] Add per-action-type validation function in `server/src/routes/chat.ts` (or cronManager)
-- [ ] Validate `fetch_url` config: `url` is string starting with `https://`, `outputKey` is string
-- [ ] Validate `send_reminder` config: `text` is string
-- [ ] Validate `aggregate_data` config: `dataKey` and `operation` are strings
-- [ ] Validate `compute` config: `operation` is string
-- [ ] Filter out invalid jobs before storing
-- [ ] Verify compilation: `npm run build --workspace=server`
+- [x] Add per-action-type validation function in `server/src/routes/chat.ts` (or cronManager)
+- [x] Validate `fetch_url` config: `url` is string starting with `https://`, `outputKey` is string
+- [x] Validate `send_reminder` config: `text` is string
+- [x] Validate `aggregate_data` config: `dataKey` and `operation` are strings
+- [x] Validate `compute` config: `operation` is string
+- [x] Filter out invalid jobs before storing
+- [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 11: Enable TypeScript strict mode (I3)
 - [ ] Change `"strict": false` to `"strict": true` in `server/tsconfig.json`
