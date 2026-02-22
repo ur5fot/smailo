@@ -45,10 +45,10 @@
 - [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 2: Fix unauthenticated chat history read (C2)
-- [ ] Add `userId` query parameter to `GET /api/chat` in `server/src/routes/chat.ts`
-- [ ] Validate `sessionId === 'home-${userId}'` before returning history (matching POST logic at lines 73-77)
-- [ ] Update client `chat.ts` store to pass `userId` in the GET request params
-- [ ] Verify compilation: both server and client
+- [x] Add `userId` query parameter to `GET /api/chat` in `server/src/routes/chat.ts`
+- [x] Validate `sessionId === 'home-${userId}'` before returning history (matching POST logic at lines 73-77)
+- [x] Update client `chat.ts` store to pass `userId` in the GET request params
+- [x] Verify compilation: both server and client
 
 ### Task 3: Add ownership check for unprotected apps (C3)
 - [ ] Extend `requireAuthIfProtected` in `server/src/routes/app.ts` to check `userId` header/body for write ops when app has no password

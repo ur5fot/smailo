@@ -235,12 +235,20 @@ chatRouter.post('/', limiter, async (req, res) => {
 });
 
 chatRouter.get('/', limiter, async (req, res) => {
-  const { sessionId } = req.query as { sessionId?: string };
+  const { sessionId, userId } = req.query as { sessionId?: string; userId?: string };
   if (!sessionId || typeof sessionId !== 'string') {
     return res.status(400).json({ error: 'sessionId is required' });
   }
   if (sessionId.length > 128) {
     return res.status(400).json({ error: 'sessionId too long' });
+  }
+  // Require userId and validate it matches the sessionId to prevent unauthorized history reads.
+  // Home-chat sessions always use the pattern 'home-<userId>'.
+  if (!userId || typeof userId !== 'string' || !/^[A-Za-z0-9]{1,50}$/.test(userId)) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+  if (sessionId !== `home-${userId}`) {
+    return res.status(403).json({ error: 'sessionId does not match userId' });
   }
   try {
     const rows = (
