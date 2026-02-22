@@ -97,11 +97,11 @@
 - [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 11: Enable TypeScript strict mode (I3)
-- [ ] Change `"strict": false` to `"strict": true` in `server/tsconfig.json`
-- [ ] Fix all resulting type errors — replace `as any` with proper types where possible
-- [ ] Use Drizzle `$inferInsert` types for insert operations
-- [ ] Fix `next` parameter typing to `NextFunction` (M6)
-- [ ] Verify compilation: `npm run build --workspace=server`
+- [x] Change `"strict": false` to `"strict": true` in `server/tsconfig.json`
+- [x] Fix all resulting type errors — replace `as any` with proper types where possible
+- [x] Use Drizzle `$inferInsert` types for insert operations
+- [x] Fix `next` parameter typing to `NextFunction` (M6)
+- [x] Verify compilation: `npm run build --workspace=server`
 
 ### Task 12: Extract duplicated utilities (M1, M2, M3, M4)
 - [ ] Create `client/src/utils/format.ts` with shared `formatIfDate` function

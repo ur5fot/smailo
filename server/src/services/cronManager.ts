@@ -7,6 +7,9 @@ import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
 import type { CronJobConfig } from './aiService.js';
 
+type CronJobsInsert = typeof cronJobs.$inferInsert;
+type AppDataInsert = typeof appData.$inferInsert;
+
 /** Shared cron-field matcher used by computeNextRun and minMinuteInterval. */
 function matchesCronField(value: number, field: string, min: number, max: number): boolean {
   if (field === '*') return true;
@@ -159,16 +162,15 @@ class CronManager {
 
       const [inserted] = await db
         .insert(cronJobs)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .values({
           appId,
           name: job.name,
           schedule: job.schedule,
           humanReadable: job.humanReadable,
           action: job.action,
-          config: job.config as any,
+          config: job.config,
           isActive: true,
-        } as any)
+        } satisfies CronJobsInsert)
         .returning({ id: cronJobs.id });
 
       if (inserted) {
@@ -211,7 +213,7 @@ class CronManager {
     const nextRun = computeNextRun(expression);
     if (nextRun) {
       db.update(cronJobs)
-        .set({ nextRun } as any)
+        .set({ nextRun })
         .where(eq(cronJobs.id, jobId))
         .catch((err) => console.error(`[CronManager] Failed to set nextRun for job ${jobId}:`, err));
     }
@@ -239,7 +241,7 @@ class CronManager {
       const nextRun = expression ? computeNextRun(expression) : null;
       await db
         .update(cronJobs)
-        .set({ lastRun: now, ...(nextRun ? { nextRun } : {}) } as any)
+        .set({ lastRun: now, ...(nextRun ? { nextRun } : {}) })
         .where(eq(cronJobs.id, jobId));
     } catch (error) {
       console.error(`[CronManager] Job ${jobId} failed:`, error);
@@ -292,7 +294,7 @@ class CronManager {
       console.warn(`[CronManager] log_entry value too large for job ${jobId}, skipping`);
       return;
     }
-    await db.insert(appData).values({ appId, key: storageKey, value: entry } as any);
+    await db.insert(appData).values({ appId, key: storageKey, value: entry } satisfies AppDataInsert);
   }
 
   private isPrivateHost(hostname: string): boolean {
@@ -504,14 +506,14 @@ class CronManager {
       console.warn(`[CronManager] fetch_url extracted value too large (>${CRON_VALUE_MAX_BYTES} bytes) for app ${appId}, skipping`);
       return;
     }
-    await db.insert(appData).values({ appId, key: fetchStorageKey, value } as any);
+    await db.insert(appData).values({ appId, key: fetchStorageKey, value } satisfies AppDataInsert);
 
     // Also store a fetch timestamp under "{outputKey}_updated_at" so UI components
     // can display "last updated" time without needing a separate cron job.
     // Limit base key to 89 chars so the "_updated_at" suffix (11 chars) always fits in the 100-char limit.
     const updatedAtKey = `${fetchStorageKey.slice(0, 89)}_updated_at`;
     if (CRON_KEY_REGEX.test(updatedAtKey)) {
-      await db.insert(appData).values({ appId, key: updatedAtKey, value: new Date().toISOString() } as any);
+      await db.insert(appData).values({ appId, key: updatedAtKey, value: new Date().toISOString() } satisfies AppDataInsert);
     }
   }
 
@@ -523,7 +525,7 @@ class CronManager {
       : `reminder_${jobId}`;
     const storageKey = CRON_KEY_REGEX.test(rawKey) ? rawKey : `reminder_${jobId}`;
     const reminderValue = { text: String(text).slice(0, 2000), sentAt: new Date().toISOString() };
-    await db.insert(appData).values({ appId, key: storageKey, value: reminderValue } as any);
+    await db.insert(appData).values({ appId, key: storageKey, value: reminderValue } satisfies AppDataInsert);
   }
 
   private async handleAggregateData(appId: number, config: ActionConfig): Promise<void> {
@@ -611,7 +613,7 @@ class CronManager {
       console.warn(`[CronManager] aggregate_data result too large for app ${appId}, skipping`);
       return;
     }
-    await db.insert(appData).values({ appId, key: outputKey, value: result } as any);
+    await db.insert(appData).values({ appId, key: outputKey, value: result } satisfies AppDataInsert);
   }
 
   private async handleCompute(appId: number, config: ActionConfig): Promise<void> {
@@ -650,7 +652,7 @@ class CronManager {
       if (days < 0) { months -= 1; days += new Date(later.getFullYear(), later.getMonth(), 0).getDate(); }
       if (months < 0) { years -= 1; months += 12; }
       const result = { totalDays, years, months, days };
-      await db.insert(appData).values({ appId, key: outputKey, value: result } as any);
+      await db.insert(appData).values({ appId, key: outputKey, value: result } satisfies AppDataInsert);
     } else {
       console.warn(`[CronManager] compute: unknown operation "${operation}" for app ${appId}`);
     }

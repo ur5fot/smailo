@@ -288,30 +288,43 @@ const ALLOWED_UI_COMPONENTS = [
  * Shared by the home-chat and in-app-chat routes to avoid duplicating validation logic.
  */
 export function validateUiComponents(items: unknown[]): UiComponent[] {
-  return (items as any[])
-    .filter((item: any) =>
-      item &&
-      typeof item.component === 'string' &&
-      ALLOWED_UI_COMPONENTS.includes(item.component) &&
-      (item.props == null || (typeof item.props === 'object' && !Array.isArray(item.props))) &&
-      // Button and InputText require action with a valid key — without it they silently vanish in the renderer
-      ((['Button', 'InputText'].includes(item.component))
-        ? (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key))
-        : (item.action == null || (typeof item.action?.key === 'string' && UI_KEY_REGEX.test(item.action.key)))) &&
-      // Form requires outputKey and a non-empty fields array — without them it silently vanishes in the renderer
-      // 'timestamp' is reserved: AppForm always injects it as the submission time
-      (item.component === 'Form'
-        ? (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey) &&
-           Array.isArray(item.fields) && item.fields.length > 0 &&
-           item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp'))
-        : (item.outputKey == null || (typeof item.outputKey === 'string' && UI_KEY_REGEX.test(item.outputKey))) &&
-          (!Array.isArray(item.fields) || item.fields.every((f: any) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp'))) &&
+  type RawItem = Record<string, unknown>;
+  return (items as RawItem[])
+    .filter((item) => {
+      if (!item || typeof item.component !== 'string') return false;
+      if (!ALLOWED_UI_COMPONENTS.includes(item.component)) return false;
+      if (item.props != null && (typeof item.props !== 'object' || Array.isArray(item.props))) return false;
+
+      const action = item.action as RawItem | null | undefined;
+      // Button and InputText require action with a valid key
+      if (['Button', 'InputText'].includes(item.component)) {
+        if (typeof action?.key !== 'string' || !UI_KEY_REGEX.test(action.key)) return false;
+      } else if (action != null && (typeof action.key !== 'string' || !UI_KEY_REGEX.test(action.key))) {
+        return false;
+      }
+
+      // Form requires outputKey and a non-empty fields array
+      const fields = item.fields as RawItem[] | undefined;
+      const validField = (f: RawItem) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp';
+      if (item.component === 'Form') {
+        if (typeof item.outputKey !== 'string' || !UI_KEY_REGEX.test(item.outputKey)) return false;
+        if (!Array.isArray(fields) || fields.length === 0 || !fields.every(validField)) return false;
+      } else {
+        if (item.outputKey != null && (typeof item.outputKey !== 'string' || !UI_KEY_REGEX.test(item.outputKey))) return false;
+        if (Array.isArray(fields) && !fields.every(validField)) return false;
+      }
+
       // Validate dataKey segments against prototype pollution
-      (item.dataKey == null || isValidDataKey(item.dataKey)) &&
+      if (item.dataKey != null && !isValidDataKey(item.dataKey as string)) return false;
+
       // Validate dataKey inside tabs for Accordion/Tabs
-      (!Array.isArray(item.props?.tabs) ||
-        item.props.tabs.every((t: any) => t.dataKey == null || isValidDataKey(t.dataKey)))
-    )
+      const props = item.props as RawItem | null | undefined;
+      if (Array.isArray(props?.tabs)) {
+        if (!(props!.tabs as RawItem[]).every((t) => t.dataKey == null || isValidDataKey(t.dataKey as string))) return false;
+      }
+
+      return true;
+    })
     .slice(0, 20) as UiComponent[];
 }
 
@@ -397,7 +410,7 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse | nu
       const trimmed = parsed.memoryUpdate.trim().slice(0, 2000);
       parsed.memoryUpdate = trimmed || undefined;
     } else {
-      delete (parsed as any).memoryUpdate;
+      parsed.memoryUpdate = undefined;
     }
 
     return parsed;

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { createHash, timingSafeEqual } from 'crypto';
 import bcrypt from 'bcryptjs';
@@ -8,6 +8,14 @@ import { db } from '../db/index.js';
 import { apps, appData, chatHistory } from '../db/schema.js';
 import { chatWithAI, validateUiComponents } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
+
+type AppRow = typeof apps.$inferSelect;
+type AppDataInsert = typeof appData.$inferInsert;
+type ChatHistoryInsert = typeof chatHistory.$inferInsert;
+
+interface AuthenticatedRequest extends Request {
+  app_row?: AppRow;
+}
 
 export const appRouter = Router();
 
@@ -54,14 +62,17 @@ const chatLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) throw new Error('JWT_SECRET env var is not set');
+const JWT_SECRET: string = (() => {
+  const v = process.env.JWT_SECRET;
+  if (!v) throw new Error('JWT_SECRET env var is not set');
+  return v;
+})();
 
 // Middleware: verify JWT if the app has a password
 async function requireAuthIfProtected(
-  req: Request & { app_row?: typeof apps.$inferSelect },
+  req: Request,
   res: Response,
-  next: () => void
+  next: NextFunction
 ) {
   const hash = req.params['hash'] as string;
 
@@ -71,7 +82,7 @@ async function requireAuthIfProtected(
     return;
   }
 
-  (req as any).app_row = row;
+  (req as AuthenticatedRequest).app_row = row;
 
   if (!row.passwordHash) {
     // For write operations on unprotected apps, verify userId ownership
@@ -95,7 +106,7 @@ async function requireAuthIfProtected(
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { hash: string };
+    const payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
     if (payload.hash !== hash) {
       res.status(401).json({ error: 'Invalid token for this app' });
       return;
@@ -107,14 +118,14 @@ async function requireAuthIfProtected(
 }
 
 // GET /api/app/:hash
-appRouter.get('/:hash', requireAuthIfProtected as any, async (req: any, res) => {
+appRouter.get('/:hash', requireAuthIfProtected, async (req, res) => {
   try {
-    const row: typeof apps.$inferSelect = req.app_row;
+    const row = (req as AuthenticatedRequest).app_row!;
 
     // Update lastVisit
     await db
       .update(apps)
-      .set({ lastVisit: new Date().toISOString() } as any)
+      .set({ lastVisit: new Date().toISOString() })
       .where(eq(apps.id, row.id));
 
     // Fetch latest appData (most recent entry per key, deduplicated)
@@ -189,7 +200,7 @@ appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash:
     // This prevents a TOCTOU race where two concurrent requests both pass the
     // passwordHash IS NULL check above but only one should set the password.
     const updated = await db.update(apps)
-      .set({ passwordHash: hashed, creationToken: null } as any)
+      .set({ passwordHash: hashed, creationToken: null })
       .where(and(eq(apps.hash, hash), isNull(apps.passwordHash)))
       .returning({ id: apps.id });
 
@@ -240,9 +251,9 @@ appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: strin
 });
 
 // GET /api/app/:hash/data
-appRouter.get('/:hash/data', requireAuthIfProtected as any, async (req: any, res) => {
+appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
   try {
-    const row: typeof apps.$inferSelect = req.app_row;
+    const row = (req as AuthenticatedRequest).app_row!;
 
     const data = await getLatestAppData(row.id);
 
@@ -254,9 +265,9 @@ appRouter.get('/:hash/data', requireAuthIfProtected as any, async (req: any, res
 });
 
 // GET /api/app/:hash/chat
-appRouter.get('/:hash/chat', requireAuthIfProtected as any, async (req: any, res) => {
+appRouter.get('/:hash/chat', requireAuthIfProtected, async (req, res) => {
   try {
-    const row: typeof apps.$inferSelect = req.app_row;
+    const row = (req as AuthenticatedRequest).app_row!;
     const rows = await db
       .select()
       .from(chatHistory)
@@ -276,9 +287,9 @@ appRouter.get('/:hash/chat', requireAuthIfProtected as any, async (req: any, res
 const KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
 const VALUE_MAX_BYTES = 10_000;
 
-appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async (req: any, res) => {
+appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected, async (req, res) => {
   try {
-    const row: typeof apps.$inferSelect = req.app_row;
+    const row = (req as AuthenticatedRequest).app_row!;
     const { key, value, mode, index } = req.body as { key: unknown; value: unknown; mode?: unknown; index?: unknown };
 
     if (!key || typeof key !== 'string' || !KEY_REGEX.test(key)) {
@@ -304,7 +315,7 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
           .get();
         const current = Array.isArray(existing?.value) ? existing.value : [];
         const updated = current.filter((_: unknown, i: number) => i !== index);
-        tx.insert(appData).values({ appId: row.id, key, value: updated } as any).run();
+        tx.insert(appData).values({ appId: row.id, key, value: updated } satisfies AppDataInsert).run();
       });
       return res.json({ ok: true });
     }
@@ -340,7 +351,7 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
           return true;
         }
 
-        tx.insert(appData).values({ appId: row.id, key, value: storedValue } as any).run();
+        tx.insert(appData).values({ appId: row.id, key, value: storedValue } satisfies AppDataInsert).run();
         return false;
       });
 
@@ -359,7 +370,7 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
         appId: row.id,
         key,
         value: storedValue,
-      } as any);
+      } satisfies AppDataInsert);
     }
 
     // Run triggered jobs and wait for them so the client gets fresh data on the next
@@ -379,9 +390,9 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected as any, async 
 });
 
 // POST /api/app/:hash/chat
-appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async (req: any, res) => {
+appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, res) => {
   try {
-    const row: typeof apps.$inferSelect = req.app_row;
+    const row = (req as AuthenticatedRequest).app_row!;
     const { message } = req.body as { message: string };
 
     if (!message || typeof message !== 'string') {
@@ -428,7 +439,7 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       role: 'user',
       content: message,
       phase: 'chat',
-    } as any);
+    } satisfies ChatHistoryInsert);
 
     // Persist assistant response
     await db.insert(chatHistory).values({
@@ -437,17 +448,17 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
       role: 'assistant',
       content: claudeResponse.message,
       phase: 'chat',
-    } as any);
+    } satisfies ChatHistoryInsert);
 
     // If the AI returned an updated UI layout, validate it before persisting.
     // Filter uiUpdate to only allowed components; save whatever passes the whitelist.
     // validItems is hoisted so the response can reuse it without re-filtering.
-    let validUiItems: any[] | undefined;
+    let validUiItems: ReturnType<typeof validateUiComponents> | undefined;
     if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
       validUiItems = validateUiComponents(claudeResponse.uiUpdate);
       if (validUiItems.length > 0) {
         const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: validUiItems };
-        await db.update(apps).set({ config: updatedConfig } as any).where(eq(apps.id, row.id));
+        await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
       } else {
         console.warn(`[POST /api/app/:hash/chat] uiUpdate had no valid components for app ${row.id}`);
       }
@@ -456,7 +467,7 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected as any, async 
     // Save memory update if the AI provided one
     if (claudeResponse.memoryUpdate !== undefined) {
       await db.update(apps)
-        .set({ notes: claudeResponse.memoryUpdate } as any)
+        .set({ notes: claudeResponse.memoryUpdate })
         .where(eq(apps.id, row.id));
     }
 

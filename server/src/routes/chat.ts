@@ -4,8 +4,11 @@ import { randomBytes, createHash } from 'crypto';
 import { eq, desc, isNull, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory, users } from '../db/schema.js';
-import { chatWithAI, validateUiComponents } from '../services/aiService.js';
+import { chatWithAI, validateUiComponents, type CronJobConfig } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
+
+type AppsInsert = typeof apps.$inferInsert;
+type ChatHistoryInsert = typeof chatHistory.$inferInsert;
 
 export const chatRouter = Router();
 
@@ -43,7 +46,7 @@ function isValidCronJobConfig(action: string, config: unknown): boolean {
  * (name, schedule, action, humanReadable) are kept for the plan preview card, but the
  * 'config' sub-object containing URLs and keys is stripped.
  */
-function sanitizeAppConfigForClient(appConfig: any, phase: string): any {
+function sanitizeAppConfigForClient(appConfig: Record<string, unknown>, phase: string): Record<string, unknown> {
   if (phase === 'created') {
     const { cronJobs: _cj, ...rest } = appConfig;
     return rest;
@@ -54,7 +57,7 @@ function sanitizeAppConfigForClient(appConfig: any, phase: string): any {
     ...rest,
     ...(Array.isArray(cronJobs)
       ? {
-          cronJobs: cronJobs.map(({ config: _c, ...jobRest }: any) => jobRest),
+          cronJobs: cronJobs.map(({ config: _c, ...jobRest }: Record<string, unknown>) => jobRest),
         }
       : {}),
   };
@@ -145,7 +148,7 @@ chatRouter.post('/', limiter, async (req, res) => {
 
     let appHashResult: string | undefined;
     let creationTokenResult: string | undefined;
-    let validJobs: any[] = [];
+    let validJobs: CronJobConfig[] = [];
     let insertedAppId: number | undefined;
 
     // Pre-compute app creation data outside the transaction (no DB side effects)
@@ -153,7 +156,7 @@ chatRouter.post('/', limiter, async (req, res) => {
       hash: string;
       creationToken: string;
       creationTokenHash: string;
-      appConfigToStore: any;
+      appConfigToStore: Record<string, unknown>;
       appName: string;
     } | undefined;
 
@@ -168,7 +171,7 @@ chatRouter.post('/', limiter, async (req, res) => {
       const creationToken = randomBytes(24).toString('hex');
       const creationTokenHash = createHash('sha256').update(creationToken).digest('hex');
 
-      const { cronJobs: _cj, ...appConfigToStore } = claudeResponse.appConfig as any;
+      const { cronJobs: _cj, ...appConfigToStore } = claudeResponse.appConfig as Record<string, unknown>;
       if (Array.isArray(appConfigToStore.uiComponents)) {
         appConfigToStore.uiComponents = validateUiComponents(appConfigToStore.uiComponents);
       } else {
@@ -176,14 +179,14 @@ chatRouter.post('/', limiter, async (req, res) => {
       }
 
       validJobs = Array.isArray(claudeResponse.appConfig.cronJobs)
-        ? claudeResponse.appConfig.cronJobs.filter(
-            (j: any) =>
+        ? (claudeResponse.appConfig.cronJobs.filter(
+            (j: Record<string, unknown>) =>
               j &&
               typeof j.name === 'string' &&
               typeof j.schedule === 'string' &&
               typeof j.action === 'string' &&
-              isValidCronJobConfig(j.action, j.config)
-          )
+              isValidCronJobConfig(j.action as string, j.config)
+          ) as unknown as CronJobConfig[])
         : [];
 
       appCreationData = { hash, creationToken, creationTokenHash, appConfigToStore, appName: appName.trim() };
@@ -208,7 +211,7 @@ chatRouter.post('/', limiter, async (req, res) => {
         role: 'user',
         content: message,
         phase: currentPhase,
-      } as any).run();
+      } satisfies ChatHistoryInsert).run();
 
       if (appCreationData) {
         const { hash, creationTokenHash, appConfigToStore, appName } = appCreationData;
@@ -223,7 +226,7 @@ chatRouter.post('/', limiter, async (req, res) => {
               : '',
             config: appConfigToStore,
             creationToken: creationTokenHash,
-          } as any)
+          } satisfies AppsInsert)
           .returning({ id: apps.id })
           .get();
         if (inserted) insertedAppId = inserted.id;
@@ -234,7 +237,7 @@ chatRouter.post('/', limiter, async (req, res) => {
         role: 'assistant',
         content: claudeResponse.message,
         phase: responsePhase,
-      } as any).run();
+      } satisfies ChatHistoryInsert).run();
     });
 
     // Schedule cron jobs after the transaction commits — if this fails the app exists
