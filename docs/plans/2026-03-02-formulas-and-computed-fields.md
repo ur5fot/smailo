@@ -103,13 +103,13 @@
 - [x] Run tests — must pass before next task
 
 ### Task 5: Formula column type in table schema
-- [ ] Add `'formula'` to `ColumnType` in `server/src/utils/tableValidation.ts`
-- [ ] Add optional `formula?: string` field to `ColumnDef`
-- [ ] Update `isValidColumnDef()`: if type is `formula`, `formula` string must be present and parseable (call parser to validate syntax)
-- [ ] Update `validateRowData()`: skip formula columns (they are read-only, not submitted by user)
-- [ ] Update `validateTableDefs()` in `server/src/routes/chat.ts` if it validates column types
-- [ ] Write tests for formula column validation: valid formula, invalid syntax, missing formula field, formula column skipped in row data
-- [ ] Run tests — must pass before next task
+- [x] Add `'formula'` to `ColumnType` in `server/src/utils/tableValidation.ts`
+- [x] Add optional `formula?: string` field to `ColumnDef`
+- [x] Update `isValidColumnDef()`: if type is `formula`, `formula` string must be present and parseable (call parser to validate syntax)
+- [x] Update `validateRowData()`: skip formula columns (they are read-only, not submitted by user)
+- [x] Update `validateTableDefs()` in `server/src/routes/chat.ts` if it validates column types
+- [x] Write tests for formula column validation: valid formula, invalid syntax, missing formula field, formula column skipped in row data
+- [x] Run tests — must pass before next task
 
 ### Task 6: Server-side formula column evaluation in table rows
 - [ ] Update `GET /api/app/:hash/tables/:tableId` in `server/src/routes/tables.ts`:

@@ -65,7 +65,44 @@ describe('isValidColumnDef', () => {
     expect(COLUMN_TYPES).toContain('date')
     expect(COLUMN_TYPES).toContain('boolean')
     expect(COLUMN_TYPES).toContain('select')
-    expect(COLUMN_TYPES).toHaveLength(5)
+    expect(COLUMN_TYPES).toContain('formula')
+    expect(COLUMN_TYPES).toHaveLength(6)
+  })
+
+  it('accepts valid formula column with parseable expression', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: 'price * quantity' })).toBe(true)
+  })
+
+  it('accepts formula column with complex expression', () => {
+    expect(isValidColumnDef({ name: 'discount', type: 'formula', formula: 'IF(amount > 100, amount * 0.1, 0)' })).toBe(true)
+  })
+
+  it('accepts formula column with string functions', () => {
+    expect(isValidColumnDef({ name: 'fullName', type: 'formula', formula: 'CONCAT(first, " ", last)' })).toBe(true)
+  })
+
+  it('rejects formula column without formula field', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula' })).toBe(false)
+  })
+
+  it('rejects formula column with empty formula string', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: '' })).toBe(false)
+  })
+
+  it('rejects formula column with whitespace-only formula', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: '   ' })).toBe(false)
+  })
+
+  it('rejects formula column with invalid syntax', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: 'price * + quantity' })).toBe(false)
+  })
+
+  it('rejects formula column with unclosed parenthesis', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: 'SUM(amount' })).toBe(false)
+  })
+
+  it('rejects formula column with non-string formula', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: 42 })).toBe(false)
   })
 })
 
@@ -177,6 +214,43 @@ describe('validateRowData', () => {
     const result = validateRowData({ title: 'x'.repeat(5001) }, columns)
     expect(result.valid).toBe(false)
     expect(result.error).toContain('max length')
+  })
+
+  it('skips formula columns during row validation', () => {
+    const columnsWithFormula: ColumnDef[] = [
+      { name: 'price', type: 'number', required: true },
+      { name: 'quantity', type: 'number', required: true },
+      { name: 'total', type: 'formula', formula: 'price * quantity' },
+    ]
+    // Submit only non-formula fields — formula column should be ignored
+    const result = validateRowData({ price: 10, quantity: 5 }, columnsWithFormula)
+    expect(result.valid).toBe(true)
+    expect(result.cleaned!.price).toBe(10)
+    expect(result.cleaned!.quantity).toBe(5)
+    // Formula column should not appear in cleaned data
+    expect(result.cleaned!).not.toHaveProperty('total')
+  })
+
+  it('skips formula columns even if data is provided for them', () => {
+    const columnsWithFormula: ColumnDef[] = [
+      { name: 'price', type: 'number', required: true },
+      { name: 'total', type: 'formula', formula: 'price * 2' },
+    ]
+    // Even if user submits a value for the formula column, it should be ignored
+    const result = validateRowData({ price: 10, total: 999 }, columnsWithFormula)
+    expect(result.valid).toBe(true)
+    expect(result.cleaned!.price).toBe(10)
+    expect(result.cleaned!).not.toHaveProperty('total')
+  })
+
+  it('does not treat formula column as required', () => {
+    const columnsWithFormula: ColumnDef[] = [
+      { name: 'amount', type: 'number' },
+      { name: 'doubled', type: 'formula', formula: 'amount * 2' },
+    ]
+    // Formula column should never cause a "required" validation failure
+    const result = validateRowData({ amount: 42 }, columnsWithFormula)
+    expect(result.valid).toBe(true)
   })
 })
 

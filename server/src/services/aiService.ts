@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { parse as parseFormula } from '../utils/formula/parser.js';
 
 export type ClaudePhase = 'brainstorm' | 'confirm' | 'created' | 'chat';
 
@@ -38,9 +39,10 @@ export type UiComponent = {
 
 export type TableColumnDef = {
   name: string;
-  type: 'text' | 'number' | 'date' | 'boolean' | 'select';
+  type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'formula';
   required?: boolean;
   options?: string[]; // for 'select' type
+  formula?: string;   // for 'formula' type — expression to evaluate
 };
 
 export type TableDef = {
@@ -420,7 +422,7 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
     .slice(0, 20) as UiComponent[];
 }
 
-const TABLE_COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'select'] as const;
+const TABLE_COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'select', 'formula'] as const;
 const TABLE_COLUMN_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{0,49}$/;
 const TABLE_NAME_REGEX = /^[a-zA-Z\u0400-\u04FF][a-zA-Z0-9\u0400-\u04FF_ ]{0,99}$/;
 
@@ -449,6 +451,10 @@ export function validateTableDefs(tables: unknown[]): TableDef[] {
           if (!Array.isArray(col.options) || col.options.length === 0 || col.options.length > 50) return false;
           if (!col.options.every((o: unknown) => typeof o === 'string' && o.length > 0 && o.length <= 200)) return false;
         }
+        if (col.type === 'formula') {
+          if (typeof col.formula !== 'string' || col.formula.trim().length === 0) return false;
+          try { parseFormula(col.formula); } catch { return false; }
+        }
         return true;
       });
     })
@@ -463,6 +469,9 @@ export function validateTableDefs(tables: unknown[]): TableDef[] {
         if (col.required === true) result.required = true;
         if (col.type === 'select' && Array.isArray(col.options)) {
           result.options = col.options as string[];
+        }
+        if (col.type === 'formula' && typeof col.formula === 'string') {
+          result.formula = col.formula;
         }
         return result;
       }),
