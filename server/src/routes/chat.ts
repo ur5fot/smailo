@@ -263,15 +263,44 @@ chatRouter.post('/', limiter, async (req, res) => {
     // the app exists but has no tables; the user can create them via the API.
     if (insertedAppId !== undefined && validTables.length > 0) {
       try {
+        // Map from AI 1-based positional index → actual DB auto-increment ID
+        const tableIdMap = new Map<number, number>();
         db.transaction((tx) => {
-          for (const tableDef of validTables) {
-            tx.insert(userTables).values({
+          for (let i = 0; i < validTables.length; i++) {
+            const inserted = tx.insert(userTables).values({
               appId: insertedAppId!,
-              name: tableDef.name,
-              columns: tableDef.columns,
-            }).run();
+              name: validTables[i].name,
+              columns: validTables[i].columns,
+            }).returning({ id: userTables.id }).get();
+            if (inserted) {
+              tableIdMap.set(i + 1, inserted.id);
+            }
           }
         });
+
+        // Remap dataSource.tableId from AI positional index to actual DB ID
+        if (tableIdMap.size > 0 && appCreationData) {
+          const uiComponents = appCreationData.appConfigToStore.uiComponents as Array<Record<string, unknown>> | undefined;
+          if (Array.isArray(uiComponents)) {
+            let changed = false;
+            for (const comp of uiComponents) {
+              const ds = comp.dataSource as Record<string, unknown> | undefined;
+              if (ds?.type === 'table' && typeof ds.tableId === 'number') {
+                const actualId = tableIdMap.get(ds.tableId);
+                if (actualId !== undefined) {
+                  ds.tableId = actualId;
+                  changed = true;
+                }
+              }
+            }
+            if (changed) {
+              db.update(apps)
+                .set({ config: appCreationData.appConfigToStore })
+                .where(eq(apps.id, insertedAppId!))
+                .run();
+            }
+          }
+        }
       } catch (err) {
         console.error('[/api/chat] Failed to create user tables:', err);
       }

@@ -120,7 +120,7 @@ describe('validateUiComponents', () => {
       expect(result[0].dataSource).toEqual({ type: 'table', tableId: 3 })
     })
 
-    it('works with Form component', () => {
+    it('works with Form component (dataSource + fields/outputKey)', () => {
       const result = validateUiComponents([
         {
           component: 'Form',
@@ -132,6 +132,29 @@ describe('validateUiComponents', () => {
       ])
       expect(result).toHaveLength(1)
       expect(result[0].dataSource).toEqual({ type: 'table', tableId: 2 })
+    })
+
+    it('accepts Form with dataSource but without outputKey and fields', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Form',
+          props: { submitLabel: 'Добавить' },
+          dataSource: { type: 'table', tableId: 1 },
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].dataSource).toEqual({ type: 'table', tableId: 1 })
+      expect(result[0].component).toBe('Form')
+    })
+
+    it('rejects Form without dataSource and without outputKey/fields', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Form',
+          props: { submitLabel: 'Save' },
+        },
+      ])
+      expect(result).toHaveLength(0)
     })
 
     it('works with Chart component', () => {

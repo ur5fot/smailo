@@ -142,12 +142,13 @@ describe('buildSystemPrompt', () => {
       }
       const prompt = buildSystemPrompt('chat', context)
       expect(prompt).toContain('Tables (with row counts)')
-      // Should end with ellipsis if truncated
       const tablesMatch = prompt.match(/Tables \(with row counts\): (.+)/)
       expect(tablesMatch).toBeTruthy()
-      if (tablesMatch && tablesMatch[1].length >= 4000) {
-        expect(tablesMatch[1]).toMatch(/…$/)
-      }
+      // Verify the raw table data would exceed 4000 chars (test data is sufficient)
+      const rawTablesStr = manyTables.map(t => `${t.name}(${t.columns.map(c => c.name).join(',')}):${t.rowCount} rows`).join('; ')
+      expect(rawTablesStr.length).toBeGreaterThan(4000)
+      // The output must be truncated with ellipsis
+      expect(tablesMatch![1]).toMatch(/…$/)
     })
 
     it('includes app memory when notes are provided', () => {

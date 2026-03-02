@@ -97,13 +97,12 @@ The AI generates and the server stores configs in this shape (cronJobs are store
 
 ### Dynamic UI rendering (`client/src/components/AppRenderer.vue`)
 
-Iterates `uiConfig` array and renders each component dynamically. Nine components use dedicated wrappers:
-- `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue`, `CardList` → `AppCardList.vue` (data display)
+Iterates `uiConfig` array and renders each component dynamically. Ten components use dedicated wrappers:
+- `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue`, `CardList` → `AppCardList.vue`, `Chart` → `AppChart.vue` (data display)
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
 - `Accordion` → `AppAccordion.vue`, `Panel` → `AppPanel.vue`, `Tabs` → `AppTabs.vue` (slot-based layout)
 
 All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map with the following prop bindings:
-- `Chart` → binds to `data` prop
 - `Image` → binds to `src` prop
 - `Chip` → binds to `label` prop
 - All others → binds to `value` prop

@@ -377,12 +377,16 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
         return false;
       }
 
-      // Form requires outputKey and a non-empty fields array
+      // Form requires EITHER (outputKey + fields) OR a valid dataSource
       const fields = item.fields as RawItem[] | undefined;
       const validField = (f: RawItem) => typeof f?.name === 'string' && UI_KEY_REGEX.test(f.name) && f.name !== 'timestamp';
       if (item.component === 'Form') {
-        if (typeof item.outputKey !== 'string' || !UI_KEY_REGEX.test(item.outputKey)) return false;
-        if (!Array.isArray(fields) || fields.length === 0 || !fields.every(validField)) return false;
+        const ds = item.dataSource as Record<string, unknown> | null | undefined;
+        const hasTableDataSource = ds && typeof ds === 'object' && !Array.isArray(ds) && ds.type === 'table';
+        if (!hasTableDataSource) {
+          if (typeof item.outputKey !== 'string' || !UI_KEY_REGEX.test(item.outputKey)) return false;
+          if (!Array.isArray(fields) || fields.length === 0 || !fields.every(validField)) return false;
+        }
       } else {
         if (item.outputKey != null && (typeof item.outputKey !== 'string' || !UI_KEY_REGEX.test(item.outputKey))) return false;
         if (Array.isArray(fields) && !fields.every(validField)) return false;
