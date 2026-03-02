@@ -77,15 +77,15 @@
 - [x] Run tests — must pass before next task
 
 ### Task 3: Built-in functions
-- [ ] Add function registry to evaluator:
+- [x] Add function registry to evaluator:
   - **Conditional**: `IF(condition, thenValue, elseValue)`
   - **Math**: `ABS(n)`, `ROUND(n, decimals?)`, `FLOOR(n)`, `CEIL(n)`, `MIN(a, b)`, `MAX(a, b)`
   - **String**: `UPPER(s)`, `LOWER(s)`, `CONCAT(s1, s2, ...)`, `LEN(s)`, `TRIM(s)`
   - **Date**: `NOW()` — returns ISO 8601 string
-- [ ] Function names are case-insensitive (`sum` = `SUM` = `Sum`)
-- [ ] Type validation in functions: return `null` on type mismatch (e.g., `ABS("hello")`)
-- [ ] Write tests for each function: normal cases, edge cases, type errors
-- [ ] Run tests — must pass before next task
+- [x] Function names are case-insensitive (`sum` = `SUM` = `Sum`)
+- [x] Type validation in functions: return `null` on type mismatch (e.g., `ABS("hello")`)
+- [x] Write tests for each function: normal cases, edge cases, type errors
+- [x] Run tests — must pass before next task
 
 ### Task 4: Aggregate functions
 - [ ] Add aggregate functions to evaluator:

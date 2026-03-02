@@ -272,6 +272,234 @@ describe('evaluate', () => {
       expect(() => eval_('UNKNOWN(1)')).toThrow(EvaluatorError)
       expect(() => eval_('UNKNOWN(1)')).toThrow('Unknown function: UNKNOWN')
     })
+
+    it('function names are case-insensitive', () => {
+      expect(eval_('ABS(-5)')).toBe(5)
+      expect(eval_('abs(-5)')).toBe(5)
+      expect(eval_('Abs(-5)')).toBe(5)
+    })
+  })
+
+  describe('IF function', () => {
+    it('returns thenValue when condition is true', () => {
+      expect(eval_('IF(true, 1, 2)')).toBe(1)
+      expect(eval_('IF(1, "yes", "no")')).toBe('yes')
+    })
+
+    it('returns elseValue when condition is false', () => {
+      expect(eval_('IF(false, 1, 2)')).toBe(2)
+      expect(eval_('IF(0, "yes", "no")')).toBe('no')
+    })
+
+    it('evaluates condition expressions', () => {
+      const ctx = { row: { status: 'active', amount: 100 } }
+      expect(eval_('IF(status == "active", amount, 0)', ctx)).toBe(100)
+      expect(eval_('IF(status == "inactive", amount, 0)', ctx)).toBe(0)
+    })
+
+    it('is lazy — only evaluates selected branch', () => {
+      // If both branches were evaluated, the division by zero would cause issues
+      // but since IF is lazy, only the "then" branch runs
+      expect(eval_('IF(true, 42, 1 / 0)')).toBe(42)
+      expect(eval_('IF(false, 1 / 0, 42)')).toBe(42)
+    })
+
+    it('returns null with too few arguments', () => {
+      expect(eval_('IF(true, 1)')).toBe(null)
+      expect(eval_('IF(true)')).toBe(null)
+    })
+
+    it('works nested', () => {
+      expect(eval_('IF(true, IF(false, 1, 2), 3)')).toBe(2)
+    })
+  })
+
+  describe('math functions', () => {
+    it('ABS returns absolute value', () => {
+      expect(eval_('ABS(-5)')).toBe(5)
+      expect(eval_('ABS(5)')).toBe(5)
+      expect(eval_('ABS(0)')).toBe(0)
+      expect(eval_('ABS(-3.14)')).toBe(3.14)
+    })
+
+    it('ABS returns null for non-number', () => {
+      expect(eval_('ABS("hello")')).toBe(null)
+    })
+
+    it('ROUND rounds to given decimals', () => {
+      expect(eval_('ROUND(3.14159, 2)')).toBe(3.14)
+      expect(eval_('ROUND(3.14159, 0)')).toBe(3)
+      expect(eval_('ROUND(3.5)')).toBe(4) // default 0 decimals
+      expect(eval_('ROUND(2.5)')).toBe(3)
+    })
+
+    it('ROUND returns null for non-number', () => {
+      expect(eval_('ROUND("hello")')).toBe(null)
+      expect(eval_('ROUND(3.14, "x")')).toBe(null)
+    })
+
+    it('FLOOR returns floor value', () => {
+      expect(eval_('FLOOR(3.7)')).toBe(3)
+      expect(eval_('FLOOR(3.2)')).toBe(3)
+      expect(eval_('FLOOR(-3.2)')).toBe(-4)
+      expect(eval_('FLOOR(5)')).toBe(5)
+    })
+
+    it('FLOOR returns null for non-number', () => {
+      expect(eval_('FLOOR("hello")')).toBe(null)
+    })
+
+    it('CEIL returns ceiling value', () => {
+      expect(eval_('CEIL(3.2)')).toBe(4)
+      expect(eval_('CEIL(3.7)')).toBe(4)
+      expect(eval_('CEIL(-3.7)')).toBe(-3)
+      expect(eval_('CEIL(5)')).toBe(5)
+    })
+
+    it('CEIL returns null for non-number', () => {
+      expect(eval_('CEIL("hello")')).toBe(null)
+    })
+
+    it('MIN returns smaller of two numbers', () => {
+      expect(eval_('MIN(3, 5)')).toBe(3)
+      expect(eval_('MIN(5, 3)')).toBe(3)
+      expect(eval_('MIN(-1, 1)')).toBe(-1)
+    })
+
+    it('MIN returns null for non-numbers', () => {
+      expect(eval_('MIN("a", 5)')).toBe(null)
+      expect(eval_('MIN(3, "b")')).toBe(null)
+    })
+
+    it('MAX returns larger of two numbers', () => {
+      expect(eval_('MAX(3, 5)')).toBe(5)
+      expect(eval_('MAX(5, 3)')).toBe(5)
+      expect(eval_('MAX(-1, 1)')).toBe(1)
+    })
+
+    it('MAX returns null for non-numbers', () => {
+      expect(eval_('MAX("a", 5)')).toBe(null)
+      expect(eval_('MAX(3, "b")')).toBe(null)
+    })
+
+    it('math functions with no arguments return null', () => {
+      expect(eval_('ABS()')).toBe(null)
+      expect(eval_('ROUND()')).toBe(null)
+      expect(eval_('FLOOR()')).toBe(null)
+      expect(eval_('CEIL()')).toBe(null)
+      expect(eval_('MIN(1)')).toBe(null)
+      expect(eval_('MAX(1)')).toBe(null)
+    })
+  })
+
+  describe('string functions', () => {
+    it('UPPER converts string to uppercase', () => {
+      expect(eval_('UPPER("hello")')).toBe('HELLO')
+      expect(eval_('UPPER("Hello World")')).toBe('HELLO WORLD')
+    })
+
+    it('UPPER returns null for non-string', () => {
+      expect(eval_('UPPER(42)')).toBe(null)
+      expect(eval_('UPPER(true)')).toBe(null)
+    })
+
+    it('LOWER converts string to lowercase', () => {
+      expect(eval_('LOWER("HELLO")')).toBe('hello')
+      expect(eval_('LOWER("Hello World")')).toBe('hello world')
+    })
+
+    it('LOWER returns null for non-string', () => {
+      expect(eval_('LOWER(42)')).toBe(null)
+    })
+
+    it('CONCAT joins multiple arguments', () => {
+      expect(eval_('CONCAT("hello", " ", "world")')).toBe('hello world')
+      expect(eval_('CONCAT("a", "b", "c")')).toBe('abc')
+    })
+
+    it('CONCAT converts non-strings', () => {
+      expect(eval_('CONCAT("count: ", 42)')).toBe('count: 42')
+      expect(eval_('CONCAT("active: ", true)')).toBe('active: true')
+    })
+
+    it('CONCAT with no args returns empty string', () => {
+      expect(eval_('CONCAT()')).toBe('')
+    })
+
+    it('CONCAT handles null values', () => {
+      expect(eval_('CONCAT("value: ", unknown_var)')).toBe('value: ')
+    })
+
+    it('LEN returns string length', () => {
+      expect(eval_('LEN("hello")')).toBe(5)
+      expect(eval_('LEN("")')).toBe(0)
+      expect(eval_('LEN("abc")')).toBe(3)
+    })
+
+    it('LEN returns null for non-string', () => {
+      expect(eval_('LEN(42)')).toBe(null)
+      expect(eval_('LEN(true)')).toBe(null)
+    })
+
+    it('TRIM removes whitespace', () => {
+      expect(eval_('TRIM("  hello  ")')).toBe('hello')
+      expect(eval_('TRIM("hello")')).toBe('hello')
+      expect(eval_('TRIM("  ")')).toBe('')
+    })
+
+    it('TRIM returns null for non-string', () => {
+      expect(eval_('TRIM(42)')).toBe(null)
+    })
+
+    it('string functions with no arguments return null', () => {
+      expect(eval_('UPPER()')).toBe(null)
+      expect(eval_('LOWER()')).toBe(null)
+      expect(eval_('LEN()')).toBe(null)
+      expect(eval_('TRIM()')).toBe(null)
+    })
+  })
+
+  describe('NOW function', () => {
+    it('returns an ISO 8601 string', () => {
+      const result = eval_('NOW()')
+      expect(typeof result).toBe('string')
+      // Should be parseable as a date
+      expect(new Date(result as string).toISOString()).toBe(result)
+    })
+
+    it('returns a recent timestamp', () => {
+      const before = Date.now()
+      const result = eval_('NOW()') as string
+      const after = Date.now()
+      const ts = new Date(result).getTime()
+      expect(ts).toBeGreaterThanOrEqual(before)
+      expect(ts).toBeLessThanOrEqual(after)
+    })
+  })
+
+  describe('functions in expressions', () => {
+    it('function result used in arithmetic', () => {
+      expect(eval_('ABS(-5) + 10')).toBe(15)
+      expect(eval_('ROUND(3.7) * 2')).toBe(8)
+    })
+
+    it('function result used in comparisons', () => {
+      expect(eval_('LEN("hello") == 5')).toBe(true)
+      expect(eval_('ABS(-3) > 2')).toBe(true)
+    })
+
+    it('nested function calls', () => {
+      expect(eval_('ROUND(ABS(-3.14), 1)')).toBe(3.1)
+      expect(eval_('UPPER(CONCAT("hello", " ", "world"))')).toBe('HELLO WORLD')
+      expect(eval_('LEN(TRIM("  hi  "))')).toBe(2)
+    })
+
+    it('functions with variable arguments', () => {
+      const ctx = { row: { price: -15.7, name: '  Alice  ' } }
+      expect(eval_('ABS(price)', ctx)).toBe(15.7)
+      expect(eval_('TRIM(name)', ctx)).toBe('Alice')
+      expect(eval_('IF(price < 0, ABS(price), price)', ctx)).toBe(15.7)
+    })
   })
 })
 

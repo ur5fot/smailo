@@ -2,6 +2,80 @@ import { ASTNode } from './parser.js';
 
 const MAX_DEPTH = 20;
 
+type BuiltinFn = (args: unknown[]) => unknown;
+
+const builtinFunctions: Record<string, BuiltinFn> = {
+  // Conditional
+  if: (args) => {
+    if (args.length < 3) return null;
+    return toBoolean(args[0]) ? args[1] : args[2];
+  },
+
+  // Math
+  abs: (args) => {
+    if (args.length < 1) return null;
+    const n = toNumber(args[0]);
+    return n === null ? null : Math.abs(n);
+  },
+  round: (args) => {
+    if (args.length < 1) return null;
+    const n = toNumber(args[0]);
+    if (n === null) return null;
+    const decimals = args.length >= 2 ? toNumber(args[1]) : 0;
+    if (decimals === null) return null;
+    const factor = Math.pow(10, decimals);
+    return Math.round(n * factor) / factor;
+  },
+  floor: (args) => {
+    if (args.length < 1) return null;
+    const n = toNumber(args[0]);
+    return n === null ? null : Math.floor(n);
+  },
+  ceil: (args) => {
+    if (args.length < 1) return null;
+    const n = toNumber(args[0]);
+    return n === null ? null : Math.ceil(n);
+  },
+  min: (args) => {
+    if (args.length < 2) return null;
+    const a = toNumber(args[0]);
+    const b = toNumber(args[1]);
+    if (a === null || b === null) return null;
+    return Math.min(a, b);
+  },
+  max: (args) => {
+    if (args.length < 2) return null;
+    const a = toNumber(args[0]);
+    const b = toNumber(args[1]);
+    if (a === null || b === null) return null;
+    return Math.max(a, b);
+  },
+
+  // String
+  upper: (args) => {
+    if (args.length < 1) return null;
+    return typeof args[0] === 'string' ? args[0].toUpperCase() : null;
+  },
+  lower: (args) => {
+    if (args.length < 1) return null;
+    return typeof args[0] === 'string' ? args[0].toLowerCase() : null;
+  },
+  concat: (args) => {
+    return args.map(a => String(a ?? '')).join('');
+  },
+  len: (args) => {
+    if (args.length < 1) return null;
+    return typeof args[0] === 'string' ? args[0].length : null;
+  },
+  trim: (args) => {
+    if (args.length < 1) return null;
+    return typeof args[0] === 'string' ? args[0].trim() : null;
+  },
+
+  // Date
+  now: () => new Date().toISOString(),
+};
+
 export interface FormulaContext {
   row?: Record<string, unknown>;
   tables?: Record<string, {
@@ -89,9 +163,23 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
     case 'BinaryOp':
       return evaluateBinaryOp(ast.op, ast.left, ast.right, context, depth);
 
-    case 'FunctionCall':
-      // Functions will be added in Task 3; for now return null
-      throw new EvaluatorError(`Unknown function: ${ast.name}`);
+    case 'FunctionCall': {
+      const fnName = ast.name.toLowerCase();
+      const fn = builtinFunctions[fnName];
+      if (!fn) {
+        throw new EvaluatorError(`Unknown function: ${ast.name}`);
+      }
+      // IF is special: only evaluate the branch that's selected (lazy)
+      if (fnName === 'if') {
+        if (ast.args.length < 3) return null;
+        const cond = evaluate(ast.args[0], context, depth + 1);
+        return toBoolean(cond)
+          ? evaluate(ast.args[1], context, depth + 1)
+          : evaluate(ast.args[2], context, depth + 1);
+      }
+      const evaluatedArgs = ast.args.map(arg => evaluate(arg, context, depth + 1));
+      return fn(evaluatedArgs);
+    }
 
     default:
       return null;
