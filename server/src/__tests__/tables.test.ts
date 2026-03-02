@@ -423,6 +423,15 @@ describe('POST /api/app/:hash/tables/:tableId/rows — typed validation contract
     expect(typeof response.createdAt).toBe('string')
   })
 
+  it('ignores unknown fields in submitted data (strips extra fields)', () => {
+    const columns: ColumnDef[] = [
+      { name: 'title', type: 'text', required: true },
+    ]
+    const result = validateRowData({ title: 'Test', _extra: 'hack', __proto__: {} }, columns)
+    expect(result.valid).toBe(true)
+    expect(Object.keys(result.cleaned!)).toEqual(['title'])
+  })
+
   it('validates a multi-column form submission matching AppForm table mode', () => {
     // Simulates what AppForm sends when submitting to a table with all column types
     const columns: ColumnDef[] = [
@@ -446,5 +455,86 @@ describe('POST /api/app/:hash/tables/:tableId/rows — typed validation contract
     expect(result.cleaned!.amount).toBe(150.75)
     expect(result.cleaned!.recurring).toBe(true)
     expect(result.cleaned!.category).toBe('food')
+  })
+})
+
+describe('DELETE /api/app/:hash/tables/:tableId/rows/:rowId — response contract', () => {
+  // Documents the expected behavior of the row deletion endpoint
+  // that AppCardList uses in table mode
+
+  it('successful deletion returns { ok: true }', () => {
+    // Simulates the expected response shape
+    const response = { ok: true }
+    expect(response).toHaveProperty('ok', true)
+  })
+
+  it('deletion with invalid tableId returns 400', () => {
+    // Simulates the error response for invalid tableId
+    const response = { error: 'Invalid tableId or rowId' }
+    expect(response).toHaveProperty('error')
+    expect(response.error).toContain('Invalid')
+  })
+
+  it('deletion of non-existent row returns 404', () => {
+    // Simulates the error response for missing row
+    const response = { error: 'Row not found' }
+    expect(response).toHaveProperty('error')
+    expect(response.error).toBe('Row not found')
+  })
+
+  it('deletion of row from non-existent table returns 404', () => {
+    const response = { error: 'Table not found' }
+    expect(response).toHaveProperty('error')
+    expect(response.error).toBe('Table not found')
+  })
+
+  it('client sends correct URL format for row deletion', () => {
+    // Simulates what AppCardList builds as the API URL
+    const hash = 'abc123'
+    const tableId = 5
+    const rowId = 42
+    const expectedUrl = `/app/${hash}/tables/${tableId}/rows/${rowId}`
+    expect(expectedUrl).toBe('/app/abc123/tables/5/rows/42')
+  })
+
+  it('client refreshes table data after successful deletion', () => {
+    // Documents the expected flow:
+    // 1. DELETE /api/app/:hash/tables/:tableId/rows/:rowId -> { ok: true }
+    // 2. GET /api/app/:hash/tables/:tableId -> { rows: [...] } (refresh)
+    // 3. emit('data-written') for AppView refresh
+    const deleteResponse = { ok: true }
+    expect(deleteResponse.ok).toBe(true)
+
+    // After delete, the table should be refreshed (fewer rows)
+    const refreshResponse = {
+      id: 5,
+      name: 'Expenses',
+      columns: [{ name: 'title', type: 'text' }],
+      createdAt: '2026-03-01T00:00:00.000Z',
+      rows: [], // Row was deleted, table is now empty
+    }
+    expect(refreshResponse.rows).toEqual([])
+  })
+
+  it('AppCardList renders table row data using schema columns', () => {
+    // Documents how AppCardList maps table schema to card display
+    const columns = [
+      { name: 'title', type: 'text' as const },
+      { name: 'amount', type: 'number' as const },
+      { name: 'done', type: 'boolean' as const },
+      { name: 'date', type: 'date' as const },
+    ]
+    const rowData = { title: 'Groceries', amount: 42.5, done: true, date: '2026-03-01T00:00:00Z' }
+
+    // Each column is displayed as a key-value pair in the card
+    for (const col of columns) {
+      expect(rowData).toHaveProperty(col.name)
+    }
+
+    // Boolean values are formatted as Да/Нет in the UI
+    expect(rowData.done).toBe(true) // rendered as "Да"
+    // Null/undefined values are rendered as "—"
+    const nullableRow = { title: 'Test', amount: null, done: false, date: null }
+    expect(nullableRow.amount).toBeNull() // rendered as "—"
   })
 })

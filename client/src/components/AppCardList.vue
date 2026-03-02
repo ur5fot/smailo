@@ -1,59 +1,99 @@
 <template>
   <div class="app-card-list">
-    <div v-if="!items || items.length === 0" class="app-card-list__empty">
+    <!-- Loading state for table mode -->
+    <div v-if="isTableMode && loading" class="app-card-list__empty">
+      Загрузка...
+    </div>
+
+    <div v-else-if="!displayItems || displayItems.length === 0" class="app-card-list__empty">
       Записей пока нет.
     </div>
-    <div
-      v-for="(item, index) in items"
-      :key="index"
-      class="app-card-list__item"
-    >
-      <div class="app-card-list__content">
-        <!-- { value, timestamp } from InputText append -->
-        <template v-if="isValueTimestamp(item)">
-          <span class="app-card-list__main">{{ item.value }}</span>
-          <span class="app-card-list__sub">{{ formatIfDate(item.timestamp) }}</span>
-        </template>
-        <!-- Generic object: key-value pairs -->
-        <template v-else-if="item && typeof item === 'object'">
+
+    <!-- Table mode: render rows as cards using schema columns -->
+    <template v-if="isTableMode">
+      <div
+        v-for="row in tableRows"
+        :key="row.id"
+        class="app-card-list__item"
+      >
+        <div class="app-card-list__content">
           <div
-            v-for="(val, key) in item"
-            :key="key"
+            v-for="col in tableColumns"
+            :key="col.name"
             class="app-card-list__kv"
           >
-            <span class="app-card-list__kv-key">{{ key }}:</span>
-            <span class="app-card-list__kv-val">{{ formatIfDate(val) }}</span>
+            <span class="app-card-list__kv-key">{{ col.name }}:</span>
+            <span class="app-card-list__kv-val">{{ formatCellValue(row.data[col.name], col.type) }}</span>
           </div>
-        </template>
-        <!-- Primitive fallback -->
-        <template v-else>
-          <span class="app-card-list__main">{{ formatIfDate(item) }}</span>
-        </template>
-      </div>
+        </div>
 
-      <button
-        v-if="hash"
-        class="app-card-list__delete"
-        :disabled="deletingIndex === index"
-        :aria-label="'Удалить'"
-        @click="deleteItem(index)"
+        <button
+          v-if="hash"
+          class="app-card-list__delete"
+          :disabled="deletingId === row.id"
+          :aria-label="'Удалить'"
+          @click="deleteTableRow(row.id)"
+        >
+          <i class="pi pi-times" />
+        </button>
+      </div>
+    </template>
+
+    <!-- KV mode: existing behavior -->
+    <template v-else>
+      <div
+        v-for="(item, index) in kvItems"
+        :key="index"
+        class="app-card-list__item"
       >
-        <i class="pi pi-times" />
-      </button>
-    </div>
+        <div class="app-card-list__content">
+          <!-- { value, timestamp } from InputText append -->
+          <template v-if="isValueTimestamp(item)">
+            <span class="app-card-list__main">{{ item.value }}</span>
+            <span class="app-card-list__sub">{{ formatIfDate(item.timestamp) }}</span>
+          </template>
+          <!-- Generic object: key-value pairs -->
+          <template v-else-if="item && typeof item === 'object'">
+            <div
+              v-for="(val, key) in item"
+              :key="key"
+              class="app-card-list__kv"
+            >
+              <span class="app-card-list__kv-key">{{ key }}:</span>
+              <span class="app-card-list__kv-val">{{ formatIfDate(val) }}</span>
+            </div>
+          </template>
+          <!-- Primitive fallback -->
+          <template v-else>
+            <span class="app-card-list__main">{{ formatIfDate(item) }}</span>
+          </template>
+        </div>
+
+        <button
+          v-if="hash"
+          class="app-card-list__delete"
+          :disabled="deletingIndex === index"
+          :aria-label="'Удалить'"
+          @click="deleteKvItem(index)"
+        >
+          <i class="pi pi-times" />
+        </button>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import api from '../api'
+import { useAppStore } from '../stores/app'
 import { formatIfDate } from '../utils/format'
+import type { TableRow, TableColumn } from '../stores/app'
 
 const props = defineProps<{
   value?: any
   hash?: string
   dataKey?: string
-  // table dataSource binding (implemented in Task 8)
   dataSource?: { type: 'table'; tableId: number }
 }>()
 
@@ -61,18 +101,79 @@ const emit = defineEmits<{
   'data-written': []
 }>()
 
-const items = computed<any[]>(() => {
+const appStore = useAppStore()
+
+const isTableMode = computed(() => props.dataSource?.type === 'table')
+const loading = ref(false)
+
+// Table mode: fetch rows on mount / when tableId changes
+watchEffect(async () => {
+  if (!isTableMode.value || !props.hash || !props.dataSource) return
+  const tableId = props.dataSource.tableId
+  const cached = appStore.getTableData(tableId)
+  // Only fetch if no cached rows yet (schema-only means rows haven't been loaded)
+  if (!cached || !appStore.tableData[tableId]) {
+    loading.value = true
+    try {
+      await appStore.fetchTableRows(props.hash, tableId)
+    } finally {
+      loading.value = false
+    }
+  }
+})
+
+// Table mode computed
+const tableData = computed(() => {
+  if (!isTableMode.value || !props.dataSource) return null
+  return appStore.getTableData(props.dataSource.tableId)
+})
+
+const tableRows = computed<TableRow[]>(() => tableData.value?.rows ?? [])
+const tableColumns = computed<TableColumn[]>(() => tableData.value?.schema.columns ?? [])
+
+// KV mode computed (existing behavior)
+const kvItems = computed<any[]>(() => {
   if (Array.isArray(props.value)) return props.value
   return []
 })
 
+// Unified display items for empty state check
+const displayItems = computed(() => {
+  if (isTableMode.value) return tableRows.value
+  return kvItems.value
+})
+
+// Format cell value for table display
+function formatCellValue(value: unknown, type: string): string {
+  if (value === null || value === undefined) return '—'
+  if (type === 'boolean') return value ? 'Да' : 'Нет'
+  if (type === 'date') return String(formatIfDate(value))
+  return String(value)
+}
+
+// Delete for table mode
+const deletingId = ref<number | null>(null)
+
+async function deleteTableRow(rowId: number) {
+  if (!props.hash || !props.dataSource) return
+  deletingId.value = rowId
+  try {
+    await api.delete(`/app/${props.hash}/tables/${props.dataSource.tableId}/rows/${rowId}`)
+    await appStore.refreshTable(props.hash, props.dataSource.tableId)
+    emit('data-written')
+  } finally {
+    deletingId.value = null
+  }
+}
+
+// Delete for KV mode (existing behavior)
 const deletingIndex = ref<number | null>(null)
 
 function isValueTimestamp(item: any): item is { value: any; timestamp: string } {
   return item && typeof item === 'object' && 'value' in item && 'timestamp' in item
 }
 
-async function deleteItem(index: number) {
+async function deleteKvItem(index: number) {
   if (!props.hash || !props.dataKey) return
   deletingIndex.value = index
   try {

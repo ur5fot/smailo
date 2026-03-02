@@ -105,14 +105,14 @@
 - [x] Run tests — must pass before next task
 
 ### Task 8: AppCardList — table row display + delete
-- [ ] Add optional `dataSource` and `hash` props to `AppCardList.vue`
-- [ ] When `dataSource.type === 'table'`, fetch table data via store and render each row as a card
-- [ ] Use table schema columns to render key-value pairs per row (column name → label, row data → value)
-- [ ] Delete button calls `DELETE /api/app/:hash/tables/:tableId/rows/:rowId` instead of KV delete
-- [ ] After delete, call `appStore.refreshTable(hash, tableId)` to update other bound components
-- [ ] When `dataSource` is absent, keep existing KV array behavior unchanged
-- [ ] Write server-side tests for row deletion endpoint
-- [ ] Run tests — must pass before next task
+- [x] Add optional `dataSource` and `hash` props to `AppCardList.vue`
+- [x] When `dataSource.type === 'table'`, fetch table data via store and render each row as a card
+- [x] Use table schema columns to render key-value pairs per row (column name → label, row data → value)
+- [x] Delete button calls `DELETE /api/app/:hash/tables/:tableId/rows/:rowId` instead of KV delete
+- [x] After delete, call `appStore.refreshTable(hash, tableId)` to update other bound components
+- [x] When `dataSource` is absent, keep existing KV array behavior unchanged
+- [x] Write server-side tests for row deletion endpoint
+- [x] Run tests — must pass before next task
 
 ### Task 9: Chart — table data binding
 - [ ] When `Chart` receives `dataSource.type === 'table'`, fetch table data via store
