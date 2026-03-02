@@ -81,15 +81,15 @@
 - [x] TypeScript compiles cleanly (`npx vue-tsc --noEmit` in client)
 
 ### Task 6: AppDataTable — table binding
-- [ ] Add optional `dataSource` and `hash` props to `AppDataTable.vue`
-- [ ] When `dataSource.type === 'table'`, use the app store to fetch/get table data by `tableId`
-- [ ] Auto-generate columns from table schema (use `columns[].name` as `field`, `columns[].name` as `header`) — better than data-driven since schema is always available
-- [ ] Allow explicit `columns` prop to override auto-generated ones
-- [ ] Show loading state while rows are being fetched
-- [ ] Handle empty table (show existing "Записей пока нет." message)
-- [ ] When `dataSource` is absent, keep existing `value` prop behavior unchanged (backward compatible)
-- [ ] Write server-side tests for the `GET /api/app/:hash/tables/:tableId` response shape
-- [ ] Run tests — must pass before next task
+- [x] Add optional `dataSource` and `hash` props to `AppDataTable.vue`
+- [x] When `dataSource.type === 'table'`, use the app store to fetch/get table data by `tableId`
+- [x] Auto-generate columns from table schema (use `columns[].name` as `field`, `columns[].name` as `header`) — better than data-driven since schema is always available
+- [x] Allow explicit `columns` prop to override auto-generated ones
+- [x] Show loading state while rows are being fetched
+- [x] Handle empty table (show existing "Записей пока нет." message)
+- [x] When `dataSource` is absent, keep existing `value` prop behavior unchanged (backward compatible)
+- [x] Write server-side tests for the `GET /api/app/:hash/tables/:tableId` response shape
+- [x] Run tests — must pass before next task
 
 ### Task 7: AppForm — table row writing
 - [ ] Add optional `dataSource` and `hash` props to `AppForm.vue`

@@ -1,5 +1,7 @@
 <template>
+  <div v-if="loading" class="app-datatable__loading">Загрузка...</div>
   <DataTable
+    v-else
     :value="rows"
     :paginator="rows.length > 10"
     :rows="10"
@@ -21,9 +23,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import { useAppStore } from '../stores/app'
 
 interface ColumnDef {
   field: string
@@ -35,20 +38,59 @@ const props = defineProps<{
   value?: any
   // optional explicit column definitions
   columns?: ColumnDef[]
-  // table dataSource binding (implemented in Task 6)
+  // table dataSource binding
   dataSource?: { type: 'table'; tableId: number }
   hash?: string
 }>()
 
+const appStore = useAppStore()
+const loading = ref(false)
+
+// Fetch table rows on mount when dataSource is present
+watchEffect(async () => {
+  if (props.dataSource?.type === 'table' && props.hash) {
+    const tableId = props.dataSource.tableId
+    // Only fetch if not already cached
+    if (!appStore.tableData[tableId]) {
+      loading.value = true
+      try {
+        await appStore.fetchTableRows(props.hash, tableId)
+      } finally {
+        loading.value = false
+      }
+    }
+  }
+})
+
 const rows = computed<any[]>(() => {
+  // Table dataSource mode: get rows from store
+  if (props.dataSource?.type === 'table') {
+    const td = appStore.getTableData(props.dataSource.tableId)
+    if (!td) return []
+    // Flatten row data for DataTable (merge row.data fields + row.id)
+    return td.rows.map((r) => ({ id: r.id, ...r.data as Record<string, unknown> }))
+  }
+  // Legacy dataKey mode
   if (Array.isArray(props.value)) return props.value
   if (props.value != null) return [props.value]
   return []
 })
 
-// Auto-generate columns from first row keys when no explicit columns given
+// Auto-generate columns from table schema or first row keys
 const effectiveColumns = computed<ColumnDef[]>(() => {
+  // Explicit columns always win
   if (props.columns && props.columns.length > 0) return props.columns
+
+  // Table dataSource mode: generate from schema
+  if (props.dataSource?.type === 'table') {
+    const td = appStore.getTableData(props.dataSource.tableId)
+    if (td) {
+      return td.schema.columns.map((col) => ({ field: col.name, header: col.name }))
+    }
+    return []
+  }
+
+  // Legacy mode: infer from first row
   if (rows.value.length === 0) return []
   const first = rows.value[0]
   if (typeof first !== 'object' || first === null) {
@@ -63,5 +105,12 @@ const effectiveColumns = computed<ColumnDef[]>(() => {
   color: #9ca3af;
   font-size: 0.875rem;
   font-style: italic;
+}
+.app-datatable__loading {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-style: italic;
+  padding: 1rem;
+  text-align: center;
 }
 </style>
