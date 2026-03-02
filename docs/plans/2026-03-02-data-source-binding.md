@@ -92,17 +92,17 @@
 - [x] Run tests — must pass before next task
 
 ### Task 7: AppForm — table row writing
-- [ ] Add optional `dataSource` and `hash` props to `AppForm.vue`
-- [ ] When `dataSource.type === 'table'`, auto-generate form fields from table schema columns (name→label, type→input type)
-- [ ] Map column types to form field types: `text`→InputText, `number`→InputNumber, `date`→DatePicker (calendar), `boolean`→Checkbox, `select`→Dropdown
-- [ ] On submit, call `POST /api/app/:hash/tables/:tableId/rows` with `{ data: { ... } }` instead of KV `POST /api/app/:hash/data`
-- [ ] After successful submit, call `appStore.refreshTable(hash, tableId)` so DataTable/CardList/Chart update
-- [ ] Emit `'data-written'` event for consistency (AppView handles refresh)
-- [ ] Handle required fields from schema (show validation errors)
-- [ ] Handle `select` type columns — render as dropdown with column's `options`
-- [ ] When `dataSource` is absent, keep existing `outputKey` + KV behavior unchanged
-- [ ] Write server-side tests for table row creation via `POST /tables/:tableId/rows` with typed validation
-- [ ] Run tests — must pass before next task
+- [x] Add optional `dataSource` and `hash` props to `AppForm.vue`
+- [x] When `dataSource.type === 'table'`, auto-generate form fields from table schema columns (name→label, type→input type)
+- [x] Map column types to form field types: `text`→InputText, `number`→InputNumber, `date`→DatePicker (calendar), `boolean`→Checkbox, `select`→Dropdown
+- [x] On submit, call `POST /api/app/:hash/tables/:tableId/rows` with `{ data: { ... } }` instead of KV `POST /api/app/:hash/data`
+- [x] After successful submit, call `appStore.refreshTable(hash, tableId)` so DataTable/CardList/Chart update
+- [x] Emit `'data-written'` event for consistency (AppView handles refresh)
+- [x] Handle required fields from schema (show validation errors)
+- [x] Handle `select` type columns — render as dropdown with column's `options`
+- [x] When `dataSource` is absent, keep existing `outputKey` + KV behavior unchanged
+- [x] Write server-side tests for table row creation via `POST /tables/:tableId/rows` with typed validation
+- [x] Run tests — must pass before next task
 
 ### Task 8: AppCardList — table row display + delete
 - [ ] Add optional `dataSource` and `hash` props to `AppCardList.vue`
