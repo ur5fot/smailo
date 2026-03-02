@@ -258,7 +258,7 @@ function toNumber(val: unknown): number | null {
   if (typeof val === 'number') return val;
   if (typeof val === 'string') {
     const n = Number(val);
-    return isNaN(n) ? null : n;
+    return !Number.isFinite(n) ? null : n;
   }
   if (typeof val === 'boolean') return val ? 1 : 0;
   return null;

@@ -278,6 +278,7 @@ async function handleChatSubmit(message: string) {
     if (res.uiUpdate) {
       try {
         await appStore.fetchApp(hash.value)
+        await appStore.fetchData(hash.value)
       } catch {
         // Ignore — stale data visible until next refresh
       }
