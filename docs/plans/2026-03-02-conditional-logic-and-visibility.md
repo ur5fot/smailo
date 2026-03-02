@@ -43,13 +43,13 @@
 
 ### Task 1: Портировать парсер формул на клиент
 Формулы showIf/styleIf вычисляются на клиенте — нужна клиентская версия парсера.
-- [ ] Скопировать `server/src/utils/formula/` → `client/src/utils/formula/` (tokenizer, parser, evaluator, index)
-- [ ] Адаптировать импорты (убрать серверные зависимости если есть)
-- [ ] Создать `client/src/utils/showIf.ts` — функция `evaluateShowIf(expression: string, context: Record<string, unknown>): boolean`
-- [ ] Создать `client/src/utils/styleIf.ts` — функция `evaluateStyleIf(conditions: Array<{condition: string, class: string}>, context: Record<string, unknown>): string[]`
-- [ ] Написать тесты для `evaluateShowIf` (различные выражения, типы данных, null/undefined)
-- [ ] Написать тесты для `evaluateStyleIf` (множественные условия, пустые массивы)
-- [ ] Запустить тесты — должны проходить перед Task 2
+- [x] Скопировать `server/src/utils/formula/` → `client/src/utils/formula/` (tokenizer, parser, evaluator, index)
+- [x] Адаптировать импорты (убрать серверные зависимости если есть)
+- [x] Создать `client/src/utils/showIf.ts` — функция `evaluateShowIf(expression: string, context: Record<string, unknown>): boolean`
+- [x] Создать `client/src/utils/styleIf.ts` — функция `evaluateStyleIf(conditions: Array<{condition: string, class: string}>, context: Record<string, unknown>): string[]`
+- [x] Написать тесты для `evaluateShowIf` (различные выражения, типы данных, null/undefined)
+- [x] Написать тесты для `evaluateStyleIf` (множественные условия, пустые массивы)
+- [x] Запустить тесты — должны проходить перед Task 2
 
 ### Task 2: Серверная валидация showIf и styleIf
 Сервер валидирует выражения при сохранении конфига, но не вычисляет.
