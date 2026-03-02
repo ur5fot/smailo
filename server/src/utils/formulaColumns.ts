@@ -15,24 +15,26 @@ export function evaluateFormulaColumns(
   const formulaColumns = columns.filter(c => c.type === 'formula' && c.formula);
   if (formulaColumns.length === 0) return rows;
 
-  // Build table-level context for aggregate functions within formula columns
-  const allRowData = rows.map(r => r.data);
-  const currentTable = { columns, rows: allRowData };
+  // Work with mutable copies of row data
+  const rowDataCopies = rows.map(r => ({ ...r.data }));
 
-  return rows.map(r => {
-    const data = { ...r.data };
-    for (const col of formulaColumns) {
+  // Process one formula column at a time across ALL rows, so that aggregate
+  // functions (e.g. SUM(col)) in later formula columns can see earlier ones.
+  for (const col of formulaColumns) {
+    const currentTable = { columns, rows: rowDataCopies };
+    for (let i = 0; i < rows.length; i++) {
       const context: FormulaContext = {
-        row: data,
+        row: rowDataCopies[i],
         currentTable,
       };
       try {
-        data[col.name] = evaluateFormula(col.formula!, context);
+        rowDataCopies[i][col.name] = evaluateFormula(col.formula!, context);
       } catch (err) {
         console.warn(`[formula] Failed to evaluate formula column "${col.name}" (${col.formula}):`, err);
-        data[col.name] = null;
+        rowDataCopies[i][col.name] = null;
       }
     }
-    return { ...r, data };
-  });
+  }
+
+  return rows.map((r, i) => ({ ...r, data: rowDataCopies[i] }));
 }

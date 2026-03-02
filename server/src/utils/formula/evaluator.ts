@@ -23,9 +23,10 @@ const builtinFunctions: Record<string, BuiltinFn> = {
     const n = toNumber(args[0]);
     if (n === null) return null;
     const decimals = args.length >= 2 ? toNumber(args[1]) : 0;
-    if (decimals === null) return null;
-    const factor = Math.pow(10, decimals);
-    return Math.round(n * factor) / factor;
+    if (decimals === null || decimals < 0 || decimals > 15 || !Number.isInteger(decimals)) return null;
+    // Use exponential notation to avoid floating-point multiply/divide precision issues
+    // e.g. Math.round(1.005 * 100) / 100 = 1.00, but this approach gives 1.01
+    return Number(Math.round(Number(n + 'e' + decimals)) + 'e-' + decimals);
   },
   floor: (args) => {
     if (args.length < 1) return null;
@@ -257,6 +258,7 @@ function evaluateBinaryOp(op: string, left: ASTNode, right: ASTNode, context: Fo
 function toNumber(val: unknown): number | null {
   if (typeof val === 'number') return val;
   if (typeof val === 'string') {
+    if (val.trim() === '') return null;
     const n = Number(val);
     return !Number.isFinite(n) ? null : n;
   }

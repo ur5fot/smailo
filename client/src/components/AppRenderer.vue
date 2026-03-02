@@ -172,7 +172,9 @@ function resolvedProps(item: UiConfigItem, index: number): Record<string, any> {
 
   // Priority: dataSource (handled by wrapper components) > computedValue > dataKey
   let data: unknown
-  if (item.computedValue && index in appStore.computedValues) {
+  if (item.dataSource) {
+    // dataSource takes priority — data fetching is handled by wrapper components
+  } else if (item.computedValue && index in appStore.computedValues) {
     data = appStore.computedValues[index]
   } else if (item.dataKey !== undefined) {
     data = resolveDataKey(props.appData, item.dataKey)

@@ -12,6 +12,8 @@ import type { UiComponent } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 import { requireAuthIfProtected, JWT_SECRET, type AuthenticatedRequest } from '../middleware/auth.js';
 import { extractReferencedTableNames, evaluateComputedValues } from '../utils/computedValues.js';
+import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
+import type { ColumnDef } from '../utils/tableValidation.js';
 
 type AppDataInsert = typeof appData.$inferInsert;
 type ChatHistoryInsert = typeof chatHistory.$inferInsert;
@@ -220,12 +222,24 @@ appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
           const tablesContext: Record<string, { columns: Array<{ name: string; type: string }>; rows: Array<Record<string, unknown>> }> = {};
           for (const table of appTables) {
             if (tableNames.has(table.name)) {
-              const rows = await db.select({
+              const columns = table.columns as ColumnDef[];
+              const dbRows = await db.select({
+                id: userRows.id,
                 data: userRows.data,
+                createdAt: userRows.createdAt,
+                updatedAt: userRows.updatedAt,
               }).from(userRows).where(eq(userRows.tableId, table.id));
+              const mappedRows = dbRows.map(r => ({
+                id: r.id,
+                data: r.data as Record<string, unknown>,
+                createdAt: r.createdAt,
+                updatedAt: r.updatedAt,
+              }));
+              // Evaluate formula columns so computedValue formulas can reference them
+              const evaluatedRows = evaluateFormulaColumns(mappedRows, columns);
               tablesContext[table.name] = {
-                columns: table.columns as Array<{ name: string; type: string }>,
-                rows: rows.map(r => r.data as Record<string, unknown>),
+                columns,
+                rows: evaluatedRows.map(r => r.data),
               };
             }
           }
