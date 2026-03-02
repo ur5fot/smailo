@@ -1,6 +1,7 @@
 import { ASTNode } from './parser.js';
 
 const MAX_DEPTH = 20;
+const BLOCKED_PROPERTIES = new Set(['__proto__', 'constructor', 'prototype']);
 
 type BuiltinFn = (args: unknown[]) => unknown;
 
@@ -118,6 +119,8 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
 
     case 'MemberAccess': {
       // a.b — first try row context, then tables context
+      if (BLOCKED_PROPERTIES.has(ast.property)) return null;
+
       if (ast.object.type === 'Identifier') {
         const objName = ast.object.name;
         const prop = ast.property;

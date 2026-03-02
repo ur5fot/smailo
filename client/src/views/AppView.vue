@@ -225,7 +225,7 @@ async function handleAuth() {
   try {
     authMood.value = 'happy'
     await appStore.fetchApp(hash.value)
-    await fetchChatHistory()
+    await Promise.all([fetchChatHistory(), appStore.fetchData(hash.value)])
     requiresAuth.value = false
   } catch {
     authError.value = 'Не удалось загрузить приложение. Попробуйте обновить страницу.'

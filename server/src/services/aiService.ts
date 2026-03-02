@@ -239,7 +239,7 @@ Add "tables" array to appConfig:
 
 Column types: text, number, date, boolean, select (with "options" array), formula (computed column).
 Column names: must start with a letter, alphanumeric + underscore, max 50 chars.
-Table names: can include Cyrillic, spaces, max 100 chars.
+Table names: can include Cyrillic, spaces, max 100 chars. IMPORTANT: if a table will be referenced in formula columns or computedValue, its name must NOT contain spaces (use underscores instead, e.g. "Мои_расходы").
 Max 20 tables per app, max 30 columns per table.
 "required": true makes the field mandatory when adding rows.
 "select" type requires an "options" array of allowed string values.
