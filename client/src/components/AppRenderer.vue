@@ -78,10 +78,9 @@
         :app-data="props.appData"
       />
 
-      <!-- Chart with table dataSource: plumbing for table-based chart data (Task 9) -->
-      <component
-        v-else-if="item.component === 'Chart' && item.dataSource"
-        :is="componentMap['Chart']"
+      <!-- Chart: wrapper handles both dataSource (table) and dataKey (KV) modes -->
+      <AppChart
+        v-else-if="item.component === 'Chart'"
         v-bind="resolvedProps(item)"
         :data-source="item.dataSource"
         :hash="props.hash"
@@ -98,7 +97,6 @@
 </template>
 
 <script setup lang="ts">
-import Chart from 'primevue/chart'
 import Timeline from 'primevue/timeline'
 import Knob from 'primevue/knob'
 import Tag from 'primevue/tag'
@@ -119,6 +117,7 @@ import AppAccordion from './AppAccordion.vue'
 import AppPanel from './AppPanel.vue'
 import AppTabs from './AppTabs.vue'
 import AppCardList from './AppCardList.vue'
+import AppChart from './AppChart.vue'
 import { resolveDataKey } from '../utils/dataKey'
 
 interface UiConfigItem {
@@ -143,7 +142,6 @@ const emit = defineEmits<{
 }>()
 
 const componentMap: Record<string, any> = {
-  Chart,
   Timeline,
   Knob,
   Tag,

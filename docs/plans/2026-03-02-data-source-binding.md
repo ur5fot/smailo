@@ -115,14 +115,14 @@
 - [x] Run tests — must pass before next task
 
 ### Task 9: Chart — table data binding
-- [ ] When `Chart` receives `dataSource.type === 'table'`, fetch table data via store
-- [ ] Build Chart.js-compatible data structure from table rows: use first column as labels, numeric columns as datasets
-- [ ] Create a utility function `buildChartDataFromTable(schema, rows, chartType)` in a shared util
-- [ ] Pass the built data as the `data` prop to PrimeVue Chart
-- [ ] Handle edge cases: no rows → empty chart, no numeric columns → skip
-- [ ] When `dataSource` is absent, keep existing `dataKey` behavior unchanged
-- [ ] Write tests for `buildChartDataFromTable()` utility
-- [ ] Run tests — must pass before next task
+- [x] When `Chart` receives `dataSource.type === 'table'`, fetch table data via store
+- [x] Build Chart.js-compatible data structure from table rows: use first column as labels, numeric columns as datasets
+- [x] Create a utility function `buildChartDataFromTable(schema, rows, chartType)` in a shared util
+- [x] Pass the built data as the `data` prop to PrimeVue Chart
+- [x] Handle edge cases: no rows → empty chart, no numeric columns → skip
+- [x] When `dataSource` is absent, keep existing `dataKey` behavior unchanged
+- [x] Write tests for `buildChartDataFromTable()` utility
+- [x] Run tests — must pass before next task
 
 ### Task 10: AppView — table-aware data refresh
 - [ ] Update `handleDataWritten()` in `AppView.vue` to also refresh any cached table data (or rely on component-level refresh via store)
