@@ -259,17 +259,22 @@ chatRouter.post('/', limiter, async (req, res) => {
       await cronManager.addJobs(insertedAppId, validJobs);
     }
 
-    // Create user-defined tables after the main transaction commits
+    // Create user-defined tables after the main transaction commits — if this fails
+    // the app exists but has no tables; the user can create them via the API.
     if (insertedAppId !== undefined && validTables.length > 0) {
-      db.transaction((tx) => {
-        for (const tableDef of validTables) {
-          tx.insert(userTables).values({
-            appId: insertedAppId!,
-            name: tableDef.name,
-            columns: tableDef.columns,
-          }).run();
-        }
-      });
+      try {
+        db.transaction((tx) => {
+          for (const tableDef of validTables) {
+            tx.insert(userTables).values({
+              appId: insertedAppId!,
+              name: tableDef.name,
+              columns: tableDef.columns,
+            }).run();
+          }
+        });
+      } catch (err) {
+        console.error('[/api/chat] Failed to create user tables:', err);
+      }
     }
 
     return res.json({
