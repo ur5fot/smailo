@@ -239,6 +239,7 @@ async function handleAuth() {
 async function handleRefresh() {
   refreshing.value = true
   try {
+    appStore.clearTableCache()
     await appStore.fetchData(hash.value)
   } finally {
     refreshing.value = false

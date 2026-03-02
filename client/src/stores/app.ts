@@ -95,10 +95,14 @@ export const useAppStore = defineStore('app', () => {
     return fetchTableRows(hash, tableId)
   }
 
+  function clearTableCache() {
+    tableData.value = {}
+  }
+
   return {
     appConfig, appName, appData, isAuthenticated,
     tableSchemas, tableData,
     fetchApp, verifyPassword, fetchData, chatWithApp,
-    fetchTableRows, getTableData, refreshTable,
+    fetchTableRows, getTableData, refreshTable, clearTableCache,
   }
 })

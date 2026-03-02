@@ -125,10 +125,10 @@
 - [x] Run tests — must pass before next task
 
 ### Task 10: AppView — table-aware data refresh
-- [ ] Update `handleDataWritten()` in `AppView.vue` to also refresh any cached table data (or rely on component-level refresh via store)
-- [ ] Update `handleRefresh()` to clear table data cache so next render re-fetches
-- [ ] Verify the full flow: Form submits row → DataTable shows new row → Chart updates → CardList updates
-- [ ] TypeScript compiles cleanly for both client and server
+- [x] Update `handleDataWritten()` in `AppView.vue` to also refresh any cached table data (or rely on component-level refresh via store)
+- [x] Update `handleRefresh()` to clear table data cache so next render re-fetches
+- [x] Verify the full flow: Form submits row → DataTable shows new row → Chart updates → CardList updates
+- [x] TypeScript compiles cleanly for both client and server
 
 ### Task 11: Verify acceptance criteria
 - [ ] Verify DataTable can display rows from a user-defined table via `dataSource`
