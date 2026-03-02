@@ -91,6 +91,7 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     action?: { key: string; value?: unknown }  // Button: fixed value; InputText: value from user input
     fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only; `name` must match /^[a-zA-Z0-9_]{1,100}$/ and 'timestamp' is reserved (auto-injected)
     outputKey?: string             // Form only: appData key for the submitted object
+    computedValue?: string         // server-evaluated formula: "= SUM(expenses.amount)" — alternative to dataKey for display components
   }>
 }
 ```
@@ -119,7 +120,7 @@ New display-only components: `Chip` (label tag), `Badge` (numeric badge with sev
 
 The server validates and truncates `uiComponents` to a maximum of 20 items after filtering invalid ones.
 
-`dataSource` is an alternative to `dataKey` for binding components to user-defined tables. When `dataSource: { type: 'table', tableId }` is present, it takes priority over `dataKey`. Four components support table binding:
+`dataSource` is an alternative to `dataKey` for binding components to user-defined tables. When `dataSource: { type: 'table', tableId }` is present, it takes priority over `computedValue` and `dataKey`. `computedValue` (server-evaluated formula) takes priority over `dataKey`. Four components support table binding:
 - `DataTable` — auto-generates columns from table schema, fetches and displays rows
 - `Form` — auto-generates form fields from table schema columns (text→InputText, number→InputNumber, date→DatePicker, boolean→Checkbox, select→Dropdown), submits rows via `POST /api/app/:hash/tables/:tableId/rows`
 - `CardList` — displays table rows as cards with key-value pairs per column, supports row deletion via `DELETE /api/app/:hash/tables/:tableId/rows/:rowId`
@@ -140,6 +141,25 @@ Input wrapper components call `POST /api/app/:hash/data` on user interaction and
 
 All cron expressions must be 5-field only (no seconds). Minimum frequency: every 5 minutes. Jobs are loaded from DB on server start via `cronManager.loadAll()`. Max 5 jobs per app. Cron job configs are validated per action type in `isValidCronJobConfig()` (`server/src/routes/chat.ts`) before storage (e.g., `fetch_url` requires `url` starting with `https://` and a non-empty `outputKey`).
 
+### Formula engine (`server/src/utils/formula/`)
+
+Safe expression evaluator (recursive descent parser, no `eval`). Used for two features:
+
+**Formula columns** in user-defined tables: `{ name: "total", type: "formula", formula: "price * quantity" }`. Evaluated per-row on the server when reading table data (`GET /api/app/:hash/tables/:tableId`). Formula columns are read-only — skipped in form inputs and row validation.
+
+**computedValue on UI components**: `computedValue: "= SUM(expenses.amount)"`. Evaluated on the server during `GET /api/app/:hash/data`. Returns `{ appData: [...], computedValues: Record<number, unknown> }` where keys are component indices. Priority: `dataSource` > `computedValue` > `dataKey`.
+
+**Syntax**: arithmetic (`+`, `-`, `*`, `/`, `%`), comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`), logic (`&&`, `||`, `!`), string concatenation (`+`), parentheses, function calls, member access (`.`).
+
+**Built-in functions** (case-insensitive):
+- Conditional: `IF(cond, then, else)`
+- Math: `ABS(n)`, `ROUND(n, decimals?)`, `FLOOR(n)`, `CEIL(n)`, `MIN(a, b)`, `MAX(a, b)`
+- String: `UPPER(s)`, `LOWER(s)`, `CONCAT(s1, s2, ...)`, `LEN(s)`, `TRIM(s)`
+- Date: `NOW()`
+- Aggregate: `SUM(col)`, `AVG(col)`, `COUNT(tbl?)`, `MIN(col)`, `MAX(col)` — aggregate over table columns
+
+**Safety**: max formula length 500 chars, max AST depth 20, division by zero returns `null`, type mismatch in functions returns `null`, missing references return `null`.
+
 ### Database (`server/src/db/schema.ts`)
 
 Seven tables, all using Drizzle ORM with SQLite via better-sqlite3:
@@ -151,7 +171,7 @@ Seven tables, all using Drizzle ORM with SQLite via better-sqlite3:
 | `cron_jobs` | Automation jobs per app; `config` is action-specific JSON |
 | `app_data` | Append-only log of key/value entries written by cron jobs and user input components (Button, InputText, Form); queries always get latest row per key; auto-pruned to 100 rows per key on startup and hourly |
 | `chat_history` | Full chat history; home chat rows have `appId = NULL`; in-app rows use `sessionId = 'app-<hash>'` |
-| `user_tables` | User-defined table schemas per app; `columns` is JSON array of `{ name, type, required?, options? }`. Max 20 tables per app, max 30 columns per table |
+| `user_tables` | User-defined table schemas per app; `columns` is JSON array of `{ name, type, required?, options?, formula? }`. Max 20 tables per app, max 30 columns per table |
 | `user_rows` | Row data for user-defined tables; `data` is JSON object matching column definitions. FK cascade-deletes when table is deleted. Max 10,000 rows per table |
 
 ### Auth
@@ -175,13 +195,13 @@ Input components write to `appData` directly without AI involvement:
 
 ### App data read (`GET /api/app/:hash/data`)
 
-Returns `{ appData: [...] }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`. Shared query logic lives in `server/src/db/queries.ts`.
+Returns `{ appData: [...], computedValues?: Record<number, unknown> }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. If the app config has components with `computedValue`, the server evaluates formulas against table data and includes results keyed by component index. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`. Shared query logic lives in `server/src/db/queries.ts`.
 
 ### User-defined tables (`server/src/routes/tables.ts`)
 
 Structured relational data storage alongside the flat KV `app_data`. Tables are defined with typed columns and support CRUD operations. The AI can generate table definitions during app creation (via `tables` array in `appConfig`), and tables are also manageable via API.
 
-Column types: `text`, `number`, `date`, `boolean`, `select` (with `options` array).
+Column types: `text`, `number`, `date`, `boolean`, `select` (with `options` array), `formula` (with `formula` expression string).
 Column names: must start with letter, alphanumeric + underscore, max 50 chars (`/^[a-zA-Z][a-zA-Z0-9_]{0,49}$/`).
 Table names: can include Cyrillic and spaces, max 100 chars.
 
@@ -211,7 +231,7 @@ Auth middleware (`server/src/middleware/auth.ts`) is shared between `app.ts` and
 Three Pinia stores:
 - `user.ts` — user identity: `userId`, list of user's apps; methods: `createUser()`, `fetchApps(userId)`
 - `chat.ts` — creation chat state: messages array, current phase, appHash after creation
-- `app.ts` — per-app state: app config, appData map, tableData cache (table rows keyed by tableId), auth token, in-app chat messages
+- `app.ts` — per-app state: app config, appData map, tableData cache (table rows keyed by tableId), computedValues (formula results keyed by component index), auth token, in-app chat messages
 
 Three views:
 - `HomeView.vue` — minimal landing: create new userId or enter existing one; no chat

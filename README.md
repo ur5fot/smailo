@@ -104,6 +104,8 @@ smailo/
         │   ├── chat.ts           # POST/GET /api/chat — home brainstorm flow + chat history
         │   ├── app.ts            # GET/POST /api/app/:hash — app access, chat, data writes
         │   └── tables.ts         # CRUD /api/app/:hash/tables — user-defined tables and rows
+        ├── utils/
+        │   └── formula/          # Safe formula engine (tokenizer, parser, evaluator)
         └── index.ts              # Express entry point
 ```
 
@@ -150,7 +152,7 @@ Smailo is evolving from a data dashboard builder into a low-code app platform. T
 
 1. **User-defined tables** — relational data storage with typed columns (text, number, date, boolean, select) ✅
 2. **Table data binding** — bind DataTable, Form, Chart, and CardList to table data via `dataSource` ✅
-3. **Formula engine** — computed columns and aggregate functions (SUM, AVG, COUNT)
+3. **Formula engine** — computed columns and aggregate functions (SUM, AVG, COUNT) ✅
 4. **Conditional logic** — show/hide components based on data conditions
 5. **Multi-page apps** — multiple pages with shared data and navigation
 6. **Event system** — action chains triggered by user interactions

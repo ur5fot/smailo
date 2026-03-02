@@ -178,9 +178,9 @@
 - [x] Client TypeScript compiles (`npx vue-tsc --noEmit`)
 
 ### Task 12: [Final] Update documentation
-- [ ] Update `CLAUDE.md` — add formula column type, computedValue, formula syntax documentation
-- [ ] Update `README.md` and `README.ru.md` — mention Stage 3 formulas in features
-- [ ] Update `docs/roadmap-v2.md` — mark Stage 3 as completed
+- [x] Update `CLAUDE.md` — add formula column type, computedValue, formula syntax documentation
+- [x] Update `README.md` and `README.ru.md` — mention Stage 3 formulas in features
+- [x] Update `docs/roadmap-v2.md` — mark Stage 3 as completed
 
 ## Technical Details
 
