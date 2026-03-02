@@ -4,13 +4,13 @@
       <!-- Card: PrimeVue Card uses slots, not props — use wrapper -->
       <AppCard
         v-if="item.component === 'Card'"
-        v-bind="resolvedProps(item)"
+        v-bind="resolvedProps(item, index)"
       />
 
       <!-- DataTable: needs auto-column generation -->
       <AppDataTable
         v-else-if="item.component === 'DataTable'"
-        v-bind="resolvedProps(item)"
+        v-bind="resolvedProps(item, index)"
         :data-source="item.dataSource"
         :hash="props.hash"
       />
@@ -58,13 +58,13 @@
       <!-- Panel: titled panel with slot-based content -->
       <AppPanel
         v-else-if="item.component === 'Panel'"
-        v-bind="resolvedProps(item)"
+        v-bind="resolvedProps(item, index)"
       />
 
       <!-- CardList: dynamic card-per-item list from appData array, with per-item delete -->
       <AppCardList
         v-else-if="item.component === 'CardList'"
-        v-bind="resolvedProps(item)"
+        v-bind="resolvedProps(item, index)"
         :data-key="item.dataKey"
         :hash="props.hash"
         :data-source="item.dataSource"
@@ -81,7 +81,7 @@
       <!-- Chart: wrapper handles both dataSource (table) and dataKey (KV) modes -->
       <AppChart
         v-else-if="item.component === 'Chart'"
-        v-bind="resolvedProps(item)"
+        v-bind="resolvedProps(item, index)"
         :data-source="item.dataSource"
         :hash="props.hash"
       />
@@ -90,7 +90,7 @@
       <component
         v-else-if="componentMap[item.component]"
         :is="componentMap[item.component]"
-        v-bind="resolvedProps(item)"
+        v-bind="resolvedProps(item, index)"
       />
     </template>
   </div>
@@ -119,12 +119,14 @@ import AppTabs from './AppTabs.vue'
 import AppCardList from './AppCardList.vue'
 import AppChart from './AppChart.vue'
 import { resolveDataKey } from '../utils/dataKey'
+import { useAppStore } from '../stores/app'
 
 interface UiConfigItem {
   component: string
   props: Record<string, any>
   dataKey?: string
   dataSource?: { type: 'table'; tableId: number }
+  computedValue?: string
   action?: { key: string; value?: unknown; mode?: 'append' }
   fields?: Array<{ name: string; type: string; label: string }>
   outputKey?: string
@@ -140,6 +142,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'data-written': []
 }>()
+
+const appStore = useAppStore()
 
 const componentMap: Record<string, any> = {
   Timeline,
@@ -160,13 +164,21 @@ function isSafeProp(key: string): boolean {
   return !key.toLowerCase().startsWith('on')
 }
 
-function resolvedProps(item: UiConfigItem): Record<string, any> {
+function resolvedProps(item: UiConfigItem, index: number): Record<string, any> {
   const safeProps = Object.fromEntries(
     Object.entries(item.props ?? {}).filter(([key]) => isSafeProp(key))
   )
   const resolved = { ...safeProps }
-  const data = item.dataKey !== undefined ? resolveDataKey(props.appData, item.dataKey) : undefined
-  if (item.dataKey && data !== undefined) {
+
+  // Priority: dataSource (handled by wrapper components) > computedValue > dataKey
+  let data: unknown
+  if (item.computedValue && index in appStore.computedValues) {
+    data = appStore.computedValues[index]
+  } else if (item.dataKey !== undefined) {
+    data = resolveDataKey(props.appData, item.dataKey)
+  }
+
+  if (data !== undefined) {
     if (item.component === 'Chart') {
       resolved.data = data
     } else if (item.component === 'Image') {

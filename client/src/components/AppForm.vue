@@ -89,13 +89,16 @@ const effectiveFields = computed<FormField[]>(() => {
   if (isTableMode.value && props.dataSource) {
     const tableInfo = appStore.getTableData(props.dataSource.tableId)
     if (!tableInfo) return []
-    return tableInfo.schema.columns.map(col => ({
-      name: col.name,
-      type: col.type,
-      label: col.name,
-      required: col.required,
-      options: col.options,
-    }))
+    // Skip formula columns — they are read-only, computed server-side
+    return tableInfo.schema.columns
+      .filter(col => col.type !== 'formula')
+      .map(col => ({
+        name: col.name,
+        type: col.type,
+        label: col.name,
+        required: col.required,
+        options: col.options,
+      }))
   }
   return (props.fields || []).map(f => ({
     name: f.name,

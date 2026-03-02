@@ -9,7 +9,7 @@
 
 interface ColumnDef {
   name: string
-  type: 'text' | 'number' | 'date' | 'boolean' | 'select'
+  type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'formula'
 }
 
 interface TableRow {
@@ -58,11 +58,12 @@ export function buildChartDataFromTable(
 ): ChartData | null {
   if (!columns || columns.length === 0) return null
 
-  const numericColumns = columns.filter(c => c.type === 'number')
+  // Formula columns are treated as numeric (they produce computed numbers)
+  const numericColumns = columns.filter(c => c.type === 'number' || c.type === 'formula')
   if (numericColumns.length === 0) return null
 
   // First non-numeric column provides labels; fall back to row index
-  const labelColumn = columns.find(c => c.type !== 'number')
+  const labelColumn = columns.find(c => c.type !== 'number' && c.type !== 'formula')
   const labels = rows.map((row, i) => {
     if (!labelColumn) return String(i + 1)
     const val = row.data[labelColumn.name]

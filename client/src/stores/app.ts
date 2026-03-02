@@ -4,9 +4,10 @@ import api from '../api'
 
 export interface TableColumn {
   name: string
-  type: 'text' | 'number' | 'date' | 'boolean' | 'select'
+  type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'formula'
   required?: boolean
   options?: string[]
+  formula?: string
 }
 
 export interface TableSchema {
@@ -33,6 +34,9 @@ export const useAppStore = defineStore('app', () => {
   const tableSchemas = ref<TableSchema[]>([])
   const tableData = ref<Record<number, { schema: TableSchema; rows: TableRow[] }>>({})
 
+  // Computed values from server-side formula evaluation (keyed by component index)
+  const computedValues = ref<Record<number, unknown>>({})
+
   async function fetchApp(hash: string) {
     const res = await api.get(`/app/${hash}`)
     appConfig.value = res.data.config
@@ -40,9 +44,10 @@ export const useAppStore = defineStore('app', () => {
     appData.value = res.data.appData || []
     isAuthenticated.value = true
 
-    // Populate table schemas and clear cached row data
+    // Populate table schemas and clear cached row/computed data
     tableSchemas.value = res.data.tables || []
     tableData.value = {}
+    computedValues.value = {}
 
     return res.data
   }
@@ -60,6 +65,7 @@ export const useAppStore = defineStore('app', () => {
   async function fetchData(hash: string) {
     const res = await api.get(`/app/${hash}/data`)
     appData.value = res.data.appData || []
+    computedValues.value = res.data.computedValues || {}
     return res.data
   }
 
@@ -101,7 +107,7 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     appConfig, appName, appData, isAuthenticated,
-    tableSchemas, tableData,
+    tableSchemas, tableData, computedValues,
     fetchApp, verifyPassword, fetchData, chatWithApp,
     fetchTableRows, getTableData, refreshTable, clearTableCache,
   }

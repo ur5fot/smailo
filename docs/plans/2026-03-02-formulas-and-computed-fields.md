@@ -134,17 +134,17 @@
 - [x] Run tests — must pass before next task
 
 ### Task 8: Client integration
-- [ ] Add `computedValues` to app store (`client/src/stores/app.ts`):
+- [x] Add `computedValues` to app store (`client/src/stores/app.ts`):
   - New ref: `computedValues: Record<number, unknown>`
   - Update `fetchData()` to store computedValues from response
   - Clear on `fetchApp()`
-- [ ] Update `AppRenderer.vue`:
+- [x] Update `AppRenderer.vue`:
   - If component has `computedValue`, resolve from `appStore.computedValues[index]` instead of `dataKey`
   - Priority: `dataSource` > `computedValue` > `dataKey`
-- [ ] Update `AppForm.vue`: skip formula columns when generating form fields (read-only)
-- [ ] Update `AppDataTable.vue`: formula columns display normally (values come pre-computed from server)
-- [ ] Update `AppChart.vue` / `chartData.ts`: formula columns are numeric and usable in charts
-- [ ] TypeScript compiles cleanly for both client and server
+- [x] Update `AppForm.vue`: skip formula columns when generating form fields (read-only)
+- [x] Update `AppDataTable.vue`: formula columns display normally (values come pre-computed from server)
+- [x] Update `AppChart.vue` / `chartData.ts`: formula columns are numeric and usable in charts
+- [x] TypeScript compiles cleanly for both client and server
 
 ### Task 9: AI prompt updates
 - [ ] Update `BRAINSTORM_SYSTEM_PROMPT` in `aiService.ts`:
