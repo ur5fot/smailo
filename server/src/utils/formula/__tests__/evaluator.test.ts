@@ -503,6 +503,256 @@ describe('evaluate', () => {
   })
 })
 
+  describe('aggregate functions', () => {
+    const tablesCtx = {
+      tables: {
+        expenses: {
+          columns: [
+            { name: 'description', type: 'text' },
+            { name: 'amount', type: 'number' },
+          ],
+          rows: [
+            { description: 'Food', amount: 100 },
+            { description: 'Transport', amount: 50 },
+            { description: 'Rent', amount: 300 },
+            { description: 'Entertainment', amount: 75 },
+          ],
+        },
+        tasks: {
+          columns: [
+            { name: 'title', type: 'text' },
+            { name: 'done', type: 'boolean' },
+          ],
+          rows: [
+            { title: 'Task 1', done: true },
+            { title: 'Task 2', done: false },
+            { title: 'Task 3', done: true },
+          ],
+        },
+        empty: {
+          columns: [{ name: 'value', type: 'number' }],
+          rows: [],
+        },
+      },
+    }
+
+    const currentTableCtx = {
+      currentTable: {
+        columns: [
+          { name: 'name', type: 'text' },
+          { name: 'score', type: 'number' },
+        ],
+        rows: [
+          { name: 'Alice', score: 90 },
+          { name: 'Bob', score: 80 },
+          { name: 'Charlie', score: 70 },
+        ],
+      },
+    }
+
+    describe('SUM', () => {
+      it('sums a column via table.column (MemberAccess)', () => {
+        expect(eval_('SUM(expenses.amount)', tablesCtx)).toBe(525)
+      })
+
+      it('sums a column in current table (Identifier)', () => {
+        expect(eval_('SUM(score)', currentTableCtx)).toBe(240)
+      })
+
+      it('returns null for empty table', () => {
+        expect(eval_('SUM(empty.value)', tablesCtx)).toBe(null)
+      })
+
+      it('returns null for non-existent table', () => {
+        expect(eval_('SUM(unknown.amount)', tablesCtx)).toBe(null)
+      })
+
+      it('skips non-numeric values', () => {
+        const ctx = {
+          tables: {
+            mixed: {
+              columns: [{ name: 'val', type: 'text' }],
+              rows: [
+                { val: 10 },
+                { val: 'abc' },
+                { val: 20 },
+                { val: null },
+                { val: 30 },
+              ],
+            },
+          },
+        }
+        expect(eval_('SUM(mixed.val)', ctx)).toBe(60)
+      })
+
+      it('returns null when no numeric values found', () => {
+        const ctx = {
+          tables: {
+            strings: {
+              columns: [{ name: 'val', type: 'text' }],
+              rows: [{ val: 'a' }, { val: 'b' }],
+            },
+          },
+        }
+        expect(eval_('SUM(strings.val)', ctx)).toBe(null)
+      })
+
+      it('returns null with no context', () => {
+        expect(eval_('SUM(amount)')).toBe(null)
+      })
+    })
+
+    describe('AVG', () => {
+      it('averages a column via table.column', () => {
+        expect(eval_('AVG(expenses.amount)', tablesCtx)).toBe(131.25)
+      })
+
+      it('averages a column in current table', () => {
+        expect(eval_('AVG(score)', currentTableCtx)).toBe(80)
+      })
+
+      it('returns null for empty table', () => {
+        expect(eval_('AVG(empty.value)', tablesCtx)).toBe(null)
+      })
+
+      it('skips non-numeric values in average', () => {
+        const ctx = {
+          tables: {
+            mixed: {
+              columns: [{ name: 'val', type: 'text' }],
+              rows: [
+                { val: 10 },
+                { val: 'abc' },
+                { val: 30 },
+              ],
+            },
+          },
+        }
+        // Average of [10, 30] = 20
+        expect(eval_('AVG(mixed.val)', ctx)).toBe(20)
+      })
+    })
+
+    describe('COUNT', () => {
+      it('counts rows in a table (Identifier = table name)', () => {
+        expect(eval_('COUNT(tasks)', tablesCtx)).toBe(3)
+        expect(eval_('COUNT(expenses)', tablesCtx)).toBe(4)
+      })
+
+      it('counts non-null values in a column via table.column', () => {
+        const ctx = {
+          tables: {
+            data: {
+              columns: [{ name: 'val', type: 'number' }],
+              rows: [
+                { val: 1 },
+                { val: null },
+                { val: 3 },
+                { val: undefined },
+                { val: 0 },
+              ],
+            },
+          },
+        }
+        expect(eval_('COUNT(data.val)', ctx)).toBe(3) // 1, 3, 0 — null and undefined excluded
+      })
+
+      it('returns 0 for empty table', () => {
+        expect(eval_('COUNT(empty)', tablesCtx)).toBe(0)
+      })
+
+      it('returns 0 for non-existent table', () => {
+        expect(eval_('COUNT(unknown)', tablesCtx)).toBe(0)
+      })
+
+      it('counts rows in current table with no args', () => {
+        expect(eval_('COUNT()', currentTableCtx)).toBe(3)
+      })
+
+      it('returns 0 for COUNT() with no current table', () => {
+        expect(eval_('COUNT()')).toBe(0)
+      })
+
+      it('counts non-null column values in current table', () => {
+        const ctx = {
+          currentTable: {
+            columns: [{ name: 'val', type: 'number' }],
+            rows: [
+              { val: 1 },
+              { val: null },
+              { val: 3 },
+            ],
+          },
+        }
+        expect(eval_('COUNT(val)', ctx)).toBe(2)
+      })
+    })
+
+    describe('MIN (aggregate)', () => {
+      it('finds minimum in a column via table.column', () => {
+        expect(eval_('MIN(expenses.amount)', tablesCtx)).toBe(50)
+      })
+
+      it('finds minimum in current table column', () => {
+        expect(eval_('MIN(score)', currentTableCtx)).toBe(70)
+      })
+
+      it('returns null for empty table', () => {
+        expect(eval_('MIN(empty.value)', tablesCtx)).toBe(null)
+      })
+
+      it('still works as scalar with 2 args', () => {
+        expect(eval_('MIN(3, 5)')).toBe(3)
+        expect(eval_('MIN(10, 2)')).toBe(2)
+      })
+    })
+
+    describe('MAX (aggregate)', () => {
+      it('finds maximum in a column via table.column', () => {
+        expect(eval_('MAX(expenses.amount)', tablesCtx)).toBe(300)
+      })
+
+      it('finds maximum in current table column', () => {
+        expect(eval_('MAX(score)', currentTableCtx)).toBe(90)
+      })
+
+      it('returns null for empty table', () => {
+        expect(eval_('MAX(empty.value)', tablesCtx)).toBe(null)
+      })
+
+      it('still works as scalar with 2 args', () => {
+        expect(eval_('MAX(3, 5)')).toBe(5)
+        expect(eval_('MAX(1, 10)')).toBe(10)
+      })
+    })
+
+    describe('aggregates in expressions', () => {
+      it('SUM in arithmetic', () => {
+        expect(eval_('SUM(expenses.amount) * 2', tablesCtx)).toBe(1050)
+      })
+
+      it('AVG in comparison', () => {
+        expect(eval_('AVG(expenses.amount) > 100', tablesCtx)).toBe(true)
+      })
+
+      it('COUNT in IF', () => {
+        expect(eval_('IF(COUNT(tasks) > 2, "many", "few")', tablesCtx)).toBe('many')
+      })
+
+      it('MAX - MIN range', () => {
+        expect(eval_('MAX(expenses.amount) - MIN(expenses.amount)', tablesCtx)).toBe(250)
+      })
+
+      it('combined with row context', () => {
+        const ctx = {
+          row: { multiplier: 2 },
+          tables: tablesCtx.tables,
+        }
+        expect(eval_('SUM(expenses.amount) * multiplier', ctx)).toBe(1050)
+      })
+    })
+  })
+
 describe('evaluateFormula', () => {
   it('provides end-to-end evaluation', () => {
     expect(evaluateFormula('2 + 3')).toBe(5)

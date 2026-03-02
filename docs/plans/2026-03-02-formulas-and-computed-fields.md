@@ -88,19 +88,19 @@
 - [x] Run tests — must pass before next task
 
 ### Task 4: Aggregate functions
-- [ ] Add aggregate functions to evaluator:
+- [x] Add aggregate functions to evaluator:
   - `SUM(column)` — sum numeric values in a column
   - `AVG(column)` — average of numeric values
   - `COUNT(tableOrColumn)` — count rows (no args = current table, or `COUNT(tableName)`)
   - `MIN(column)` — minimum value
   - `MAX(column)` — maximum value
-- [ ] Resolution of aggregate arguments:
+- [x] Resolution of aggregate arguments:
   - In formula columns (row context): `SUM(amount)` → aggregate over current table's `amount` column
   - In computedValue (app context): `SUM(expenses.amount)` → aggregate over `expenses` table's `amount` column
   - `COUNT(tasks)` → count rows in `tasks` table
-- [ ] Handle edge cases: empty table → `null` for SUM/AVG/MIN/MAX, `0` for COUNT; non-numeric values skipped
-- [ ] Write tests for aggregates: normal data, empty table, mixed types, table not found
-- [ ] Run tests — must pass before next task
+- [x] Handle edge cases: empty table → `null` for SUM/AVG/MIN/MAX, `0` for COUNT; non-numeric values skipped
+- [x] Write tests for aggregates: normal data, empty table, mixed types, table not found
+- [x] Run tests — must pass before next task
 
 ### Task 5: Formula column type in table schema
 - [ ] Add `'formula'` to `ColumnType` in `server/src/utils/tableValidation.ts`

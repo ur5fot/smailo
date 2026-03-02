@@ -165,6 +165,17 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
 
     case 'FunctionCall': {
       const fnName = ast.name.toLowerCase();
+
+      // Aggregate functions need raw AST args to resolve table/column references
+      if (fnName in aggregateFunctions) {
+        // MIN/MAX with 2 args = scalar (use builtin), with 1 arg = aggregate
+        if ((fnName === 'min' || fnName === 'max') && ast.args.length >= 2) {
+          const evaluatedArgs = ast.args.map(arg => evaluate(arg, context, depth + 1));
+          return builtinFunctions[fnName](evaluatedArgs);
+        }
+        return evaluateAggregate(fnName, ast.args, context, depth);
+      }
+
       const fn = builtinFunctions[fnName];
       if (!fn) {
         throw new EvaluatorError(`Unknown function: ${ast.name}`);
@@ -274,6 +285,118 @@ function looseEqual(a: unknown, b: unknown): boolean {
   }
 
   return a === b;
+}
+
+// Aggregate functions registry
+const aggregateFunctions: Record<string, true> = {
+  sum: true,
+  avg: true,
+  count: true,
+  min: true,
+  max: true,
+};
+
+/**
+ * Resolve a column of numeric (or any) values from context based on AST argument.
+ * - MemberAccess (table.column): look up in context.tables
+ * - Identifier (column): look up in context.currentTable
+ * Returns { values, found } where found indicates if the table/column was located.
+ */
+function resolveColumnValues(arg: ASTNode, context: FormulaContext): { values: unknown[]; found: boolean } {
+  if (arg.type === 'MemberAccess' && arg.object.type === 'Identifier') {
+    const tableName = arg.object.name;
+    const columnName = arg.property;
+    const table = context.tables?.[tableName];
+    if (!table) return { values: [], found: false };
+    return { values: table.rows.map(row => row[columnName]), found: true };
+  }
+
+  if (arg.type === 'Identifier') {
+    const columnName = arg.name;
+    // For COUNT(tableName), check if the identifier is a table name
+    const table = context.tables?.[columnName];
+    if (table) return { values: table.rows.map(() => 1), found: true };
+    // Otherwise treat as column in current table
+    if (context.currentTable) {
+      return { values: context.currentTable.rows.map(row => row[columnName]), found: true };
+    }
+    return { values: [], found: false };
+  }
+
+  return { values: [], found: false };
+}
+
+/**
+ * Resolve row count for COUNT function.
+ * COUNT(table) or COUNT(table.column) — counts non-null values for column, or all rows for table.
+ */
+function resolveCountTarget(arg: ASTNode, context: FormulaContext): { count: number; found: boolean } {
+  if (arg.type === 'MemberAccess' && arg.object.type === 'Identifier') {
+    const tableName = arg.object.name;
+    const columnName = arg.property;
+    const table = context.tables?.[tableName];
+    if (!table) return { count: 0, found: false };
+    // Count non-null values in the column
+    const count = table.rows.filter(row => row[columnName] !== null && row[columnName] !== undefined).length;
+    return { count, found: true };
+  }
+
+  if (arg.type === 'Identifier') {
+    const name = arg.name;
+    // Check if it's a table name
+    const table = context.tables?.[name];
+    if (table) return { count: table.rows.length, found: true };
+    // Otherwise column in current table — count non-null values
+    if (context.currentTable) {
+      const count = context.currentTable.rows.filter(row => row[name] !== null && row[name] !== undefined).length;
+      return { count, found: true };
+    }
+    return { count: 0, found: false };
+  }
+
+  return { count: 0, found: false };
+}
+
+function evaluateAggregate(fnName: string, args: ASTNode[], context: FormulaContext, _depth: number): unknown {
+  // COUNT with no args = count rows in current table
+  if (fnName === 'count' && args.length === 0) {
+    if (context.currentTable) {
+      return context.currentTable.rows.length;
+    }
+    return 0;
+  }
+
+  if (args.length < 1) return null;
+  const arg = args[0];
+
+  if (fnName === 'count') {
+    const { count, found } = resolveCountTarget(arg, context);
+    if (!found) return 0;
+    return count;
+  }
+
+  // SUM, AVG, MIN, MAX — need numeric column values
+  const { values, found } = resolveColumnValues(arg, context);
+  if (!found) return null;
+
+  const numericValues = values
+    .map(v => toNumber(v))
+    .filter((v): v is number => v !== null);
+
+  if (numericValues.length === 0) return null;
+
+  switch (fnName) {
+    case 'sum':
+      return numericValues.reduce((a, b) => a + b, 0);
+    case 'avg':
+      return numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+    case 'min':
+      return Math.min(...numericValues);
+    case 'max':
+      return Math.max(...numericValues);
+    default:
+      return null;
+  }
 }
 
 function compareValues(op: string, a: unknown, b: unknown): boolean | null {
