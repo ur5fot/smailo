@@ -39,11 +39,11 @@
 ## Implementation Steps
 
 ### Task 1: Set up vitest for server
-- [ ] Install vitest as devDependency in `server/`
-- [ ] Create `server/vitest.config.ts` (resolve `.js` imports to `.ts` for ESM compat)
-- [ ] Add `"test"` script to `server/package.json`
-- [ ] Create a smoke test `server/src/__tests__/smoke.test.ts` that imports something and passes
-- [ ] Run tests — must pass before next task
+- [x] Install vitest as devDependency in `server/`
+- [x] Create `server/vitest.config.ts` (resolve `.js` imports to `.ts` for ESM compat)
+- [x] Add `"test"` script to `server/package.json`
+- [x] Create a smoke test `server/src/__tests__/smoke.test.ts` that imports something and passes
+- [x] Run tests — must pass before next task
 
 ### Task 2: Add `dataSource` type and validation to server
 - [ ] Extend `UiComponent` type in `aiService.ts` with optional `dataSource?: { type: 'table'; tableId: number }`
