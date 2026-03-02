@@ -387,7 +387,7 @@ export function validateTableDefs(tables: unknown[]): TableDef[] {
     .filter((t): t is Record<string, unknown> => {
       if (!t || typeof t !== 'object' || Array.isArray(t)) return false;
       const table = t as Record<string, unknown>;
-      if (typeof table.name !== 'string' || !TABLE_NAME_REGEX.test(table.name)) return false;
+      if (typeof table.name !== 'string' || !TABLE_NAME_REGEX.test(table.name.trim())) return false;
       if (!Array.isArray(table.columns) || table.columns.length === 0 || table.columns.length > 30) return false;
       const cols = table.columns as Record<string, unknown>[];
       const names = new Set<string>();
@@ -398,7 +398,7 @@ export function validateTableDefs(tables: unknown[]): TableDef[] {
         names.add(col.name);
         if (typeof col.type !== 'string' || !TABLE_COLUMN_TYPES.includes(col.type as typeof TABLE_COLUMN_TYPES[number])) return false;
         if (col.type === 'select') {
-          if (!Array.isArray(col.options) || col.options.length === 0) return false;
+          if (!Array.isArray(col.options) || col.options.length === 0 || col.options.length > 50) return false;
           if (!col.options.every((o: unknown) => typeof o === 'string' && o.length > 0 && o.length <= 200)) return false;
         }
         return true;

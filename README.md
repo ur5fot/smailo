@@ -90,16 +90,19 @@ smailo/
 └── server/                 # Express + TypeScript backend
     └── src/
         ├── db/
-        │   ├── schema.ts         # Drizzle schema: users, apps, cronJobs, appData, chatHistory
+        │   ├── schema.ts         # Drizzle schema: users, apps, cronJobs, appData, chatHistory, userTables, userRows
         │   ├── queries.ts        # Shared DB queries (getLatestAppData)
         │   └── index.ts          # SQLite + Drizzle connection
+        ├── middleware/
+        │   └── auth.ts           # requireAuthIfProtected middleware (shared by app.ts and tables.ts)
         ├── services/
         │   ├── aiService.ts      # Unified AI service: Anthropic or DeepSeek via AI_PROVIDER
         │   └── cronManager.ts    # node-cron scheduler for app automations
         ├── routes/
         │   ├── users.ts          # POST/GET /api/users — user creation and lookup
         │   ├── chat.ts           # POST/GET /api/chat — home brainstorm flow + chat history
-        │   └── app.ts            # GET/POST /api/app/:hash — app access, chat, data writes
+        │   ├── app.ts            # GET/POST /api/app/:hash — app access, chat, data writes
+        │   └── tables.ts         # CRUD /api/app/:hash/tables — user-defined tables and rows
         └── index.ts              # Express entry point
 ```
 
@@ -117,7 +120,7 @@ smailo/
 - User creation: client → `POST /api/users` → returns `{ userId }` → stored in `localStorage`
 - App list: client → `GET /api/users/:userId/apps` → list of user's apps
 - Creation chat: client → `POST /api/chat` (with `userId`) → AI service (brainstorm phase) → response with mood/phase
-- App creation: when the AI returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, and schedules cron jobs
+- App creation: when the AI returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, schedules cron jobs, and creates user-defined tables
 - App access: client → `GET /api/app/:hash` → returns config + latest appData (JWT required if password set)
 - In-app chat: client → `POST /api/app/:hash/chat` → AI service → optional UI update and/or memory update
 - Chat history: restored on page load from `GET /api/chat?sessionId=...&userId=...` / `GET /api/app/:hash/chat`
@@ -126,6 +129,7 @@ smailo/
 - Append mode: InputText/Form support `mode: "append"` — each save adds an item to an array
 - Delete item: CardList delete button → `POST /api/app/:hash/data` with `mode: "delete-item"` + `index`
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data, compute) and writes results to appData
+- User-defined tables: AI can define structured tables during app creation; CRUD operations available via `/api/app/:hash/tables` endpoints (create/list/update/delete tables, add/update/delete rows)
 
 ### Security
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { userTables, userRows } from '../db/schema.js';
 import { requireAuthIfProtected, type AuthenticatedRequest } from '../middleware/auth.js';
@@ -123,7 +123,11 @@ tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
     const row = (req as AuthenticatedRequest).app_row!;
     const { name, columns } = req.body as { name: unknown; columns: unknown };
 
-    if (!name || typeof name !== 'string' || !TABLE_NAME_REGEX.test(name)) {
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ error: 'name must be a non-empty string' });
+    }
+    const trimmedName = name.trim();
+    if (!TABLE_NAME_REGEX.test(trimmedName)) {
       return res.status(400).json({ error: 'name must be a string matching /^[a-zA-Z\\u0400-\\u04FF][a-zA-Z0-9\\u0400-\\u04FF_ ]{0,99}$/' });
     }
 
@@ -141,19 +145,22 @@ tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
       return res.status(400).json({ error: 'Duplicate column names are not allowed' });
     }
 
-    // Check table limit per app
-    const existing = await db.select({ id: userTables.id }).from(userTables).where(eq(userTables.appId, row.id));
+    // Check table limit per app and duplicate names
+    const existing = await db.select({ id: userTables.id, name: userTables.name }).from(userTables).where(eq(userTables.appId, row.id));
     if (existing.length >= MAX_TABLES_PER_APP) {
       return res.status(400).json({ error: `Maximum ${MAX_TABLES_PER_APP} tables per app` });
+    }
+    if (existing.some((t) => t.name === trimmedName)) {
+      return res.status(400).json({ error: 'A table with this name already exists' });
     }
 
     const inserted = await db.insert(userTables).values({
       appId: row.id,
-      name: name.trim(),
+      name: trimmedName,
       columns: columns as ColumnDef[],
     }).returning({ id: userTables.id });
 
-    return res.json({ id: inserted[0].id, name: name.trim(), columns });
+    return res.json({ id: inserted[0].id, name: trimmedName, columns });
   } catch (error) {
     console.error('[POST /tables] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -233,10 +240,14 @@ tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) 
     const { name, columns } = req.body as { name?: unknown; columns?: unknown };
 
     if (name !== undefined) {
-      if (typeof name !== 'string' || !TABLE_NAME_REGEX.test(name)) {
+      if (typeof name !== 'string') {
         return res.status(400).json({ error: 'Invalid table name' });
       }
-      updates.name = name.trim();
+      const trimmedUpdateName = name.trim();
+      if (!TABLE_NAME_REGEX.test(trimmedUpdateName)) {
+        return res.status(400).json({ error: 'Invalid table name' });
+      }
+      updates.name = trimmedUpdateName;
     }
 
     if (columns !== undefined) {
@@ -316,7 +327,7 @@ tablesRouter.post('/:tableId/rows', limiter, requireAuthIfProtected, async (req,
     }
 
     // Check row count limit
-    const [{ count }] = await db.select({ count: db.$count(userRows) }).from(userRows).where(eq(userRows.tableId, tableId));
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(userRows).where(eq(userRows.tableId, tableId));
     if (count >= MAX_ROWS_PER_TABLE) {
       return res.status(400).json({ error: `Maximum ${MAX_ROWS_PER_TABLE} rows per table` });
     }

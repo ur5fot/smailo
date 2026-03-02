@@ -90,16 +90,19 @@ smailo/
 └── server/                 # Бэкенд на Express + TypeScript
     └── src/
         ├── db/
-        │   ├── schema.ts         # Drizzle-схема: users, apps, cronJobs, appData, chatHistory
+        │   ├── schema.ts         # Drizzle-схема: users, apps, cronJobs, appData, chatHistory, userTables, userRows
         │   ├── queries.ts        # Общие DB-запросы (getLatestAppData)
         │   └── index.ts          # Подключение SQLite + Drizzle
+        ├── middleware/
+        │   └── auth.ts           # Мидлвар requireAuthIfProtected (общий для app.ts и tables.ts)
         ├── services/
         │   ├── aiService.ts      # Единый AI-сервис: Anthropic или DeepSeek через AI_PROVIDER
         │   └── cronManager.ts    # Планировщик node-cron для автоматизаций приложений
         ├── routes/
         │   ├── users.ts          # POST/GET /api/users — создание и поиск пользователей
         │   ├── chat.ts           # POST/GET /api/chat — поток брейнсторма + история чата
-        │   └── app.ts            # GET/POST /api/app/:hash — доступ, чат, запись данных
+        │   ├── app.ts            # GET/POST /api/app/:hash — доступ, чат, запись данных
+        │   └── tables.ts         # CRUD /api/app/:hash/tables — пользовательские таблицы и строки
         └── index.ts              # Точка входа Express
 ```
 
@@ -117,7 +120,7 @@ smailo/
 - Создание пользователя: клиент → `POST /api/users` → возвращает `{ userId }` → сохраняется в `localStorage`
 - Список приложений: клиент → `GET /api/users/:userId/apps` → список приложений пользователя
 - Чат создания: клиент → `POST /api/chat` (с `userId`) → AI-сервис (фаза брейнсторм) → ответ с настроением/фазой
-- Создание приложения: когда AI возвращает `phase: 'created'`, сервер генерирует 64-символьный hex-хэш, создаёт запись приложения и планирует cron-задания
+- Создание приложения: когда AI возвращает `phase: 'created'`, сервер генерирует 64-символьный hex-хэш, создаёт запись приложения, планирует cron-задания и создаёт пользовательские таблицы
 - Доступ к приложению: клиент → `GET /api/app/:hash` → возвращает конфиг + последние appData (JWT обязателен при наличии пароля)
 - Чат в приложении: клиент → `POST /api/app/:hash/chat` → AI-сервис → опциональное обновление UI и/или памяти
 - История чата: восстанавливается при загрузке страницы через `GET /api/chat?sessionId=...&userId=...` / `GET /api/app/:hash/chat`
@@ -126,6 +129,7 @@ smailo/
 - Режим накопления: InputText/Form поддерживают `mode: "append"` — каждое сохранение добавляет элемент в массив
 - Удаление элемента: кнопка удаления в CardList → `POST /api/app/:hash/data` с `mode: "delete-item"` и `index`
 - Cron-задания: node-cron выполняет запланированные действия (log_entry, fetch_url, send_reminder, aggregate_data, compute) и записывает результаты в appData
+- Пользовательские таблицы: AI может определить структурированные таблицы при создании приложения; CRUD-операции доступны через эндпоинты `/api/app/:hash/tables` (создание/список/обновление/удаление таблиц, добавление/обновление/удаление строк)
 
 ### Безопасность
 

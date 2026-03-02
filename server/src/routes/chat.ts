@@ -259,15 +259,17 @@ chatRouter.post('/', limiter, async (req, res) => {
       await cronManager.addJobs(insertedAppId, validJobs);
     }
 
-    // Create user-defined tables after the transaction commits
+    // Create user-defined tables after the main transaction commits
     if (insertedAppId !== undefined && validTables.length > 0) {
-      for (const tableDef of validTables) {
-        await db.insert(userTables).values({
-          appId: insertedAppId,
-          name: tableDef.name,
-          columns: tableDef.columns,
-        });
-      }
+      db.transaction((tx) => {
+        for (const tableDef of validTables) {
+          tx.insert(userTables).values({
+            appId: insertedAppId!,
+            name: tableDef.name,
+            columns: tableDef.columns,
+          }).run();
+        }
+      });
     }
 
     return res.json({
