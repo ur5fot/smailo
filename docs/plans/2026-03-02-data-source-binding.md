@@ -131,14 +131,14 @@
 - [x] TypeScript compiles cleanly for both client and server
 
 ### Task 11: Verify acceptance criteria
-- [ ] Verify DataTable can display rows from a user-defined table via `dataSource`
-- [ ] Verify Form can write rows to a user-defined table via `dataSource`
-- [ ] Verify Chart can build graphs from table data via `dataSource`
-- [ ] Verify CardList can display table rows as cards with delete support
-- [ ] Verify existing apps with `dataKey` still work (backward compatibility)
-- [ ] Run full test suite
-- [ ] Server TypeScript compiles (`npm run build --workspace=server`)
-- [ ] Client TypeScript compiles (`npx vue-tsc --noEmit`)
+- [x] Verify DataTable can display rows from a user-defined table via `dataSource`
+- [x] Verify Form can write rows to a user-defined table via `dataSource`
+- [x] Verify Chart can build graphs from table data via `dataSource`
+- [x] Verify CardList can display table rows as cards with delete support
+- [x] Verify existing apps with `dataKey` still work (backward compatibility)
+- [x] Run full test suite
+- [x] Server TypeScript compiles (`npm run build --workspace=server`)
+- [x] Client TypeScript compiles (`npx vue-tsc --noEmit`)
 
 ### Task 12: [Final] Update documentation
 - [ ] Update `CLAUDE.md` — add dataSource to app config JSON shape, document table-binding in component descriptions
