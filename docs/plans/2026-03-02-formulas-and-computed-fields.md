@@ -61,7 +61,7 @@
 - [x] Run tests — must pass before next task
 
 ### Task 2: Formula evaluator — core operations
-- [ ] Create `server/src/utils/formula/evaluator.ts`:
+- [x] Create `server/src/utils/formula/evaluator.ts`:
   - `evaluate(ast: ASTNode, context: FormulaContext): unknown`
   - `FormulaContext` type: `{ row?: Record<string, unknown>; tables?: Record<string, { columns: ColumnDef[]; rows: RowData[] }> }`
   - Arithmetic: `+` (also string concatenation), `-`, `*`, `/`, `%`
@@ -72,9 +72,9 @@
   - Identifier resolution: look up in `context.row` first
   - MemberAccess: `a.b` → `context.row?.a?.b` or `context.tables?.a` (for aggregates)
   - Safety: max AST depth 20, recursion limit
-- [ ] Create public API: `evaluateFormula(formula: string, context: FormulaContext): unknown` — tokenize → parse → evaluate
-- [ ] Write tests for evaluator: arithmetic, comparisons, logic, variable resolution, division by zero, depth limit
-- [ ] Run tests — must pass before next task
+- [x] Create public API: `evaluateFormula(formula: string, context: FormulaContext): unknown` — tokenize → parse → evaluate
+- [x] Write tests for evaluator: arithmetic, comparisons, logic, variable resolution, division by zero, depth limit
+- [x] Run tests — must pass before next task
 
 ### Task 3: Built-in functions
 - [ ] Add function registry to evaluator:
