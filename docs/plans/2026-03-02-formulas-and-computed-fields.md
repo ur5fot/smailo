@@ -123,15 +123,15 @@
 - [x] Run tests — must pass before next task
 
 ### Task 7: computedValue on UI components
-- [ ] Add optional `computedValue?: string` to `UiComponent` type in `server/src/services/aiService.ts`
-- [ ] Update `validateUiComponents()`: if `computedValue` present, strip `= ` prefix and validate formula syntax
-- [ ] Update `GET /api/app/:hash/data` endpoint in `server/src/routes/app.ts`:
+- [x] Add optional `computedValue?: string` to `UiComponent` type in `server/src/services/aiService.ts`
+- [x] Update `validateUiComponents()`: if `computedValue` present, strip `= ` prefix and validate formula syntax
+- [x] Update `GET /api/app/:hash/data` endpoint in `server/src/routes/app.ts`:
   - Read app config to find components with `computedValue`
   - Fetch all referenced tables (by name from formulas)
   - Evaluate each formula with table context
   - Return `{ appData: [...], computedValues: Record<number, unknown> }` — key is component index in uiComponents array
-- [ ] Write tests for computedValue validation and evaluation endpoint
-- [ ] Run tests — must pass before next task
+- [x] Write tests for computedValue validation and evaluation endpoint
+- [x] Run tests — must pass before next task
 
 ### Task 8: Client integration
 - [ ] Add `computedValues` to app store (`client/src/stores/app.ts`):

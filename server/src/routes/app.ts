@@ -8,8 +8,10 @@ import { db } from '../db/index.js';
 import { apps, appData, chatHistory, userTables, userRows } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
 import { chatWithAI, validateUiComponents } from '../services/aiService.js';
+import type { UiComponent } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 import { requireAuthIfProtected, JWT_SECRET, type AuthenticatedRequest } from '../middleware/auth.js';
+import { extractReferencedTableNames, evaluateComputedValues } from '../utils/computedValues.js';
 
 type AppDataInsert = typeof appData.$inferInsert;
 type ChatHistoryInsert = typeof chatHistory.$inferInsert;
@@ -195,7 +197,53 @@ appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
 
     const data = await getLatestAppData(row.id);
 
-    return res.json({ appData: data });
+    // Evaluate computedValue formulas from UI components
+    const config = row.config as Record<string, unknown> | null;
+    const uiComponents = (config?.uiComponents ?? []) as UiComponent[];
+    const componentsWithComputed = uiComponents.filter(c => c.computedValue);
+
+    let computedValues: Record<number, unknown> | undefined;
+    if (componentsWithComputed.length > 0) {
+      try {
+        // Find which tables are referenced by the formulas
+        const tableNames = extractReferencedTableNames(uiComponents);
+
+        if (tableNames.size > 0) {
+          // Fetch referenced tables by name
+          const appTables = await db.select({
+            id: userTables.id,
+            name: userTables.name,
+            columns: userTables.columns,
+          }).from(userTables).where(eq(userTables.appId, row.id));
+
+          // Build tables context: map table name -> { columns, rows }
+          const tablesContext: Record<string, { columns: Array<{ name: string; type: string }>; rows: Array<Record<string, unknown>> }> = {};
+          for (const table of appTables) {
+            if (tableNames.has(table.name)) {
+              const rows = await db.select({
+                data: userRows.data,
+              }).from(userRows).where(eq(userRows.tableId, table.id));
+              tablesContext[table.name] = {
+                columns: table.columns as Array<{ name: string; type: string }>,
+                rows: rows.map(r => r.data as Record<string, unknown>),
+              };
+            }
+          }
+
+          computedValues = evaluateComputedValues(uiComponents, tablesContext);
+        } else {
+          // No table references, but formulas might use literals or non-table functions
+          computedValues = evaluateComputedValues(uiComponents, {});
+        }
+      } catch (err) {
+        console.error('[GET /api/app/:hash/data] computedValues error:', err);
+      }
+    }
+
+    return res.json({
+      appData: data,
+      ...(computedValues && Object.keys(computedValues).length > 0 ? { computedValues } : {}),
+    });
   } catch (error) {
     console.error('[GET /api/app/:hash/data] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });

@@ -31,6 +31,7 @@ export type UiComponent = {
   props: Record<string, unknown>;
   dataKey?: string;
   dataSource?: DataSource;
+  computedValue?: string;
   action?: { key: string; value?: unknown; mode?: 'append' };
   fields?: Array<{ name: string; type: string; label: string }>;
   outputKey?: string;
@@ -417,6 +418,29 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
       ) {
         item.dataSource = undefined;
       }
+
+      // Validate computedValue: strip "= " prefix and validate formula syntax
+      if (typeof item.computedValue === 'string') {
+        let formula = item.computedValue.trim();
+        if (formula.startsWith('= ')) {
+          formula = formula.slice(2).trim();
+        } else if (formula.startsWith('=')) {
+          formula = formula.slice(1).trim();
+        }
+        if (formula.length > 0) {
+          try {
+            parseFormula(formula);
+            item.computedValue = formula;
+          } catch {
+            item.computedValue = undefined;
+          }
+        } else {
+          item.computedValue = undefined;
+        }
+      } else {
+        item.computedValue = undefined;
+      }
+
       return item;
     })
     .slice(0, 20) as UiComponent[];
