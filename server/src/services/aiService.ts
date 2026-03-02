@@ -383,11 +383,16 @@ const TABLE_NAME_REGEX = /^[a-zA-Z\u0400-\u04FF][a-zA-Z0-9\u0400-\u04FF_ ]{0,99}
 
 export function validateTableDefs(tables: unknown[]): TableDef[] {
   if (!Array.isArray(tables)) return [];
+  const seenTableNames = new Set<string>();
   return tables
     .filter((t): t is Record<string, unknown> => {
       if (!t || typeof t !== 'object' || Array.isArray(t)) return false;
       const table = t as Record<string, unknown>;
       if (typeof table.name !== 'string' || !TABLE_NAME_REGEX.test(table.name.trim())) return false;
+      // Deduplicate table names
+      const trimmedTableName = (table.name as string).trim();
+      if (seenTableNames.has(trimmedTableName)) return false;
+      seenTableNames.add(trimmedTableName);
       if (!Array.isArray(table.columns) || table.columns.length === 0 || table.columns.length > 30) return false;
       const cols = table.columns as Record<string, unknown>[];
       const names = new Set<string>();

@@ -247,6 +247,11 @@ tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) 
       if (!TABLE_NAME_REGEX.test(trimmedUpdateName)) {
         return res.status(400).json({ error: 'Invalid table name' });
       }
+      // Check for duplicate table name within the same app (exclude current table)
+      const existing = await db.select({ id: userTables.id, name: userTables.name }).from(userTables).where(eq(userTables.appId, row.id));
+      if (existing.some((t) => t.name === trimmedUpdateName && t.id !== tableId)) {
+        return res.status(400).json({ error: 'A table with this name already exists' });
+      }
       updates.name = trimmedUpdateName;
     }
 
