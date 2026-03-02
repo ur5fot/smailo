@@ -1,6 +1,7 @@
 <template>
   <div class="app-renderer">
     <template v-for="(item, index) in uiConfig" :key="index">
+      <template v-if="shouldShow(item, index)">
       <!-- Card: PrimeVue Card uses slots, not props — use wrapper -->
       <AppCard
         v-if="item.component === 'Card'"
@@ -92,6 +93,7 @@
         :is="componentMap[item.component]"
         v-bind="resolvedProps(item, index)"
       />
+      </template>
     </template>
   </div>
 </template>
@@ -120,6 +122,8 @@ import AppCardList from './AppCardList.vue'
 import AppChart from './AppChart.vue'
 import { resolveDataKey } from '../utils/dataKey'
 import { useAppStore } from '../stores/app'
+import { buildFormulaContext } from '../utils/formulaContext'
+import { evaluateShowIf } from '../utils/showIf'
 
 interface UiConfigItem {
   component: string
@@ -131,6 +135,7 @@ interface UiConfigItem {
   fields?: Array<{ name: string; type: string; label: string }>
   outputKey?: string
   appendMode?: boolean
+  showIf?: string
 }
 
 const props = defineProps<{
@@ -144,6 +149,12 @@ const emit = defineEmits<{
 }>()
 
 const appStore = useAppStore()
+
+function shouldShow(item: UiConfigItem, _index: number): boolean {
+  if (!item.showIf) return true
+  const context = buildFormulaContext(props.appData)
+  return evaluateShowIf(item.showIf, context)
+}
 
 const componentMap: Record<string, any> = {
   Timeline,

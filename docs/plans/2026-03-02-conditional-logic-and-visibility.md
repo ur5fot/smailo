@@ -61,12 +61,12 @@
 
 ### Task 3: Клиентская логика showIf в AppRenderer
 Реактивное скрытие/показ компонентов на основе appData и tableData.
-- [ ] В `AppRenderer.vue` добавить функцию `buildFormulaContext()` — собирает контекст из `appStore.appData` и `appStore.tableData`
-- [ ] Добавить функцию `shouldShow(item, index): boolean` — вызывает `evaluateShowIf` с контекстом
-- [ ] Обернуть каждый компонент в шаблоне в `v-if="shouldShow(item, index)"`
-- [ ] Убедиться что компоненты без `showIf` всегда отображаются (default: true)
-- [ ] Написать тесты для `buildFormulaContext` (преобразование appData массива в Record)
-- [ ] Запустить тесты — должны проходить перед Task 4
+- [x] В `AppRenderer.vue` добавить функцию `buildFormulaContext()` — собирает контекст из `appStore.appData` и `appStore.tableData`
+- [x] Добавить функцию `shouldShow(item, index): boolean` — вызывает `evaluateShowIf` с контекстом
+- [x] Обернуть каждый компонент в шаблоне в `v-if="shouldShow(item, index)"`
+- [x] Убедиться что компоненты без `showIf` всегда отображаются (default: true)
+- [x] Написать тесты для `buildFormulaContext` (преобразование appData массива в Record)
+- [x] Запустить тесты — должны проходить перед Task 4
 
 ### Task 4: Клиентская логика styleIf в AppRenderer
 Условные CSS-классы на компонентах.
