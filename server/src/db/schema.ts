@@ -48,6 +48,26 @@ export const appData = sqliteTable('app_data', {
   appIdKeyIdx: index('app_data_app_id_key_idx').on(table.appId, table.key),
 }));
 
+export const userTables = sqliteTable('user_tables', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  appId: integer('app_id').notNull().references(() => apps.id),
+  name: text('name').notNull(),
+  columns: text('columns', { mode: 'json' }).notNull(), // Array<{ name, type, options? }>
+  createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+}, (table) => ({
+  appIdIdx: index('user_tables_app_id_idx').on(table.appId),
+}));
+
+export const userRows = sqliteTable('user_rows', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  tableId: integer('table_id').notNull().references(() => userTables.id, { onDelete: 'cascade' }),
+  data: text('data', { mode: 'json' }).notNull(), // Record<string, unknown> matching column defs
+  createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+}, (table) => ({
+  tableIdIdx: index('user_rows_table_id_idx').on(table.tableId),
+}));
+
 export const chatHistory = sqliteTable('chat_history', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   appId: integer('app_id').references(() => apps.id),

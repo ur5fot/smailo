@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { chatRouter } from './routes/chat.js';
 import { appRouter, pruneOldAppData } from './routes/app.js';
+import { tablesRouter } from './routes/tables.js';
 import { usersRouter } from './routes/users.js';
 import { cronManager } from './services/cronManager.js';
 
@@ -28,6 +29,7 @@ app.use(express.json({ limit: '50kb' }));
 
 app.use('/api/chat', chatRouter);
 app.use('/api/app', appRouter);
+app.use('/api/app/:hash/tables', tablesRouter);
 app.use('/api/users', usersRouter);
 
 cronManager.loadAll().catch((err) => {

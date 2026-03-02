@@ -57,7 +57,7 @@ Users first get a `userId` (10-char nanoid stored in `localStorage` as `smailo_u
 
 1. **brainstorm** — AI asks clarifying questions about the app idea
 2. **confirm** — AI returns an `appConfig` JSON for the user to review
-3. **created** — user confirms; server creates the app row, generates a 64-char hex `hash`, and schedules cron jobs; `userId` is saved in `apps.userId`
+3. **created** — user confirms; server creates the app row, generates a 64-char hex `hash`, schedules cron jobs, and creates user-defined tables; `userId` is saved in `apps.userId`
 
 Once created, the app lives at `/:userId/:hash`. The old `/app/:hash` route is kept for backward compatibility. Inside the app, a separate **chat** phase (`POST /api/app/:hash/chat`) lets the user update the UI layout via `uiUpdate`.
 
@@ -73,7 +73,7 @@ Provider is selected at runtime via `AI_PROVIDER` env var (`anthropic` or `deeps
 
 ### App config JSON shape
 
-The AI generates and the server stores configs in this shape (cronJobs are stored separately in the `cron_jobs` table, not in `apps.config`):
+The AI generates and the server stores configs in this shape (cronJobs are stored separately in the `cron_jobs` table; tables are stored in the `user_tables` table — neither is kept in `apps.config`):
 
 ```ts
 {
@@ -133,7 +133,7 @@ All cron expressions must be 5-field only (no seconds). Minimum frequency: every
 
 ### Database (`server/src/db/schema.ts`)
 
-Five tables, all using Drizzle ORM with SQLite via better-sqlite3:
+Seven tables, all using Drizzle ORM with SQLite via better-sqlite3:
 
 | Table | Purpose |
 |---|---|
@@ -142,12 +142,16 @@ Five tables, all using Drizzle ORM with SQLite via better-sqlite3:
 | `cron_jobs` | Automation jobs per app; `config` is action-specific JSON |
 | `app_data` | Append-only log of key/value entries written by cron jobs and user input components (Button, InputText, Form); queries always get latest row per key; auto-pruned to 100 rows per key on startup and hourly |
 | `chat_history` | Full chat history; home chat rows have `appId = NULL`; in-app rows use `sessionId = 'app-<hash>'` |
+| `user_tables` | User-defined table schemas per app; `columns` is JSON array of `{ name, type, required?, options? }`. Max 20 tables per app, max 30 columns per table |
+| `user_rows` | Row data for user-defined tables; `data` is JSON object matching column definitions. FK cascade-deletes when table is deleted. Max 10,000 rows per table |
 
 ### Auth
 
 Password-protected apps use bcrypt (cost 12) + JWT (7d expiry). A one-time `creationToken` (SHA-256 stored, plaintext returned once at creation) gates the `set-password` endpoint to prevent race-condition hijacking. JWT is stored per-app in `localStorage` under key `smailo_token_<hash>`; the Axios interceptor selects the correct token by extracting the hash from the request URL. The `creationToken` is stored in `sessionStorage` (lost on tab close) — users must set a password before closing the tab if they want password protection. `GET /api/app/:hash` strips `cronJobs` from `apps.config` before returning to the client.
 
-Unprotected apps (no password) use ownership verification via `X-User-Id` header for write operations (POST). The Axios interceptor sends this header automatically from `localStorage`. Apps without a `userId` (legacy) skip this check for backward compatibility. Read operations remain open to anyone with the hash.
+Unprotected apps (no password) use ownership verification via `X-User-Id` header for write operations (POST, PUT, DELETE). The Axios interceptor sends this header automatically from `localStorage`. Apps without a `userId` (legacy) skip this check for backward compatibility. Read operations remain open to anyone with the hash.
+
+Auth middleware (`requireAuthIfProtected`) is extracted to `server/src/middleware/auth.ts` and shared between `app.ts` and `tables.ts`.
 
 ### User-triggered data writes (`POST /api/app/:hash/data`)
 
@@ -164,12 +168,34 @@ Input components write to `appData` directly without AI involvement:
 
 Returns `{ appData: [...] }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`. Shared query logic lives in `server/src/db/queries.ts`.
 
+### User-defined tables (`server/src/routes/tables.ts`)
+
+Structured relational data storage alongside the flat KV `app_data`. Tables are defined with typed columns and support CRUD operations. The AI can generate table definitions during app creation (via `tables` array in `appConfig`), and tables are also manageable via API.
+
+Column types: `text`, `number`, `date`, `boolean`, `select` (with `options` array).
+Column names: must start with letter, alphanumeric + underscore, max 50 chars (`/^[a-zA-Z][a-zA-Z0-9_]{0,49}$/`).
+Table names: can include Cyrillic and spaces, max 100 chars.
+
+API endpoints (all under `/api/app/:hash/tables`, protected by `requireAuthIfProtected`):
+- `POST /` — create table: `{ name, columns: [{ name, type, required?, options? }] }`
+- `GET /` — list all tables for the app
+- `GET /:tableId` — get table schema + all rows
+- `PUT /:tableId` — update table schema (name and/or columns)
+- `DELETE /:tableId` — delete table and all rows (cascade)
+- `POST /:tableId/rows` — add row: `{ data: { col1: val1, ... } }` (validated against column types)
+- `PUT /:tableId/rows/:rowId` — update row
+- `DELETE /:tableId/rows/:rowId` — delete row
+
+The `GET /api/app/:hash` endpoint returns table schemas in the `tables` field alongside `appData`.
+Auth middleware (`server/src/middleware/auth.ts`) is shared between `app.ts` and `tables.ts`; it checks JWT for password-protected apps and `X-User-Id` ownership for unprotected apps on write operations (POST, PUT, DELETE).
+
 ### Rate limits
 
 - `POST /api/chat` and `POST /api/app/:hash/chat`: 30 req/min
 - `POST /api/app/:hash/data`: 30 req/min (same limiter as chat)
 - `POST /api/app/:hash/verify` and `set-password`: 5 req/min
 - All `/api/users` routes: 30 req/min
+- All `/api/app/:hash/tables` write routes: 30 req/min
 
 ### Client state
 

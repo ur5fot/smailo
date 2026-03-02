@@ -1,22 +1,18 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request } from 'express';
 import rateLimit from 'express-rate-limit';
 import { createHash, timingSafeEqual } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { apps, appData, chatHistory } from '../db/schema.js';
+import { apps, appData, chatHistory, userTables } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
 import { chatWithAI, validateUiComponents } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
+import { requireAuthIfProtected, JWT_SECRET, type AuthenticatedRequest } from '../middleware/auth.js';
 
-type AppRow = typeof apps.$inferSelect;
 type AppDataInsert = typeof appData.$inferInsert;
 type ChatHistoryInsert = typeof chatHistory.$inferInsert;
-
-interface AuthenticatedRequest extends Request {
-  app_row?: AppRow;
-}
 
 export const appRouter = Router();
 
@@ -49,65 +45,6 @@ const chatLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const JWT_SECRET: string = (() => {
-  const v = process.env.JWT_SECRET;
-  if (!v) throw new Error('JWT_SECRET env var is not set');
-  return v;
-})();
-
-// Middleware: verify JWT if the app has a password
-async function requireAuthIfProtected(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    const hash = req.params['hash'] as string;
-
-    const [row] = await db.select().from(apps).where(eq(apps.hash, hash));
-    if (!row) {
-      res.status(404).json({ error: 'App not found' });
-      return;
-    }
-
-    (req as AuthenticatedRequest).app_row = row;
-
-    if (!row.passwordHash) {
-      // For write operations on unprotected apps, verify userId ownership
-      // so that only the app creator can modify data. Read ops remain open.
-      if (req.method === 'POST' && row.userId) {
-        const headerUserId = req.headers['x-user-id'];
-        if (headerUserId !== row.userId) {
-          res.status(403).json({ error: 'Not the owner of this app' });
-          return;
-        }
-      }
-      next();
-      return;
-    }
-
-    const authHeader = req.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    const token = authHeader.slice(7);
-    try {
-      const payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
-      if (payload.hash !== hash) {
-        res.status(401).json({ error: 'Invalid token for this app' });
-        return;
-      }
-      next();
-    } catch {
-      res.status(401).json({ error: 'Invalid or expired token' });
-    }
-  } catch (error) {
-    console.error('[requireAuthIfProtected] Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
 
 // GET /api/app/:hash
 appRouter.get('/:hash', requireAuthIfProtected, async (req, res) => {
@@ -123,6 +60,14 @@ appRouter.get('/:hash', requireAuthIfProtected, async (req, res) => {
     // Fetch latest appData (most recent entry per key, deduplicated)
     const data = await getLatestAppData(row.id);
 
+    // Fetch user-defined table schemas
+    const tables = await db.select({
+      id: userTables.id,
+      name: userTables.name,
+      columns: userTables.columns,
+      createdAt: userTables.createdAt,
+    }).from(userTables).where(eq(userTables.appId, row.id));
+
     // Return app config + appData; strip server-side-only cronJobs from the config
     // to avoid exposing fetch_url targets and automation configs to the browser.
     const { cronJobs: _cronJobs, ...clientConfig } = (row.config as Record<string, unknown>) ?? {};
@@ -134,6 +79,7 @@ appRouter.get('/:hash', requireAuthIfProtected, async (req, res) => {
       config: clientConfig,
       createdAt: row.createdAt,
       appData: data,
+      tables,
     });
   } catch (error) {
     console.error('[GET /api/app/:hash] Error:', error);
@@ -412,12 +358,18 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       content: r.content,
     }));
 
-    // Build app context for the AI (config + latest data + notes memory)
+    // Build app context for the AI (config + latest data + notes memory + table schemas)
     const latestData = await getLatestAppData(row.id);
+    const appTables = await db.select({
+      id: userTables.id,
+      name: userTables.name,
+      columns: userTables.columns,
+    }).from(userTables).where(eq(userTables.appId, row.id));
     const appContext = {
       config: row.config,
       data: latestData.map((r) => ({ key: r.key, value: r.value })),
       notes: row.notes ?? undefined,
+      tables: appTables.length > 0 ? appTables : undefined,
     };
 
     const messages = [...previousMessages, { role: 'user' as const, content: message }];

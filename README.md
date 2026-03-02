@@ -138,6 +138,21 @@ smailo/
 - **Prompt injection containment**: User-generated app memory is wrapped in XML delimiters before injection into AI prompts
 - **Cron job validation**: Action-specific config objects are validated per type before storage (e.g., `fetch_url` requires HTTPS URL)
 
+### Roadmap
+
+Smailo is evolving from a data dashboard builder into a low-code app platform. The transformation is happening in stages, each self-contained and backward-compatible:
+
+1. **User-defined tables** — relational data storage with typed columns (text, number, date, boolean, select)
+2. **Table data binding** — connect UI components to table data with filtering and sorting
+3. **Formula engine** — computed columns and aggregate functions (SUM, AVG, COUNT)
+4. **Conditional logic** — show/hide components based on data conditions
+5. **Multi-page apps** — multiple pages with shared data and navigation
+6. **Event system** — action chains triggered by user interactions
+7. **Visual editor** — drag-and-drop UI builder alongside the AI chat
+8. **Multi-user access** — roles, permissions, and shared apps
+
+See [docs/roadmap-v2.md](docs/roadmap-v2.md) for the full plan.
+
 ### Key Technologies
 
 - Frontend: Vue 3, Pinia, Vue Router, PrimeVue 4 (Aura theme), GSAP, Axios
