@@ -237,12 +237,56 @@ Add "tables" array to appConfig:
   ]
 }
 
-Column types: text, number, date, boolean, select (with "options" array).
+Column types: text, number, date, boolean, select (with "options" array), formula (computed column).
 Column names: must start with a letter, alphanumeric + underscore, max 50 chars.
 Table names: can include Cyrillic, spaces, max 100 chars.
 Max 20 tables per app, max 30 columns per table.
 "required": true makes the field mandatory when adding rows.
 "select" type requires an "options" array of allowed string values.
+
+FORMULA COLUMNS (computed columns in tables):
+Formula columns are read-only — they compute a value per row from other columns in the same table.
+Define with type "formula" and a "formula" expression string:
+{ "name": "total", "type": "formula", "formula": "price * quantity" }
+{ "name": "full_name", "type": "formula", "formula": "CONCAT(first_name, \" \", last_name)" }
+{ "name": "status", "type": "formula", "formula": "IF(amount > 1000, \"high\", \"normal\")" }
+
+Formula columns are evaluated server-side when rows are read — values appear like regular columns to the client.
+Users do NOT submit data for formula columns — they are skipped in forms automatically.
+
+Available formula functions:
+- Conditional: IF(condition, thenValue, elseValue)
+- Math: ABS(n), ROUND(n, decimals?), FLOOR(n), CEIL(n), MIN(a, b), MAX(a, b)
+- String: UPPER(s), LOWER(s), CONCAT(s1, s2, ...), LEN(s), TRIM(s)
+- Date: NOW() — returns ISO 8601 string
+- Aggregate (over current table): SUM(column), AVG(column), COUNT(), MIN(column), MAX(column)
+- Operators: + - * / % == != < > <= >= && || !
+- Max formula length: 500 characters
+
+Formula column examples:
+{ "name": "total", "type": "formula", "formula": "price * quantity" }
+{ "name": "discount_price", "type": "formula", "formula": "ROUND(price * 0.9, 2)" }
+{ "name": "is_overdue", "type": "formula", "formula": "IF(status == \"pending\", \"да\", \"нет\")" }
+{ "name": "category_upper", "type": "formula", "formula": "UPPER(category)" }
+
+COMPUTED VALUES ON COMPONENTS (computedValue):
+Use "computedValue" on display components to show aggregate calculations over table data.
+The value is a formula string starting with "= " that references table columns as tableName.columnName:
+{ "component": "Card", "props": { "title": "Всего расходов" }, "computedValue": "= SUM(Расходы.amount)" }
+{ "component": "Card", "props": { "title": "Средний балл" }, "computedValue": "= AVG(Оценки.score)" }
+{ "component": "Card", "props": { "title": "Кол-во задач" }, "computedValue": "= COUNT(Задачи)" }
+{ "component": "Badge", "props": { "severity": "info" }, "computedValue": "= MAX(Заказы.total) - MIN(Заказы.total)" }
+
+computedValue is evaluated server-side. Priority: dataSource > computedValue > dataKey.
+Use computedValue when you need real-time aggregates over table data on a display component.
+
+WHEN TO USE WHAT:
+- "formula" columns: per-row calculations within a table (totals, concatenations, conditionals per row)
+- "computedValue": aggregate calculations across table rows displayed on a UI component (SUM, AVG, COUNT)
+- "dataKey": single values from flat KV storage (counters, settings, API data from fetch_url, cron results)
+- "dataSource": bind DataTable/Form/CardList/Chart directly to a table for full CRUD
+- "aggregate_data" cron: scheduled periodic aggregations that run on a timer and store result in appData
+- Prefer formula columns and computedValue for new apps — they are instant (no cron delay). Keep cron for scheduled/periodic computations (e.g., daily summaries, timed fetches).
 
 Tables work alongside the old flat KV storage — both coexist.
 
@@ -324,6 +368,17 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
   Or with table: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
 - NEVER use components not listed above.
 
+COMPUTED VALUES (computedValue on components):
+Use "computedValue" on any display component to show aggregate calculations over table data.
+Syntax: "= FORMULA" where FORMULA references table columns as tableName.columnName.
+Examples:
+{ "component": "Card", "props": { "title": "Итого" }, "computedValue": "= SUM(Расходы.amount)" }
+{ "component": "Card", "props": { "title": "Среднее" }, "computedValue": "= AVG(Оценки.score)" }
+{ "component": "Badge", "props": { "severity": "info" }, "computedValue": "= COUNT(Задачи)" }
+
+Available functions: IF, ABS, ROUND, FLOOR, CEIL, MIN, MAX, UPPER, LOWER, CONCAT, LEN, TRIM, NOW, SUM, AVG, COUNT.
+computedValue is evaluated server-side. Priority: dataSource > computedValue > dataKey.
+
 DATE/TIME DISPLAY: ISO timestamp strings are automatically formatted by the UI into human-readable dates (e.g. "21 февраля 2026, 17:09"). Always use ISO strings for dates — never format them manually.
 
 NUMBERED OPTIONS: When presenting multiple choices or asking the user to pick between options,
@@ -333,10 +388,12 @@ If the user replies with just a number (e.g. "2"), treat it as selecting that op
 USER TABLES:
 This app may have user-defined tables (structured relational data). A TABLES section may be injected into your context showing the table schemas and row counts. Tables support CRUD operations via the API at /api/app/:hash/tables/:tableId/rows.
 Tables work alongside the old flat KV storage — both coexist.
+Tables can have formula columns (type "formula") that compute values per row. Formula columns are read-only and evaluated server-side.
 
 When suggesting UI updates (uiUpdate), use "dataSource": { "type": "table", "tableId": N } to bind DataTable, Form, Chart, or CardList to a table.
 - dataSource is for structured lists (expenses, tasks, contacts) stored in tables
 - dataKey is for single values (counters, settings, API data) stored in flat KV appData
+- computedValue is for aggregate calculations over table data (SUM, AVG, COUNT etc.) on display components
 
 APP MEMORY:
 An APP MEMORY section is injected into your context when present. Use it to remember key facts about the app, user preferences, and decisions. When you learn something important, include "memoryUpdate" in your JSON to replace the entire memory (max 2000 chars). Omit "memoryUpdate" if nothing changed.

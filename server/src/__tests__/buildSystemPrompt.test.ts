@@ -162,6 +162,86 @@ describe('buildSystemPrompt', () => {
     })
   })
 
+  describe('brainstorm prompt includes formula documentation', () => {
+    it('documents formula column type with syntax', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('FORMULA COLUMNS')
+      expect(prompt).toContain('"type": "formula"')
+      expect(prompt).toContain('"formula"')
+    })
+
+    it('lists available formula functions', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('IF(condition, thenValue, elseValue)')
+      expect(prompt).toContain('SUM(column)')
+      expect(prompt).toContain('AVG(column)')
+      expect(prompt).toContain('COUNT()')
+      expect(prompt).toContain('ABS(n)')
+      expect(prompt).toContain('ROUND(n, decimals?)')
+      expect(prompt).toContain('UPPER(s)')
+      expect(prompt).toContain('LOWER(s)')
+      expect(prompt).toContain('CONCAT(s1, s2, ...)')
+      expect(prompt).toContain('NOW()')
+    })
+
+    it('includes formula column examples', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('price * quantity')
+      expect(prompt).toContain('ROUND(price * 0.9, 2)')
+    })
+
+    it('documents computedValue on components', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('COMPUTED VALUES ON COMPONENTS')
+      expect(prompt).toContain('computedValue')
+      expect(prompt).toContain('= SUM(')
+      expect(prompt).toContain('= AVG(')
+      expect(prompt).toContain('= COUNT(')
+    })
+
+    it('provides guidance on when to use formulas vs cron', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('WHEN TO USE WHAT')
+      expect(prompt).toContain('formula')
+      expect(prompt).toContain('computedValue')
+      expect(prompt).toContain('aggregate_data')
+      expect(prompt).toContain('Prefer formula columns and computedValue for new apps')
+    })
+
+    it('includes formula in column types list', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toMatch(/Column types:.*formula/)
+    })
+  })
+
+  describe('chat prompt includes formula documentation', () => {
+    it('documents computedValue syntax', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('COMPUTED VALUES')
+      expect(prompt).toContain('computedValue')
+      expect(prompt).toContain('= SUM(')
+    })
+
+    it('lists available formula functions', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('IF')
+      expect(prompt).toContain('SUM')
+      expect(prompt).toContain('AVG')
+      expect(prompt).toContain('COUNT')
+      expect(prompt).toContain('ROUND')
+    })
+
+    it('mentions formula columns in tables section', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('formula columns')
+    })
+
+    it('includes computedValue in data binding options', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('computedValue is for aggregate calculations')
+    })
+  })
+
   describe('non-chat phases ignore app context', () => {
     it('brainstorm phase does not append app context even if provided', () => {
       const context: AppContext = {

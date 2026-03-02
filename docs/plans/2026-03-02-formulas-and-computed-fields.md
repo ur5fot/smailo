@@ -147,17 +147,17 @@
 - [x] TypeScript compiles cleanly for both client and server
 
 ### Task 9: AI prompt updates
-- [ ] Update `BRAINSTORM_SYSTEM_PROMPT` in `aiService.ts`:
+- [x] Update `BRAINSTORM_SYSTEM_PROMPT` in `aiService.ts`:
   - Document formula column type: `{ name: "total", type: "formula", formula: "price * quantity" }`
   - Document computedValue on components: `computedValue: "= SUM(expenses.amount)"`
   - List available functions: IF, UPPER, LOWER, CONCAT, LEN, TRIM, ABS, ROUND, FLOOR, CEIL, MIN, MAX, NOW, SUM, AVG, COUNT
   - Examples for common patterns: totals, averages, conditional values, string formatting
   - Guidance: when to use formula columns vs computedValue vs cron aggregate_data
-- [ ] Update `IN_APP_SYSTEM_PROMPT`:
+- [x] Update `IN_APP_SYSTEM_PROMPT`:
   - Add formula syntax to uiUpdate component guide
   - Document computedValue as alternative to dataKey
-- [ ] Write tests verifying prompt includes formula documentation
-- [ ] Run tests — must pass before next task
+- [x] Write tests verifying prompt includes formula documentation
+- [x] Run tests — must pass before next task
 
 ### Task 10: Backward compatibility with compute cron
 - [ ] Verify existing `compute` cron job (date_diff) still works unchanged
