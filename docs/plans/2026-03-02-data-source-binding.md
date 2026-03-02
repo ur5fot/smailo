@@ -141,9 +141,9 @@
 - [x] Client TypeScript compiles (`npx vue-tsc --noEmit`)
 
 ### Task 12: [Final] Update documentation
-- [ ] Update `CLAUDE.md` — add dataSource to app config JSON shape, document table-binding in component descriptions
-- [ ] Update `README.md` and `README.ru.md` — mention Stage 2 table binding in features
-- [ ] Update `docs/roadmap-v2.md` — mark Stage 2 as completed
+- [x] Update `CLAUDE.md` — add dataSource to app config JSON shape, document table-binding in component descriptions
+- [x] Update `README.md` and `README.ru.md` — mention Stage 2 table binding in features
+- [x] Update `docs/roadmap-v2.md` — mark Stage 2 as completed
 
 ## Technical Details
 

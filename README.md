@@ -67,8 +67,8 @@ smailo/
 │       │   ├── AppDataTable.vue  # DataTable wrapper (auto-generates columns)
 │       │   ├── AppButton.vue     # Clickable button that writes to appData
 │       │   ├── AppInputText.vue  # Text/number/date input with Save button
-│       │   ├── AppForm.vue       # Multi-field form that writes a combined object
-│       │   ├── AppCardList.vue   # Dynamic card-per-item list from appData array (with delete)
+│       │   ├── AppForm.vue       # Multi-field form that writes to appData or table rows
+│       │   ├── AppCardList.vue   # Card-per-item list from appData array or table rows (with delete)
 │       │   ├── AppAccordion.vue  # Accordion wrapper for collapsible sections
 │       │   ├── AppPanel.vue      # Panel wrapper with header slot
 │       │   └── AppTabs.vue       # Tabs wrapper showing data per tab
@@ -83,7 +83,8 @@ smailo/
 │       ├── utils/
 │       │   ├── format.ts         # Shared formatIfDate utility (ISO → localized RU date)
 │       │   ├── markdown.ts       # Shared renderMd (marked + DOMPurify)
-│       │   └── dataKey.ts        # Shared resolveDataKey with prototype-pollution guard
+│       │   ├── dataKey.ts        # Shared resolveDataKey with prototype-pollution guard
+│       │   └── chartData.ts     # buildChartDataFromTable utility for table→Chart.js conversion
 │       ├── api/index.ts          # Axios instance with JWT + X-User-Id interceptor
 │       └── router/index.ts       # Vue Router with regex-constrained params
 │
@@ -130,6 +131,7 @@ smailo/
 - Delete item: CardList delete button → `POST /api/app/:hash/data` with `mode: "delete-item"` + `index`
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data, compute) and writes results to appData
 - User-defined tables: AI can define structured tables during app creation; CRUD operations available via `/api/app/:hash/tables` endpoints (create/list/update/delete tables, add/update/delete rows)
+- Table data binding: components with `dataSource: { type: "table", tableId }` bind directly to table data — DataTable/CardList display rows, Form writes rows, Chart builds graphs from table data
 
 ### Security
 
@@ -146,8 +148,8 @@ smailo/
 
 Smailo is evolving from a data dashboard builder into a low-code app platform. The transformation is happening in stages, each self-contained and backward-compatible:
 
-1. **User-defined tables** — relational data storage with typed columns (text, number, date, boolean, select)
-2. **Table data binding** — connect UI components to table data with filtering and sorting
+1. **User-defined tables** — relational data storage with typed columns (text, number, date, boolean, select) ✅
+2. **Table data binding** — bind DataTable, Form, Chart, and CardList to table data via `dataSource` ✅
 3. **Formula engine** — computed columns and aggregate functions (SUM, AVG, COUNT)
 4. **Conditional logic** — show/hide components based on data conditions
 5. **Multi-page apps** — multiple pages with shared data and navigation

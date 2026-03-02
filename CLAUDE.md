@@ -28,7 +28,7 @@ npm run build --workspace=server
 npx vue-tsc --workspace=client
 ```
 
-There are no tests. There is no linter configured.
+Server tests use vitest (`npm test --workspace=server`). There is no linter configured.
 
 ## Architecture
 
@@ -83,8 +83,10 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     component: 'Card' | 'DataTable' | 'Chart' | 'Timeline' | 'Knob' | 'Tag' | 'ProgressBar' | 'Calendar'
              | 'Button' | 'InputText' | 'Form'
              | 'Accordion' | 'Panel' | 'Chip' | 'Badge' | 'Slider' | 'Rating' | 'Tabs' | 'Image' | 'MeterGroup'
+             | 'CardList'
     props: Record<string, unknown>  // component-specific, no 'on*' props
     dataKey?: string                // key into appData to bind as value/data prop
+    dataSource?: { type: 'table'; tableId: number }  // bind to user-defined table (alternative to dataKey)
     // Input component fields (top-level, NOT inside props):
     action?: { key: string; value?: unknown }  // Button: fixed value; InputText: value from user input
     fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only; `name` must match /^[a-zA-Z0-9_]{1,100}$/ and 'timestamp' is reserved (auto-injected)
@@ -95,8 +97,8 @@ The AI generates and the server stores configs in this shape (cronJobs are store
 
 ### Dynamic UI rendering (`client/src/components/AppRenderer.vue`)
 
-Iterates `uiConfig` array and renders each component dynamically. Eight components use dedicated wrappers:
-- `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue` (data display)
+Iterates `uiConfig` array and renders each component dynamically. Nine components use dedicated wrappers:
+- `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue`, `CardList` → `AppCardList.vue` (data display)
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
 - `Accordion` → `AppAccordion.vue`, `Panel` → `AppPanel.vue`, `Tabs` → `AppTabs.vue` (slot-based layout)
 
@@ -117,6 +119,14 @@ Props starting with `on` are stripped **client-side only** (in `resolvedProps`);
 New display-only components: `Chip` (label tag), `Badge` (numeric badge with severity), `Slider` (read-only range slider), `Rating` (star display), `Image` (image from URL), `MeterGroup` (multi-segment progress). `Accordion` and `Tabs` use `props.tabs` array (each item: `{ header, dataKey }`) instead of top-level `dataKey`. `Panel` uses top-level `dataKey` (bound to `value` prop) plus `props.header` and `props.toggleable`.
 
 The server validates and truncates `uiComponents` to a maximum of 20 items after filtering invalid ones.
+
+`dataSource` is an alternative to `dataKey` for binding components to user-defined tables. When `dataSource: { type: 'table', tableId }` is present, it takes priority over `dataKey`. Four components support table binding:
+- `DataTable` — auto-generates columns from table schema, fetches and displays rows
+- `Form` — auto-generates form fields from table schema columns (text→InputText, number→InputNumber, date→DatePicker, boolean→Checkbox, select→Dropdown), submits rows via `POST /api/app/:hash/tables/:tableId/rows`
+- `CardList` — displays table rows as cards with key-value pairs per column, supports row deletion via `DELETE /api/app/:hash/tables/:tableId/rows/:rowId`
+- `Chart` — builds Chart.js data from table rows (first column as labels, numeric columns as datasets) via `buildChartDataFromTable()` utility (`client/src/utils/chartData.ts`)
+
+Table data is cached in the `app.ts` store (`tableData` map keyed by tableId). Rows are fetched on demand when a component with `dataSource` first renders. After Form writes or CardList deletes a row, `appStore.refreshTable()` is called to update all bound components.
 
 Input wrapper components call `POST /api/app/:hash/data` on user interaction and emit `'data-written'`, which bubbles up through `AppRenderer` to `AppView.vue`, triggering `appStore.fetchData(hash)` to refresh displayed data.
 
@@ -202,7 +212,7 @@ Auth middleware (`server/src/middleware/auth.ts`) is shared between `app.ts` and
 Three Pinia stores:
 - `user.ts` — user identity: `userId`, list of user's apps; methods: `createUser()`, `fetchApps(userId)`
 - `chat.ts` — creation chat state: messages array, current phase, appHash after creation
-- `app.ts` — per-app state: app config, appData map, auth token, in-app chat messages
+- `app.ts` — per-app state: app config, appData map, tableData cache (table rows keyed by tableId), auth token, in-app chat messages
 
 Three views:
 - `HomeView.vue` — minimal landing: create new userId or enter existing one; no chat
