@@ -112,6 +112,7 @@ interface UiConfigItem {
   component: string
   props: Record<string, any>
   dataKey?: string
+  dataSource?: { type: 'table'; tableId: number }
   action?: { key: string; value?: unknown; mode?: 'append' }
   fields?: Array<{ name: string; type: string; label: string }>
   outputKey?: string

@@ -46,11 +46,11 @@
 - [x] Run tests — must pass before next task
 
 ### Task 2: Add `dataSource` type and validation to server
-- [ ] Extend `UiComponent` type in `aiService.ts` with optional `dataSource?: { type: 'table'; tableId: number }`
-- [ ] Update `validateUiComponents()` to validate `dataSource` field: if present, must have `type === 'table'` and `tableId` must be a positive integer; drop invalid dataSource (set to undefined) rather than rejecting the entire component
-- [ ] Update `UiConfigItem` interface in `AppRenderer.vue` to include `dataSource`
-- [ ] Write tests for `validateUiComponents()` with dataSource (valid, invalid, missing)
-- [ ] Run tests — must pass before next task
+- [x] Extend `UiComponent` type in `aiService.ts` with optional `dataSource?: { type: 'table'; tableId: number }`
+- [x] Update `validateUiComponents()` to validate `dataSource` field: if present, must have `type === 'table'` and `tableId` must be a positive integer; drop invalid dataSource (set to undefined) rather than rejecting the entire component
+- [x] Update `UiConfigItem` interface in `AppRenderer.vue` to include `dataSource`
+- [x] Write tests for `validateUiComponents()` with dataSource (valid, invalid, missing)
+- [x] Run tests — must pass before next task
 
 ### Task 3: Update AI system prompts for dataSource
 - [ ] Update `BRAINSTORM_SYSTEM_PROMPT` — add dataSource documentation for DataTable, Form, Chart, CardList components; remove "coming in a future update" note from tables section

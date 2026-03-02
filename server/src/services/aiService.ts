@@ -20,10 +20,16 @@ export type CronJobConfig = {
   config: Record<string, unknown>;
 };
 
+export type DataSource = {
+  type: 'table';
+  tableId: number;
+};
+
 export type UiComponent = {
   component: string;
   props: Record<string, unknown>;
   dataKey?: string;
+  dataSource?: DataSource;
   action?: { key: string; value?: unknown; mode?: 'append' };
   fields?: Array<{ name: string; type: string; label: string }>;
   outputKey?: string;
@@ -373,6 +379,20 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
       }
 
       return true;
+    })
+    .map((item) => {
+      // Validate dataSource: if present but invalid, drop it (set to undefined)
+      const ds = item.dataSource as Record<string, unknown> | null | undefined;
+      if (ds === null || ds === undefined) {
+        item.dataSource = undefined;
+      } else if (
+        typeof ds !== 'object' || Array.isArray(ds) ||
+        ds.type !== 'table' ||
+        typeof ds.tableId !== 'number' || !Number.isInteger(ds.tableId) || ds.tableId <= 0
+      ) {
+        item.dataSource = undefined;
+      }
+      return item;
     })
     .slice(0, 20) as UiComponent[];
 }
