@@ -6,6 +6,7 @@ import { userTables, userRows } from '../db/schema.js';
 import { requireAuthIfProtected, type AuthenticatedRequest } from '../middleware/auth.js';
 import { isValidColumnDef, validateRowData } from '../utils/tableValidation.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
+import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
 
 export const tablesRouter = Router({ mergeParams: true });
 
@@ -64,6 +65,7 @@ tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
       const result: ColumnDef = { name: c.name, type: c.type };
       if (c.required === true) result.required = true;
       if (c.type === 'select' && Array.isArray(c.options)) result.options = c.options;
+      if (c.type === 'formula' && typeof c.formula === 'string') result.formula = c.formula;
       return result;
     });
 
@@ -116,16 +118,25 @@ tablesRouter.get('/:tableId', requireAuthIfProtected, async (req, res) => {
       return res.status(404).json({ error: 'Table not found' });
     }
 
-    const rows = await db.select().from(userRows)
+    const dbRows = await db.select().from(userRows)
       .where(eq(userRows.tableId, tableId))
       .orderBy(desc(userRows.createdAt));
+
+    const columns = table.columns as ColumnDef[];
+    const mappedRows = dbRows.map((r) => ({
+      id: r.id,
+      data: r.data as Record<string, unknown>,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
+    const rowsWithFormulas = evaluateFormulaColumns(mappedRows, columns);
 
     return res.json({
       id: table.id,
       name: table.name,
       columns: table.columns,
       createdAt: table.createdAt,
-      rows: rows.map((r) => ({ id: r.id, data: r.data, createdAt: r.createdAt, updatedAt: r.updatedAt })),
+      rows: rowsWithFormulas,
     });
   } catch (error) {
     console.error('[GET /tables/:tableId] Error:', error);
@@ -183,6 +194,7 @@ tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) 
         const result: ColumnDef = { name: c.name, type: c.type };
         if (c.required === true) result.required = true;
         if (c.type === 'select' && Array.isArray(c.options)) result.options = c.options;
+        if (c.type === 'formula' && typeof c.formula === 'string') result.formula = c.formula;
         return result;
       });
     }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { isValidColumnDef, validateRowData, COLUMN_TYPES } from '../utils/tableValidation.js'
 import type { ColumnDef } from '../utils/tableValidation.js'
+import { evaluateFormulaColumns } from '../utils/formulaColumns.js'
 
 describe('isValidColumnDef', () => {
   it('accepts valid text column', () => {
@@ -610,5 +611,184 @@ describe('DELETE /api/app/:hash/tables/:tableId/rows/:rowId — response contrac
     // Null/undefined values are rendered as "—"
     const nullableRow = { title: 'Test', amount: null, done: false, date: null }
     expect(nullableRow.amount).toBeNull() // rendered as "—"
+  })
+})
+
+describe('evaluateFormulaColumns', () => {
+  function makeRow(id: number, data: Record<string, unknown>) {
+    return { id, data, createdAt: '2026-03-01T00:00:00Z', updatedAt: null }
+  }
+
+  it('evaluates a simple arithmetic formula column', () => {
+    const columns: ColumnDef[] = [
+      { name: 'price', type: 'number' },
+      { name: 'quantity', type: 'number' },
+      { name: 'total', type: 'formula', formula: 'price * quantity' },
+    ]
+    const rows = [
+      makeRow(1, { price: 10, quantity: 5 }),
+      makeRow(2, { price: 20, quantity: 3 }),
+    ]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.total).toBe(50)
+    expect(result[1].data.total).toBe(60)
+  })
+
+  it('evaluates multiple formula columns', () => {
+    const columns: ColumnDef[] = [
+      { name: 'price', type: 'number' },
+      { name: 'quantity', type: 'number' },
+      { name: 'total', type: 'formula', formula: 'price * quantity' },
+      { name: 'doubled', type: 'formula', formula: 'price * 2' },
+    ]
+    const rows = [makeRow(1, { price: 10, quantity: 5 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.total).toBe(50)
+    expect(result[0].data.doubled).toBe(20)
+  })
+
+  it('evaluates formula with IF conditional', () => {
+    const columns: ColumnDef[] = [
+      { name: 'amount', type: 'number' },
+      { name: 'label', type: 'formula', formula: 'IF(amount > 100, "expensive", "cheap")' },
+    ]
+    const rows = [
+      makeRow(1, { amount: 200 }),
+      makeRow(2, { amount: 50 }),
+    ]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.label).toBe('expensive')
+    expect(result[1].data.label).toBe('cheap')
+  })
+
+  it('evaluates formula with string functions', () => {
+    const columns: ColumnDef[] = [
+      { name: 'first', type: 'text' },
+      { name: 'last', type: 'text' },
+      { name: 'fullName', type: 'formula', formula: 'CONCAT(first, " ", last)' },
+    ]
+    const rows = [makeRow(1, { first: 'John', last: 'Doe' })]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.fullName).toBe('John Doe')
+  })
+
+  it('evaluates aggregate function (SUM) within formula column', () => {
+    const columns: ColumnDef[] = [
+      { name: 'amount', type: 'number' },
+      { name: 'pctOfTotal', type: 'formula', formula: 'ROUND(amount / SUM(amount) * 100, 1)' },
+    ]
+    const rows = [
+      makeRow(1, { amount: 30 }),
+      makeRow(2, { amount: 70 }),
+    ]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.pctOfTotal).toBe(30)
+    expect(result[1].data.pctOfTotal).toBe(70)
+  })
+
+  it('evaluates COUNT aggregate within formula column', () => {
+    const columns: ColumnDef[] = [
+      { name: 'item', type: 'text' },
+      { name: 'rowCount', type: 'formula', formula: 'COUNT()' },
+    ]
+    const rows = [
+      makeRow(1, { item: 'a' }),
+      makeRow(2, { item: 'b' }),
+      makeRow(3, { item: 'c' }),
+    ]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.rowCount).toBe(3)
+    expect(result[1].data.rowCount).toBe(3)
+    expect(result[2].data.rowCount).toBe(3)
+  })
+
+  it('returns null for division by zero in formula', () => {
+    const columns: ColumnDef[] = [
+      { name: 'a', type: 'number' },
+      { name: 'b', type: 'number' },
+      { name: 'ratio', type: 'formula', formula: 'a / b' },
+    ]
+    const rows = [makeRow(1, { a: 10, b: 0 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.ratio).toBeNull()
+  })
+
+  it('returns null for missing variable references', () => {
+    const columns: ColumnDef[] = [
+      { name: 'a', type: 'number' },
+      { name: 'result', type: 'formula', formula: 'a + nonexistent' },
+    ]
+    const rows = [makeRow(1, { a: 10 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    // null + 10 = null since nonexistent resolves to null
+    expect(result[0].data.result).toBeNull()
+  })
+
+  it('returns null when formula has runtime error (unknown function)', () => {
+    const columns: ColumnDef[] = [
+      { name: 'a', type: 'number' },
+      { name: 'result', type: 'formula', formula: 'UNKNOWN_FUNC(a)' },
+    ]
+    const rows = [makeRow(1, { a: 10 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    // Unknown function throws EvaluatorError, caught and set to null
+    expect(result[0].data.result).toBeNull()
+  })
+
+  it('does not modify original row data', () => {
+    const columns: ColumnDef[] = [
+      { name: 'price', type: 'number' },
+      { name: 'doubled', type: 'formula', formula: 'price * 2' },
+    ]
+    const originalData = { price: 10 }
+    const rows = [makeRow(1, originalData)]
+    evaluateFormulaColumns(rows, columns)
+    // Original data should not be mutated
+    expect(originalData).not.toHaveProperty('doubled')
+  })
+
+  it('returns rows unchanged when there are no formula columns', () => {
+    const columns: ColumnDef[] = [
+      { name: 'title', type: 'text' },
+      { name: 'amount', type: 'number' },
+    ]
+    const rows = [makeRow(1, { title: 'Test', amount: 42 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    // Should be the same reference since no formula columns
+    expect(result).toBe(rows)
+  })
+
+  it('handles empty rows array', () => {
+    const columns: ColumnDef[] = [
+      { name: 'a', type: 'number' },
+      { name: 'b', type: 'formula', formula: 'a * 2' },
+    ]
+    const result = evaluateFormulaColumns([], columns)
+    expect(result).toEqual([])
+  })
+
+  it('formula columns appear in response data alongside regular columns', () => {
+    const columns: ColumnDef[] = [
+      { name: 'item', type: 'text' },
+      { name: 'price', type: 'number' },
+      { name: 'tax', type: 'formula', formula: 'price * 0.1' },
+    ]
+    const rows = [makeRow(1, { item: 'Widget', price: 100 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    // All keys present: regular + formula
+    expect(result[0].data).toEqual({ item: 'Widget', price: 100, tax: 10 })
+  })
+
+  it('preserves row metadata (id, createdAt, updatedAt)', () => {
+    const columns: ColumnDef[] = [
+      { name: 'n', type: 'number' },
+      { name: 'doubled', type: 'formula', formula: 'n * 2' },
+    ]
+    const rows = [{ id: 42, data: { n: 5 }, createdAt: '2026-03-01T12:00:00Z', updatedAt: '2026-03-02T10:00:00Z' }]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].id).toBe(42)
+    expect(result[0].createdAt).toBe('2026-03-01T12:00:00Z')
+    expect(result[0].updatedAt).toBe('2026-03-02T10:00:00Z')
+    expect(result[0].data.doubled).toBe(10)
   })
 })

@@ -112,15 +112,15 @@
 - [x] Run tests — must pass before next task
 
 ### Task 6: Server-side formula column evaluation in table rows
-- [ ] Update `GET /api/app/:hash/tables/:tableId` in `server/src/routes/tables.ts`:
+- [x] Update `GET /api/app/:hash/tables/:tableId` in `server/src/routes/tables.ts`:
   - After fetching rows, identify formula columns in schema
   - For each row, evaluate each formula column with row data as context
   - Add table-level context for aggregate functions within formula columns
   - Inject computed values into row's `data` object
-- [ ] Error handling: if formula evaluation fails, set value to `null`
-- [ ] Formula columns appear in response like regular columns (transparent to client)
-- [ ] Write tests: formula column evaluation with row data, aggregate in formula column, error handling
-- [ ] Run tests — must pass before next task
+- [x] Error handling: if formula evaluation fails, set value to `null`
+- [x] Formula columns appear in response like regular columns (transparent to client)
+- [x] Write tests: formula column evaluation with row data, aggregate in formula column, error handling
+- [x] Run tests — must pass before next task
 
 ### Task 7: computedValue on UI components
 - [ ] Add optional `computedValue?: string` to `UiComponent` type in `server/src/services/aiService.ts`
