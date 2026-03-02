@@ -167,15 +167,15 @@
 - [x] Run tests — must pass before next task
 
 ### Task 11: Verify acceptance criteria
-- [ ] Verify formula parser handles: arithmetic, comparisons, logic, IF/THEN, string ops, nested expressions
-- [ ] Verify formula columns evaluate correctly in table row responses
-- [ ] Verify computedValue evaluates correctly in app data responses
-- [ ] Verify aggregate functions (SUM, AVG, COUNT, MIN, MAX) work across table data
-- [ ] Verify existing apps with dataKey/dataSource still work (backward compatibility)
-- [ ] Verify existing compute/aggregate cron jobs still work
-- [ ] Run full test suite
-- [ ] Server TypeScript compiles (`npm run build --workspace=server`)
-- [ ] Client TypeScript compiles (`npx vue-tsc --noEmit`)
+- [x] Verify formula parser handles: arithmetic, comparisons, logic, IF/THEN, string ops, nested expressions
+- [x] Verify formula columns evaluate correctly in table row responses
+- [x] Verify computedValue evaluates correctly in app data responses
+- [x] Verify aggregate functions (SUM, AVG, COUNT, MIN, MAX) work across table data
+- [x] Verify existing apps with dataKey/dataSource still work (backward compatibility)
+- [x] Verify existing compute/aggregate cron jobs still work
+- [x] Run full test suite
+- [x] Server TypeScript compiles (`npm run build --workspace=server`)
+- [x] Client TypeScript compiles (`npx vue-tsc --noEmit`)
 
 ### Task 12: [Final] Update documentation
 - [ ] Update `CLAUDE.md` — add formula column type, computedValue, formula syntax documentation
