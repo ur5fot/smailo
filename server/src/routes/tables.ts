@@ -154,13 +154,21 @@ tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
       return res.status(400).json({ error: 'A table with this name already exists' });
     }
 
+    // Sanitize columns to only known fields
+    const cleanedColumns: ColumnDef[] = (columns as ColumnDef[]).map((c) => {
+      const result: ColumnDef = { name: c.name, type: c.type };
+      if (c.required === true) result.required = true;
+      if (c.type === 'select' && Array.isArray(c.options)) result.options = c.options;
+      return result;
+    });
+
     const inserted = await db.insert(userTables).values({
       appId: row.id,
       name: trimmedName,
-      columns: columns as ColumnDef[],
+      columns: cleanedColumns,
     }).returning({ id: userTables.id });
 
-    return res.json({ id: inserted[0].id, name: trimmedName, columns });
+    return res.json({ id: inserted[0].id, name: trimmedName, columns: cleanedColumns });
   } catch (error) {
     console.error('[POST /tables] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -266,7 +274,12 @@ tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) 
       if (new Set(colNames).size !== colNames.length) {
         return res.status(400).json({ error: 'Duplicate column names are not allowed' });
       }
-      updates.columns = columns as ColumnDef[];
+      updates.columns = (columns as ColumnDef[]).map((c) => {
+        const result: ColumnDef = { name: c.name, type: c.type };
+        if (c.required === true) result.required = true;
+        if (c.type === 'select' && Array.isArray(c.options)) result.options = c.options;
+        return result;
+      });
     }
 
     if (Object.keys(updates).length === 0) {
