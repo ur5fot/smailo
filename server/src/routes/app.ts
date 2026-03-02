@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { apps, appData, chatHistory, userTables } from '../db/schema.js';
+import { apps, appData, chatHistory, userTables, userRows } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
 import { chatWithAI, validateUiComponents } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
@@ -358,18 +358,34 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       content: r.content,
     }));
 
-    // Build app context for the AI (config + latest data + notes memory + table schemas)
+    // Build app context for the AI (config + latest data + notes memory + table schemas + row counts)
     const latestData = await getLatestAppData(row.id);
     const appTables = await db.select({
       id: userTables.id,
       name: userTables.name,
       columns: userTables.columns,
     }).from(userTables).where(eq(userTables.appId, row.id));
+
+    // Fetch row counts per table so AI knows which tables have data
+    let tablesWithCounts: Array<{ id: number; name: string; columns: unknown; rowCount: number }> | undefined;
+    if (appTables.length > 0) {
+      const rowCounts = await db
+        .select({ tableId: userRows.tableId, count: sql<number>`count(*)` })
+        .from(userRows)
+        .where(sql`${userRows.tableId} IN (${sql.join(appTables.map(t => sql`${t.id}`), sql`, `)})`)
+        .groupBy(userRows.tableId);
+      const countMap = new Map(rowCounts.map(r => [r.tableId, r.count]));
+      tablesWithCounts = appTables.map(t => ({
+        ...t,
+        rowCount: countMap.get(t.id) ?? 0,
+      }));
+    }
+
     const appContext = {
       config: row.config,
       data: latestData.map((r) => ({ key: r.key, value: r.value })),
       notes: row.notes ?? undefined,
-      tables: appTables.length > 0 ? appTables : undefined,
+      tables: tablesWithCounts,
     };
 
     const messages = [...previousMessages, { role: 'user' as const, content: message }];

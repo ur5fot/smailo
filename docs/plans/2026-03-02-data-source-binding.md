@@ -53,13 +53,13 @@
 - [x] Run tests — must pass before next task
 
 ### Task 3: Update AI system prompts for dataSource
-- [ ] Update `BRAINSTORM_SYSTEM_PROMPT` — add dataSource documentation for DataTable, Form, Chart, CardList components; remove "coming in a future update" note from tables section
-- [ ] Add examples: DataTable with `dataSource: { type: "table", tableId: 1 }`, Form with `dataSource`, Chart with `dataSource`, CardList with `dataSource`
-- [ ] Update `IN_APP_SYSTEM_PROMPT` — add dataSource to uiUpdate component guide; remove "coming in future update"
-- [ ] Explain when to use `dataSource` vs `dataKey`: tables for structured lists (expenses, tasks), KV for single values (counters, settings, API data)
-- [ ] Update AI context in `chatWithAI()` to include table row counts (not full rows — too large) so AI knows which tables have data
-- [ ] Write tests verifying prompt includes table context when tables exist
-- [ ] Run tests — must pass before next task
+- [x] Update `BRAINSTORM_SYSTEM_PROMPT` — add dataSource documentation for DataTable, Form, Chart, CardList components; remove "coming in a future update" note from tables section
+- [x] Add examples: DataTable with `dataSource: { type: "table", tableId: 1 }`, Form with `dataSource`, Chart with `dataSource`, CardList with `dataSource`
+- [x] Update `IN_APP_SYSTEM_PROMPT` — add dataSource to uiUpdate component guide; remove "coming in future update"
+- [x] Explain when to use `dataSource` vs `dataKey`: tables for structured lists (expenses, tasks), KV for single values (counters, settings, API data)
+- [x] Update AI context in `chatWithAI()` to include table row counts (not full rows — too large) so AI knows which tables have data
+- [x] Write tests verifying prompt includes table context when tables exist
+- [x] Run tests — must pass before next task
 
 ### Task 4: Client store — table data management
 - [ ] Add `tableData` ref to `app.ts` store: `Map<number, { schema: TableSchema; rows: TableRow[] }>` (using plain reactive ref)
