@@ -18,7 +18,7 @@ import api from '../api'
 const props = defineProps<{
   label: string
   severity?: string
-  action: { key: string; value?: unknown }
+  action: { key: string; value?: unknown; mode?: string }
   hash: string
 }>()
 
@@ -33,11 +33,14 @@ async function handleClick() {
   loading.value = true
   errorMsg.value = ''
   try {
-    await api.post(`/app/${props.hash}/data`, {
+    const payload: Record<string, unknown> = {
       key: props.action.key,
-      // action.value is optional; default to true (records a click event)
       value: props.action.value !== undefined ? props.action.value : true,
-    })
+    }
+    if (props.action.mode) {
+      payload.mode = props.action.mode
+    }
+    await api.post(`/app/${props.hash}/data`, payload)
     emit('data-written')
   } catch {
     errorMsg.value = 'Не удалось сохранить. Попробуйте ещё раз.'

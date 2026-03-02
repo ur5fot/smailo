@@ -139,7 +139,9 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
 - Calendar: displays a date picker, no dataKey needed.
 - Timeline: use "dataKey" to bind array of { date, content } objects.
 - Button: use "label" prop and optional "severity" ("success", "danger", "warning", "info"). Use "action" with { key, value } to write a fixed value on click.
-  Example: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
+  For COUNTERS, use action.mode "increment" — each click ADDS the value to the current number instead of overwriting.
+  Example fixed: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
+  Example counter: { "component": "Button", "props": { "label": "+1", "severity": "success" }, "action": { "key": "count", "value": 1, "mode": "increment" } }
 - InputText: use "label", "type" ("text", "number", or "date"), "placeholder" props. Use "action" with { key } — value comes from user input.
   IMPORTANT: InputText already has a built-in save button — do NOT add a separate Button to save its value.
   For date inputs use type "date" — renders a calendar date picker; saves as ISO string.
@@ -336,6 +338,16 @@ MOOD GUIDELINES:
 - happy: when sharing positive insights
 - confused: when you need more context
 
+UIUPDATE RULES:
+⚠️ uiUpdate is a FULL REPLACEMENT of the entire UI component array — not a partial patch.
+When you return uiUpdate, you MUST include ALL existing components from the current config.
+- To modify a component: copy it and change only the relevant fields.
+- To remove a component: simply omit it from the array.
+- To remove a field from a Form: re-include the Form with its fields array minus the removed field.
+- To add a component: include all existing components plus the new one.
+If you only return the changed component, all other components will be DELETED.
+Look at the current app config and copy all components you want to keep.
+
 UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Card: { "component": "Card", "props": { "title": "Title" }, "dataKey": "key" }
 - DataTable: { "component": "DataTable", "props": { "columns": [{"field":"f","header":"H"}] }, "dataKey": "key" }
@@ -357,6 +369,7 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Tabs: { "component": "Tabs", "props": { "tabs": [{ "label": "Вкладка", "dataKey": "key" }] } }
 - Image: { "component": "Image", "props": { "width": "200", "alt": "Изображение" }, "dataKey": "image_url" }
 - Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
+  For counters use mode "increment": { "component": "Button", "props": { "label": "+1" }, "action": { "key": "count", "value": 1, "mode": "increment" } }
 - InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
   Use action.mode "append" to accumulate items: { "action": { "key": "notes", "mode": "append" } }
   When InputText uses mode "append", items are stored as { value, timestamp }. Use CardList to display.

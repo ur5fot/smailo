@@ -326,7 +326,25 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected, async (req, r
 
     let storedValue: unknown = value;
 
-    if (mode === 'append') {
+    if (mode === 'increment') {
+      if (typeof value !== 'number') {
+        return res.status(400).json({ error: 'value must be a number for increment mode' });
+      }
+      db.transaction((tx) => {
+        const existing = tx
+          .select()
+          .from(appData)
+          .where(
+            sql`${appData.appId} = ${row.id} AND ${appData.id} IN (
+              SELECT MAX(id) FROM app_data WHERE app_id = ${row.id} AND key = ${key}
+            )`
+          )
+          .get();
+        const current = typeof existing?.value === 'number' ? existing.value : 0;
+        storedValue = current + value;
+        tx.insert(appData).values({ appId: row.id, key, value: storedValue } satisfies AppDataInsert).run();
+      });
+    } else if (mode === 'append') {
       // Wrap read-modify-write in a transaction to prevent race conditions.
       // better-sqlite3 transactions are synchronous — no interleaving possible.
       const tooLarge = db.transaction((tx) => {
