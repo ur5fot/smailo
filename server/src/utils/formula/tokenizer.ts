@@ -17,8 +17,6 @@ export interface Token {
   position: number;
 }
 
-const OPERATORS = ['&&', '||', '==', '!=', '<=', '>=', '<', '>', '+', '-', '*', '/', '%', '!'] as const;
-
 const TWO_CHAR_OPERATORS = new Set(['&&', '||', '==', '!=', '<=', '>=']);
 
 const SINGLE_CHAR_OPERATORS = new Set(['+', '-', '*', '/', '%', '<', '>', '!']);
@@ -91,10 +89,10 @@ export function tokenize(formula: string): Token[] {
       continue;
     }
 
-    // Identifier or Boolean
-    if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_') {
+    // Identifier or Boolean (supports ASCII + Cyrillic letters)
+    if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_' || (ch >= '\u0400' && ch <= '\u04FF')) {
       const start = i;
-      while (i < formula.length && ((formula[i] >= 'a' && formula[i] <= 'z') || (formula[i] >= 'A' && formula[i] <= 'Z') || (formula[i] >= '0' && formula[i] <= '9') || formula[i] === '_')) {
+      while (i < formula.length && ((formula[i] >= 'a' && formula[i] <= 'z') || (formula[i] >= 'A' && formula[i] <= 'Z') || (formula[i] >= '0' && formula[i] <= '9') || formula[i] === '_' || (formula[i] >= '\u0400' && formula[i] <= '\u04FF'))) {
         i++;
       }
       const word = formula.slice(start, i);

@@ -1,4 +1,4 @@
-import { Token, tokenize, TokenizerError } from './tokenizer.js';
+import { Token, tokenize } from './tokenizer.js';
 
 export type ASTNode =
   | { type: 'NumberLiteral'; value: number }

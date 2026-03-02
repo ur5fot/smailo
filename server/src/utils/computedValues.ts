@@ -11,13 +11,13 @@ export function extractReferencedTableNames(components: UiComponent[]): Set<stri
   const names = new Set<string>();
   for (const comp of components) {
     if (!comp.computedValue) continue;
-    // Match identifiers followed by a dot (table.column references)
-    const matches = comp.computedValue.matchAll(/([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)/g);
+    // Match identifiers followed by a dot (table.column references), including Cyrillic
+    const matches = comp.computedValue.matchAll(/([a-zA-Z_\u0400-\u04FF][a-zA-Z0-9_\u0400-\u04FF]*)\.([a-zA-Z_\u0400-\u04FF][a-zA-Z0-9_\u0400-\u04FF]*)/g);
     for (const m of matches) {
       names.add(m[1]);
     }
-    // Also match standalone identifiers in COUNT(tableName) pattern
-    const countMatches = comp.computedValue.matchAll(/\bCOUNT\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi);
+    // Also match standalone identifiers in COUNT(tableName) pattern, including Cyrillic
+    const countMatches = comp.computedValue.matchAll(/\bCOUNT\s*\(\s*([a-zA-Z_\u0400-\u04FF][a-zA-Z0-9_\u0400-\u04FF]*)\s*\)/gi);
     for (const m of countMatches) {
       // Only add if it doesn't contain a dot (already handled above)
       if (!m[1].includes('.')) {
@@ -51,7 +51,8 @@ export function evaluateComputedValues(
 
     try {
       result[i] = evaluateFormula(comp.computedValue, context);
-    } catch {
+    } catch (err) {
+      console.warn(`[formula] Failed to evaluate computedValue "${comp.computedValue}" for component ${i}:`, err);
       result[i] = null;
     }
   }

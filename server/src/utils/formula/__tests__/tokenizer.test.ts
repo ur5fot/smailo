@@ -209,4 +209,35 @@ describe('tokenize', () => {
       expect(tokens[2].position).toBe(4)
     })
   })
+
+  describe('Cyrillic identifiers', () => {
+    it('tokenizes Cyrillic identifiers', () => {
+      const tokens = tokenize('Расходы')
+      expect(tokens).toHaveLength(1)
+      expect(tokens[0]).toEqual({ type: 'Identifier', value: 'Расходы', position: 0 })
+    })
+
+    it('tokenizes Cyrillic member access', () => {
+      const tokens = tokenize('Расходы.amount')
+      expect(tokens).toHaveLength(3)
+      expect(tokens[0]).toEqual({ type: 'Identifier', value: 'Расходы', position: 0 })
+      expect(tokens[1]).toEqual({ type: 'Dot', value: '.', position: 7 })
+      expect(tokens[2]).toEqual({ type: 'Identifier', value: 'amount', position: 8 })
+    })
+
+    it('tokenizes mixed Cyrillic and Latin identifiers', () => {
+      const tokens = tokenize('SUM(Задачи.количество)')
+      expect(tokens).toHaveLength(6)
+      expect(tokens[0].value).toBe('SUM')
+      expect(tokens[2].value).toBe('Задачи')
+      expect(tokens[4].value).toBe('количество')
+    })
+
+    it('tokenizes Cyrillic in function calls', () => {
+      const tokens = tokenize('COUNT(Товары)')
+      expect(tokens).toHaveLength(4)
+      expect(tokens[0].value).toBe('COUNT')
+      expect(tokens[2].value).toBe('Товары')
+    })
+  })
 })

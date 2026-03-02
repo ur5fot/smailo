@@ -148,6 +148,22 @@ describe('extractReferencedTableNames', () => {
     const names = extractReferencedTableNames(components);
     expect(names.size).toBe(0);
   });
+
+  it('extracts Cyrillic table names from table.column pattern', () => {
+    const components: UiComponent[] = [
+      { component: 'Card', props: {}, computedValue: 'SUM(Расходы.amount)' },
+    ];
+    const names = extractReferencedTableNames(components);
+    expect(names).toEqual(new Set(['Расходы']));
+  });
+
+  it('extracts Cyrillic table names from COUNT(tableName) pattern', () => {
+    const components: UiComponent[] = [
+      { component: 'Card', props: {}, computedValue: 'COUNT(Задачи)' },
+    ];
+    const names = extractReferencedTableNames(components);
+    expect(names).toEqual(new Set(['Задачи']));
+  });
 });
 
 describe('evaluateComputedValues', () => {
@@ -284,5 +300,21 @@ describe('evaluateComputedValues', () => {
     const result = evaluateComputedValues(components, emptyTables);
     expect(result[0]).toBeNull();
     expect(result[1]).toBe(0);
+  });
+
+  it('evaluates formulas with Cyrillic table names', () => {
+    const cyrillicTables = {
+      'Расходы': {
+        columns: [{ name: 'сумма', type: 'number' }],
+        rows: [{ сумма: 100 }, { сумма: 200 }, { сумма: 150 }],
+      },
+    };
+    const components: UiComponent[] = [
+      { component: 'Card', props: {}, computedValue: 'SUM(Расходы.сумма)' },
+      { component: 'Card', props: {}, computedValue: 'COUNT(Расходы)' },
+    ];
+    const result = evaluateComputedValues(components, cyrillicTables);
+    expect(result[0]).toBe(450);
+    expect(result[1]).toBe(3);
   });
 });

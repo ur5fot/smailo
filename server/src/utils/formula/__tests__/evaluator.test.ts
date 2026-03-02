@@ -501,7 +501,6 @@ describe('evaluate', () => {
       expect(eval_('IF(price < 0, ABS(price), price)', ctx)).toBe(15.7)
     })
   })
-})
 
   describe('aggregate functions', () => {
     const tablesCtx = {
@@ -752,6 +751,7 @@ describe('evaluate', () => {
       })
     })
   })
+})
 
 describe('evaluateFormula', () => {
   it('provides end-to-end evaluation', () => {

@@ -23,12 +23,13 @@ export function evaluateFormulaColumns(
     const data = { ...r.data };
     for (const col of formulaColumns) {
       const context: FormulaContext = {
-        row: r.data,
+        row: data,
         currentTable,
       };
       try {
         data[col.name] = evaluateFormula(col.formula!, context);
-      } catch {
+      } catch (err) {
+        console.warn(`[formula] Failed to evaluate formula column "${col.name}" (${col.formula}):`, err);
         data[col.name] = null;
       }
     }

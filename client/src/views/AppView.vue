@@ -192,7 +192,7 @@ async function loadApp() {
   try {
     await appStore.fetchApp(hash.value)
     requiresAuth.value = false
-    await fetchChatHistory()
+    await Promise.all([fetchChatHistory(), appStore.fetchData(hash.value)])
   } catch (err: any) {
     if (err?.response?.status === 401) {
       requiresAuth.value = true

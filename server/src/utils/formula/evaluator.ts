@@ -391,9 +391,9 @@ function evaluateAggregate(fnName: string, args: ASTNode[], context: FormulaCont
     case 'avg':
       return numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
     case 'min':
-      return Math.min(...numericValues);
+      return numericValues.reduce((a, b) => Math.min(a, b));
     case 'max':
-      return Math.max(...numericValues);
+      return numericValues.reduce((a, b) => Math.max(a, b));
     default:
       return null;
   }

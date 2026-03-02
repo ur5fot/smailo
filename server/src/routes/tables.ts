@@ -42,7 +42,7 @@ tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
     }
 
     if (!columns.every(isValidColumnDef)) {
-      return res.status(400).json({ error: 'Each column must have a valid name (alphanumeric, starts with letter, max 50 chars) and type (text, number, date, boolean, select)' });
+      return res.status(400).json({ error: 'Each column must have a valid name (alphanumeric, starts with letter, max 50 chars) and type (text, number, date, boolean, select, formula)' });
     }
 
     // Check for duplicate column names
