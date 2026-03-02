@@ -34,11 +34,13 @@ import InputNumber from 'primevue/inputnumber'
 import api from '../api'
 
 const props = defineProps<{
-  fields: Array<{ name: string; type: string; label: string }>
-  outputKey: string
+  fields?: Array<{ name: string; type: string; label: string }>
+  outputKey?: string
   submitLabel?: string
   appendMode?: boolean
   hash: string
+  // table dataSource binding (implemented in Task 7)
+  dataSource?: { type: 'table'; tableId: number }
 }>()
 
 const emit = defineEmits<{
@@ -46,7 +48,7 @@ const emit = defineEmits<{
 }>()
 
 const fieldValues = reactive<Record<string, string | number | null>>(
-  Object.fromEntries(props.fields.map(f => [f.name, f.type === 'number' ? null : '']))
+  Object.fromEntries((props.fields || []).map(f => [f.name, f.type === 'number' ? null : '']))
 )
 const loading = ref(false)
 const errorMsg = ref('')
@@ -58,15 +60,16 @@ watch(() => props.fields, (newFields) => {
   for (const key of Object.keys(fieldValues)) {
     delete fieldValues[key]
   }
-  for (const f of newFields) {
+  for (const f of (newFields || [])) {
     fieldValues[f.name] = f.type === 'number' ? null : ''
   }
   errorMsg.value = ''
 })
 
 async function handleSubmit() {
+  const fields = props.fields || []
   // Validate: all fields must be non-null and non-empty before submitting
-  for (const field of props.fields) {
+  for (const field of fields) {
     const v = fieldValues[field.name]
     if (v === null || (typeof v === 'string' && v.trim() === '')) {
       errorMsg.value = `"${field.label}" is required.`
@@ -77,7 +80,7 @@ async function handleSubmit() {
   errorMsg.value = ''
   try {
     const formObject: Record<string, unknown> = {}
-    for (const field of props.fields) {
+    for (const field of fields) {
       formObject[field.name] = fieldValues[field.name]
     }
     // Inject timestamp last so it always wins, even if a field is named 'timestamp'
@@ -87,7 +90,7 @@ async function handleSubmit() {
       value: formObject,
       ...(props.appendMode ? { mode: 'append' } : {}),
     })
-    for (const field of props.fields) {
+    for (const field of fields) {
       fieldValues[field.name] = field.type === 'number' ? null : ''
     }
     emit('data-written')

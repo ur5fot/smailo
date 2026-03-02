@@ -11,6 +11,8 @@
       <AppDataTable
         v-else-if="item.component === 'DataTable'"
         v-bind="resolvedProps(item)"
+        :data-source="item.dataSource"
+        :hash="props.hash"
       />
 
       <!-- Button: user-triggered data write -->
@@ -34,14 +36,15 @@
         @data-written="emit('data-written')"
       />
 
-      <!-- Form: multi-field data write -->
+      <!-- Form: multi-field data write (traditional fields+outputKey or table dataSource) -->
       <AppForm
-        v-else-if="item.component === 'Form' && item.fields && item.outputKey"
+        v-else-if="item.component === 'Form' && (item.dataSource || (item.fields && item.outputKey))"
         :fields="item.fields"
         :output-key="item.outputKey"
         :submit-label="item.props?.submitLabel"
         :append-mode="item.appendMode"
         :hash="props.hash"
+        :data-source="item.dataSource"
         @data-written="emit('data-written')"
       />
 
@@ -64,6 +67,7 @@
         v-bind="resolvedProps(item)"
         :data-key="item.dataKey"
         :hash="props.hash"
+        :data-source="item.dataSource"
         @data-written="emit('data-written')"
       />
 
@@ -72,6 +76,15 @@
         v-else-if="item.component === 'Tabs'"
         :tabs="item.props?.tabs ?? []"
         :app-data="props.appData"
+      />
+
+      <!-- Chart with table dataSource: plumbing for table-based chart data (Task 9) -->
+      <component
+        v-else-if="item.component === 'Chart' && item.dataSource"
+        :is="componentMap['Chart']"
+        v-bind="resolvedProps(item)"
+        :data-source="item.dataSource"
+        :hash="props.hash"
       />
 
       <!-- All other PrimeVue components via dynamic :is -->

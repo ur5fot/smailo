@@ -35,6 +35,9 @@ const props = defineProps<{
   value?: any
   // optional explicit column definitions
   columns?: ColumnDef[]
+  // table dataSource binding (implemented in Task 6)
+  dataSource?: { type: 'table'; tableId: number }
+  hash?: string
 }>()
 
 const rows = computed<any[]>(() => {

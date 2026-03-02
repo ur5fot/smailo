@@ -53,6 +53,8 @@ const props = defineProps<{
   value?: any
   hash?: string
   dataKey?: string
+  // table dataSource binding (implemented in Task 8)
+  dataSource?: { type: 'table'; tableId: number }
 }>()
 
 const emit = defineEmits<{

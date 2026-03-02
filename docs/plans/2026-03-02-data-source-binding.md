@@ -71,14 +71,14 @@
 - [x] TypeScript compiles cleanly (`npm run build --workspace=server`)
 
 ### Task 5: AppRenderer — dataSource resolution and plumbing
-- [ ] Import table-related types and composable
-- [ ] In `AppRenderer.vue`, detect `item.dataSource?.type === 'table'` and pass `tableId` + `hash` to components that support it
-- [ ] Update `AppDataTable` rendering branch to pass `dataSource` prop when present
-- [ ] Update `AppForm` rendering branch to pass `dataSource` prop when present
-- [ ] Update `AppCardList` rendering branch to pass `dataSource` prop when present
-- [ ] For `Chart` with `dataSource`, pass `dataSource` prop to the dynamic `<component>`
-- [ ] Components without `dataSource` continue using `resolvedProps(item)` unchanged
-- [ ] TypeScript compiles cleanly (`npx vue-tsc --noEmit` in client)
+- [x] Import table-related types and composable
+- [x] In `AppRenderer.vue`, detect `item.dataSource?.type === 'table'` and pass `tableId` + `hash` to components that support it
+- [x] Update `AppDataTable` rendering branch to pass `dataSource` prop when present
+- [x] Update `AppForm` rendering branch to pass `dataSource` prop when present
+- [x] Update `AppCardList` rendering branch to pass `dataSource` prop when present
+- [x] For `Chart` with `dataSource`, pass `dataSource` prop to the dynamic `<component>`
+- [x] Components without `dataSource` continue using `resolvedProps(item)` unchanged
+- [x] TypeScript compiles cleanly (`npx vue-tsc --noEmit` in client)
 
 ### Task 6: AppDataTable — table binding
 - [ ] Add optional `dataSource` and `hash` props to `AppDataTable.vue`
