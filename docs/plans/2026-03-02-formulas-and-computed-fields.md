@@ -42,23 +42,23 @@
 ## Implementation Steps
 
 ### Task 1: Formula tokenizer and AST parser
-- [ ] Create `server/src/utils/formula/tokenizer.ts`:
+- [x] Create `server/src/utils/formula/tokenizer.ts`:
   - Token types: `Number`, `String`, `Boolean`, `Identifier`, `Operator`, `LeftParen`, `RightParen`, `Comma`, `Dot`
   - Operators: `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`
   - String literals: double-quoted `"hello"`, with escape sequences
   - Boolean literals: `true`, `false`
   - Identifiers: alphanumeric + underscore, starting with letter
   - Max formula length: 500 characters
-- [ ] Create `server/src/utils/formula/parser.ts` — recursive descent:
+- [x] Create `server/src/utils/formula/parser.ts` — recursive descent:
   - AST nodes: `NumberLiteral`, `StringLiteral`, `BooleanLiteral`, `Identifier`, `BinaryOp`, `UnaryOp`, `FunctionCall`, `MemberAccess`
   - Operator precedence (low → high): `||`, `&&`, `==`/`!=`, `<`/`>`/`<=`/`>=`, `+`/`-`, `*`/`/`/`%`, unary `-`/`!`, function call, member access (`.`)
   - Parenthesized expressions
   - Function calls: `FUNC(arg1, arg2, ...)`
   - Member access: `tableName.columnName`
-- [ ] Create `server/src/utils/formula/index.ts` — public API re-exports
-- [ ] Write tests for tokenizer: all token types, edge cases (empty, max length, unterminated string)
-- [ ] Write tests for parser: all AST node types, precedence, nested expressions, error cases
-- [ ] Run tests — must pass before next task
+- [x] Create `server/src/utils/formula/index.ts` — public API re-exports
+- [x] Write tests for tokenizer: all token types, edge cases (empty, max length, unterminated string)
+- [x] Write tests for parser: all AST node types, precedence, nested expressions, error cases
+- [x] Run tests — must pass before next task
 
 ### Task 2: Formula evaluator — core operations
 - [ ] Create `server/src/utils/formula/evaluator.ts`:
