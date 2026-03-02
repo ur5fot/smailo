@@ -160,11 +160,11 @@
 - [x] Run tests — must pass before next task
 
 ### Task 10: Backward compatibility with compute cron
-- [ ] Verify existing `compute` cron job (date_diff) still works unchanged
-- [ ] Verify existing `aggregate_data` cron job still works unchanged
-- [ ] Add note in AI prompts: prefer formula columns and computedValue for new apps, keep cron for scheduled/periodic computations
-- [ ] Run full test suite — all existing tests must pass
-- [ ] Run tests — must pass before next task
+- [x] Verify existing `compute` cron job (date_diff) still works unchanged
+- [x] Verify existing `aggregate_data` cron job still works unchanged
+- [x] Add note in AI prompts: prefer formula columns and computedValue for new apps, keep cron for scheduled/periodic computations
+- [x] Run full test suite — all existing tests must pass
+- [x] Run tests — must pass before next task
 
 ### Task 11: Verify acceptance criteria
 - [ ] Verify formula parser handles: arithmetic, comparisons, logic, IF/THEN, string ops, nested expressions

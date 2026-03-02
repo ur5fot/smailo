@@ -19,7 +19,7 @@ const CHAT_HISTORY_LIMIT = 20;
  * Validate action-specific config for a cron job.
  * Returns true if the config has the required fields for the given action type.
  */
-function isValidCronJobConfig(action: string, config: unknown): boolean {
+export function isValidCronJobConfig(action: string, config: unknown): boolean {
   if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
   const c = config as Record<string, unknown>;
 
