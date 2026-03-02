@@ -53,11 +53,11 @@
 
 ### Task 2: Серверная валидация showIf и styleIf
 Сервер валидирует выражения при сохранении конфига, но не вычисляет.
-- [ ] Расширить тип `UiComponent` в `aiService.ts`: добавить `showIf?: string`, `styleIf?: Array<{condition: string, class: string}>`
-- [ ] В `validateUiComponents()` добавить валидацию `showIf`: парсинг формулы через `parseFormula()`, невалидные → `undefined`
-- [ ] В `validateUiComponents()` добавить валидацию `styleIf`: проверка массива, парсинг каждого `condition`, валидация `class` (алфавитно-цифровой + дефис/подчёркивание)
-- [ ] Написать тесты валидации: валидный showIf, невалидный showIf (дропается), валидный styleIf, невалидный condition (фильтруется), пустой class (фильтруется)
-- [ ] Запустить тесты — должны проходить перед Task 3
+- [x] Расширить тип `UiComponent` в `aiService.ts`: добавить `showIf?: string`, `styleIf?: Array<{condition: string, class: string}>`
+- [x] В `validateUiComponents()` добавить валидацию `showIf`: парсинг формулы через `parseFormula()`, невалидные → `undefined`
+- [x] В `validateUiComponents()` добавить валидацию `styleIf`: проверка массива, парсинг каждого `condition`, валидация `class` (алфавитно-цифровой + дефис/подчёркивание)
+- [x] Написать тесты валидации: валидный showIf, невалидный showIf (дропается), валидный styleIf, невалидный condition (фильтруется), пустой class (фильтруется)
+- [x] Запустить тесты — должны проходить перед Task 3
 
 ### Task 3: Клиентская логика showIf в AppRenderer
 Реактивное скрытие/показ компонентов на основе appData и tableData.

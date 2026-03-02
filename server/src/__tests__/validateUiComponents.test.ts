@@ -182,6 +182,225 @@ describe('validateUiComponents', () => {
     })
   })
 
+  describe('showIf validation', () => {
+    it('preserves valid showIf expression', () => {
+      const result = validateUiComponents([
+        { ...baseCard, showIf: 'count > 0' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBe('count > 0')
+    })
+
+    it('trims whitespace from showIf expression', () => {
+      const result = validateUiComponents([
+        { ...baseCard, showIf: '  count > 0  ' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBe('count > 0')
+    })
+
+    it('drops invalid showIf expression (unparseable)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, showIf: '>>> invalid <<<' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBeUndefined()
+    })
+
+    it('drops empty showIf string', () => {
+      const result = validateUiComponents([
+        { ...baseCard, showIf: '' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBeUndefined()
+    })
+
+    it('drops whitespace-only showIf string', () => {
+      const result = validateUiComponents([
+        { ...baseCard, showIf: '   ' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBeUndefined()
+    })
+
+    it('drops non-string showIf (number)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, showIf: 42 },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBeUndefined()
+    })
+
+    it('drops non-string showIf (null)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, showIf: null },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBeUndefined()
+    })
+
+    it('preserves complex showIf expression with function call', () => {
+      const result = validateUiComponents([
+        { ...baseCard, showIf: 'LEN(name) > 0' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBe('LEN(name) > 0')
+    })
+
+    it('component without showIf has showIf undefined', () => {
+      const result = validateUiComponents([baseCard])
+      expect(result).toHaveLength(1)
+      expect(result[0].showIf).toBeUndefined()
+    })
+  })
+
+  describe('styleIf validation', () => {
+    it('preserves valid styleIf array', () => {
+      const result = validateUiComponents([
+        {
+          ...baseCard,
+          styleIf: [
+            { condition: 'count > 10', class: 'warning' },
+            { condition: 'count > 100', class: 'critical' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toEqual([
+        { condition: 'count > 10', class: 'warning' },
+        { condition: 'count > 100', class: 'critical' },
+      ])
+    })
+
+    it('filters out entries with invalid condition', () => {
+      const result = validateUiComponents([
+        {
+          ...baseCard,
+          styleIf: [
+            { condition: 'count > 10', class: 'warning' },
+            { condition: '>>> bad <<<', class: 'critical' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toEqual([
+        { condition: 'count > 10', class: 'warning' },
+      ])
+    })
+
+    it('filters out entries with empty class', () => {
+      const result = validateUiComponents([
+        {
+          ...baseCard,
+          styleIf: [
+            { condition: 'count > 0', class: '' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toBeUndefined()
+    })
+
+    it('filters out entries with invalid class characters', () => {
+      const result = validateUiComponents([
+        {
+          ...baseCard,
+          styleIf: [
+            { condition: 'count > 0', class: 'has spaces' },
+            { condition: 'count > 0', class: 'valid-class' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toEqual([
+        { condition: 'count > 0', class: 'valid-class' },
+      ])
+    })
+
+    it('accepts class names with underscores and dashes', () => {
+      const result = validateUiComponents([
+        {
+          ...baseCard,
+          styleIf: [
+            { condition: 'x > 0', class: 'my_class-name' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toEqual([
+        { condition: 'x > 0', class: 'my_class-name' },
+      ])
+    })
+
+    it('drops styleIf when all entries are invalid', () => {
+      const result = validateUiComponents([
+        {
+          ...baseCard,
+          styleIf: [
+            { condition: '>>> bad <<<', class: 'warning' },
+            { condition: 'ok > 0', class: '' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toBeUndefined()
+    })
+
+    it('drops styleIf when it is not an array', () => {
+      const result = validateUiComponents([
+        { ...baseCard, styleIf: 'not-an-array' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toBeUndefined()
+    })
+
+    it('drops styleIf when it is null', () => {
+      const result = validateUiComponents([
+        { ...baseCard, styleIf: null },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toBeUndefined()
+    })
+
+    it('filters out entries missing condition or class keys', () => {
+      const result = validateUiComponents([
+        {
+          ...baseCard,
+          styleIf: [
+            { condition: 'x > 0' },
+            { class: 'warning' },
+            { condition: 'x > 0', class: 'success' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toEqual([
+        { condition: 'x > 0', class: 'success' },
+      ])
+    })
+
+    it('trims condition and class whitespace', () => {
+      const result = validateUiComponents([
+        {
+          ...baseCard,
+          styleIf: [
+            { condition: '  x > 0  ', class: '  warning  ' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toEqual([
+        { condition: 'x > 0', class: 'warning' },
+      ])
+    })
+
+    it('component without styleIf has styleIf undefined', () => {
+      const result = validateUiComponents([baseCard])
+      expect(result).toHaveLength(1)
+      expect(result[0].styleIf).toBeUndefined()
+    })
+  })
+
   describe('existing validation still works', () => {
     it('rejects components with invalid component name', () => {
       const result = validateUiComponents([
