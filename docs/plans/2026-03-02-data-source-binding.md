@@ -62,13 +62,13 @@
 - [x] Run tests — must pass before next task
 
 ### Task 4: Client store — table data management
-- [ ] Add `tableData` ref to `app.ts` store: `Map<number, { schema: TableSchema; rows: TableRow[] }>` (using plain reactive ref)
-- [ ] Add `tableSchemas` ref populated from `fetchApp()` response (already returned as `tables`)
-- [ ] Add `fetchTableRows(hash: string, tableId: number): Promise<TableRow[]>` — calls `GET /api/app/:hash/tables/:tableId`, caches result in `tableData`, returns rows
-- [ ] Add `getTableData(tableId: number)` computed/getter — returns cached `{ schema, rows }` or `{ schema, rows: [] }` if not yet loaded
-- [ ] Add `refreshTable(hash: string, tableId: number)` — re-fetches rows for a specific table (called after Form writes a row)
-- [ ] Ensure `fetchApp()` clears `tableData` cache on full reload
-- [ ] TypeScript compiles cleanly (`npm run build --workspace=server`)
+- [x] Add `tableData` ref to `app.ts` store: `Map<number, { schema: TableSchema; rows: TableRow[] }>` (using plain reactive ref)
+- [x] Add `tableSchemas` ref populated from `fetchApp()` response (already returned as `tables`)
+- [x] Add `fetchTableRows(hash: string, tableId: number): Promise<TableRow[]>` — calls `GET /api/app/:hash/tables/:tableId`, caches result in `tableData`, returns rows
+- [x] Add `getTableData(tableId: number)` computed/getter — returns cached `{ schema, rows }` or `{ schema, rows: [] }` if not yet loaded
+- [x] Add `refreshTable(hash: string, tableId: number)` — re-fetches rows for a specific table (called after Form writes a row)
+- [x] Ensure `fetchApp()` clears `tableData` cache on full reload
+- [x] TypeScript compiles cleanly (`npm run build --workspace=server`)
 
 ### Task 5: AppRenderer — dataSource resolution and plumbing
 - [ ] Import table-related types and composable
