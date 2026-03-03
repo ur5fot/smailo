@@ -7,9 +7,13 @@ import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory, userTables, userRows } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
-import { chatWithAI, validateUiComponents } from '../services/aiService.js';
+import { chatWithAI, validateUiComponents, validatePages } from '../services/aiService.js';
+import type { UiComponent, AppConfig } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 import { requireAuthIfProtected, JWT_SECRET, type AuthenticatedRequest } from '../middleware/auth.js';
+import { extractReferencedTableNames, evaluateComputedValues, getGlobalComponents } from '../utils/computedValues.js';
+import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
+import type { ColumnDef } from '../utils/tableValidation.js';
 
 type AppDataInsert = typeof appData.$inferInsert;
 type ChatHistoryInsert = typeof chatHistory.$inferInsert;
@@ -195,7 +199,65 @@ appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
 
     const data = await getLatestAppData(row.id);
 
-    return res.json({ appData: data });
+    // Evaluate computedValue formulas from UI components
+    const config = row.config as AppConfig | null;
+    const allComponents = config ? getGlobalComponents(config) : [];
+    const componentsWithComputed = allComponents.filter(c => c.computedValue);
+
+    let computedValues: Record<number, unknown> | undefined;
+    if (componentsWithComputed.length > 0) {
+      try {
+        // Find which tables are referenced by the formulas
+        const tableNames = extractReferencedTableNames(allComponents);
+
+        if (tableNames.size > 0) {
+          // Fetch referenced tables by name
+          const appTables = await db.select({
+            id: userTables.id,
+            name: userTables.name,
+            columns: userTables.columns,
+          }).from(userTables).where(eq(userTables.appId, row.id));
+
+          // Build tables context: map table name -> { columns, rows }
+          const tablesContext: Record<string, { columns: Array<{ name: string; type: string }>; rows: Array<Record<string, unknown>> }> = {};
+          for (const table of appTables) {
+            if (tableNames.has(table.name)) {
+              const columns = table.columns as ColumnDef[];
+              const dbRows = await db.select({
+                id: userRows.id,
+                data: userRows.data,
+                createdAt: userRows.createdAt,
+                updatedAt: userRows.updatedAt,
+              }).from(userRows).where(eq(userRows.tableId, table.id));
+              const mappedRows = dbRows.map(r => ({
+                id: r.id,
+                data: r.data as Record<string, unknown>,
+                createdAt: r.createdAt,
+                updatedAt: r.updatedAt,
+              }));
+              // Evaluate formula columns so computedValue formulas can reference them
+              const evaluatedRows = evaluateFormulaColumns(mappedRows, columns);
+              tablesContext[table.name] = {
+                columns,
+                rows: evaluatedRows.map(r => r.data),
+              };
+            }
+          }
+
+          computedValues = evaluateComputedValues(allComponents, tablesContext);
+        } else {
+          // No table references, but formulas might use literals or non-table functions
+          computedValues = evaluateComputedValues(allComponents, {});
+        }
+      } catch (err) {
+        console.error('[GET /api/app/:hash/data] computedValues error:', err);
+      }
+    }
+
+    return res.json({
+      appData: data,
+      ...(computedValues && Object.keys(computedValues).length > 0 ? { computedValues } : {}),
+    });
   } catch (error) {
     console.error('[GET /api/app/:hash/data] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -264,7 +326,25 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected, async (req, r
 
     let storedValue: unknown = value;
 
-    if (mode === 'append') {
+    if (mode === 'increment') {
+      if (typeof value !== 'number') {
+        return res.status(400).json({ error: 'value must be a number for increment mode' });
+      }
+      db.transaction((tx) => {
+        const existing = tx
+          .select()
+          .from(appData)
+          .where(
+            sql`${appData.appId} = ${row.id} AND ${appData.id} IN (
+              SELECT MAX(id) FROM app_data WHERE app_id = ${row.id} AND key = ${key}
+            )`
+          )
+          .get();
+        const current = typeof existing?.value === 'number' ? existing.value : 0;
+        storedValue = current + value;
+        tx.insert(appData).values({ appId: row.id, key, value: storedValue } satisfies AppDataInsert).run();
+      });
+    } else if (mode === 'append') {
       // Wrap read-modify-write in a transaction to prevent race conditions.
       // better-sqlite3 transactions are synchronous — no interleaving possible.
       const tooLarge = db.transaction((tx) => {
@@ -410,10 +490,11 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       phase: 'chat',
     } satisfies ChatHistoryInsert);
 
-    // If the AI returned an updated UI layout, validate it before persisting.
-    // Filter uiUpdate to only allowed components; save whatever passes the whitelist.
-    // validItems is hoisted so the response can reuse it without re-filtering.
+    // If the AI returned an updated UI layout or pages, validate and persist.
+    // uiUpdate and pagesUpdate are mutually exclusive: if both are present, uiUpdate takes priority.
     let validUiItems: ReturnType<typeof validateUiComponents> | undefined;
+    let validPages: ReturnType<typeof validatePages> | undefined;
+    let revertedToSinglePage = false;
     if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
       validUiItems = validateUiComponents(claudeResponse.uiUpdate);
       if (validUiItems.length > 0) {
@@ -421,6 +502,22 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
         await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
       } else {
         console.warn(`[POST /api/app/:hash/chat] uiUpdate had no valid components for app ${row.id}`);
+      }
+    } else if (claudeResponse.pagesUpdate && Array.isArray(claudeResponse.pagesUpdate)) {
+      // pagesUpdate replaces the entire config.pages array.
+      // Empty array means "revert to single-page mode" (remove pages from config).
+      if (claudeResponse.pagesUpdate.length === 0) {
+        const { pages: _removed, ...configWithoutPages } = (row.config as Record<string, unknown> ?? {});
+        await db.update(apps).set({ config: configWithoutPages }).where(eq(apps.id, row.id));
+        revertedToSinglePage = true;
+      } else {
+        validPages = validatePages(claudeResponse.pagesUpdate);
+        if (validPages.length > 0) {
+          const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), pages: validPages };
+          await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
+        } else {
+          console.warn(`[POST /api/app/:hash/chat] pagesUpdate had no valid pages for app ${row.id}`);
+        }
       }
     }
 
@@ -437,6 +534,9 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       // Only include uiUpdate when at least one component passed validation so the client
       // does not call fetchApp() when the AI's proposed update was entirely rejected.
       uiUpdate: validUiItems && validUiItems.length > 0 ? validUiItems : undefined,
+      // Include pagesUpdate when at least one page passed validation, or as empty array
+      // when reverting to single-page mode so the client triggers a refresh.
+      pagesUpdate: revertedToSinglePage ? [] : (validPages && validPages.length > 0 ? validPages : undefined),
     });
   } catch (error) {
     console.error('[POST /api/app/:hash/chat] Error:', error);

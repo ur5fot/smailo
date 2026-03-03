@@ -42,26 +42,26 @@
 ## Implementation Steps
 
 ### Task 1: Formula tokenizer and AST parser
-- [ ] Create `server/src/utils/formula/tokenizer.ts`:
+- [x] Create `server/src/utils/formula/tokenizer.ts`:
   - Token types: `Number`, `String`, `Boolean`, `Identifier`, `Operator`, `LeftParen`, `RightParen`, `Comma`, `Dot`
   - Operators: `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`
   - String literals: double-quoted `"hello"`, with escape sequences
   - Boolean literals: `true`, `false`
   - Identifiers: alphanumeric + underscore, starting with letter
   - Max formula length: 500 characters
-- [ ] Create `server/src/utils/formula/parser.ts` — recursive descent:
+- [x] Create `server/src/utils/formula/parser.ts` — recursive descent:
   - AST nodes: `NumberLiteral`, `StringLiteral`, `BooleanLiteral`, `Identifier`, `BinaryOp`, `UnaryOp`, `FunctionCall`, `MemberAccess`
   - Operator precedence (low → high): `||`, `&&`, `==`/`!=`, `<`/`>`/`<=`/`>=`, `+`/`-`, `*`/`/`/`%`, unary `-`/`!`, function call, member access (`.`)
   - Parenthesized expressions
   - Function calls: `FUNC(arg1, arg2, ...)`
   - Member access: `tableName.columnName`
-- [ ] Create `server/src/utils/formula/index.ts` — public API re-exports
-- [ ] Write tests for tokenizer: all token types, edge cases (empty, max length, unterminated string)
-- [ ] Write tests for parser: all AST node types, precedence, nested expressions, error cases
-- [ ] Run tests — must pass before next task
+- [x] Create `server/src/utils/formula/index.ts` — public API re-exports
+- [x] Write tests for tokenizer: all token types, edge cases (empty, max length, unterminated string)
+- [x] Write tests for parser: all AST node types, precedence, nested expressions, error cases
+- [x] Run tests — must pass before next task
 
 ### Task 2: Formula evaluator — core operations
-- [ ] Create `server/src/utils/formula/evaluator.ts`:
+- [x] Create `server/src/utils/formula/evaluator.ts`:
   - `evaluate(ast: ASTNode, context: FormulaContext): unknown`
   - `FormulaContext` type: `{ row?: Record<string, unknown>; tables?: Record<string, { columns: ColumnDef[]; rows: RowData[] }> }`
   - Arithmetic: `+` (also string concatenation), `-`, `*`, `/`, `%`
@@ -72,115 +72,115 @@
   - Identifier resolution: look up in `context.row` first
   - MemberAccess: `a.b` → `context.row?.a?.b` or `context.tables?.a` (for aggregates)
   - Safety: max AST depth 20, recursion limit
-- [ ] Create public API: `evaluateFormula(formula: string, context: FormulaContext): unknown` — tokenize → parse → evaluate
-- [ ] Write tests for evaluator: arithmetic, comparisons, logic, variable resolution, division by zero, depth limit
-- [ ] Run tests — must pass before next task
+- [x] Create public API: `evaluateFormula(formula: string, context: FormulaContext): unknown` — tokenize → parse → evaluate
+- [x] Write tests for evaluator: arithmetic, comparisons, logic, variable resolution, division by zero, depth limit
+- [x] Run tests — must pass before next task
 
 ### Task 3: Built-in functions
-- [ ] Add function registry to evaluator:
+- [x] Add function registry to evaluator:
   - **Conditional**: `IF(condition, thenValue, elseValue)`
   - **Math**: `ABS(n)`, `ROUND(n, decimals?)`, `FLOOR(n)`, `CEIL(n)`, `MIN(a, b)`, `MAX(a, b)`
   - **String**: `UPPER(s)`, `LOWER(s)`, `CONCAT(s1, s2, ...)`, `LEN(s)`, `TRIM(s)`
   - **Date**: `NOW()` — returns ISO 8601 string
-- [ ] Function names are case-insensitive (`sum` = `SUM` = `Sum`)
-- [ ] Type validation in functions: return `null` on type mismatch (e.g., `ABS("hello")`)
-- [ ] Write tests for each function: normal cases, edge cases, type errors
-- [ ] Run tests — must pass before next task
+- [x] Function names are case-insensitive (`sum` = `SUM` = `Sum`)
+- [x] Type validation in functions: return `null` on type mismatch (e.g., `ABS("hello")`)
+- [x] Write tests for each function: normal cases, edge cases, type errors
+- [x] Run tests — must pass before next task
 
 ### Task 4: Aggregate functions
-- [ ] Add aggregate functions to evaluator:
+- [x] Add aggregate functions to evaluator:
   - `SUM(column)` — sum numeric values in a column
   - `AVG(column)` — average of numeric values
   - `COUNT(tableOrColumn)` — count rows (no args = current table, or `COUNT(tableName)`)
   - `MIN(column)` — minimum value
   - `MAX(column)` — maximum value
-- [ ] Resolution of aggregate arguments:
+- [x] Resolution of aggregate arguments:
   - In formula columns (row context): `SUM(amount)` → aggregate over current table's `amount` column
   - In computedValue (app context): `SUM(expenses.amount)` → aggregate over `expenses` table's `amount` column
   - `COUNT(tasks)` → count rows in `tasks` table
-- [ ] Handle edge cases: empty table → `null` for SUM/AVG/MIN/MAX, `0` for COUNT; non-numeric values skipped
-- [ ] Write tests for aggregates: normal data, empty table, mixed types, table not found
-- [ ] Run tests — must pass before next task
+- [x] Handle edge cases: empty table → `null` for SUM/AVG/MIN/MAX, `0` for COUNT; non-numeric values skipped
+- [x] Write tests for aggregates: normal data, empty table, mixed types, table not found
+- [x] Run tests — must pass before next task
 
 ### Task 5: Formula column type in table schema
-- [ ] Add `'formula'` to `ColumnType` in `server/src/utils/tableValidation.ts`
-- [ ] Add optional `formula?: string` field to `ColumnDef`
-- [ ] Update `isValidColumnDef()`: if type is `formula`, `formula` string must be present and parseable (call parser to validate syntax)
-- [ ] Update `validateRowData()`: skip formula columns (they are read-only, not submitted by user)
-- [ ] Update `validateTableDefs()` in `server/src/routes/chat.ts` if it validates column types
-- [ ] Write tests for formula column validation: valid formula, invalid syntax, missing formula field, formula column skipped in row data
-- [ ] Run tests — must pass before next task
+- [x] Add `'formula'` to `ColumnType` in `server/src/utils/tableValidation.ts`
+- [x] Add optional `formula?: string` field to `ColumnDef`
+- [x] Update `isValidColumnDef()`: if type is `formula`, `formula` string must be present and parseable (call parser to validate syntax)
+- [x] Update `validateRowData()`: skip formula columns (they are read-only, not submitted by user)
+- [x] Update `validateTableDefs()` in `server/src/routes/chat.ts` if it validates column types
+- [x] Write tests for formula column validation: valid formula, invalid syntax, missing formula field, formula column skipped in row data
+- [x] Run tests — must pass before next task
 
 ### Task 6: Server-side formula column evaluation in table rows
-- [ ] Update `GET /api/app/:hash/tables/:tableId` in `server/src/routes/tables.ts`:
+- [x] Update `GET /api/app/:hash/tables/:tableId` in `server/src/routes/tables.ts`:
   - After fetching rows, identify formula columns in schema
   - For each row, evaluate each formula column with row data as context
   - Add table-level context for aggregate functions within formula columns
   - Inject computed values into row's `data` object
-- [ ] Error handling: if formula evaluation fails, set value to `null`
-- [ ] Formula columns appear in response like regular columns (transparent to client)
-- [ ] Write tests: formula column evaluation with row data, aggregate in formula column, error handling
-- [ ] Run tests — must pass before next task
+- [x] Error handling: if formula evaluation fails, set value to `null`
+- [x] Formula columns appear in response like regular columns (transparent to client)
+- [x] Write tests: formula column evaluation with row data, aggregate in formula column, error handling
+- [x] Run tests — must pass before next task
 
 ### Task 7: computedValue on UI components
-- [ ] Add optional `computedValue?: string` to `UiComponent` type in `server/src/services/aiService.ts`
-- [ ] Update `validateUiComponents()`: if `computedValue` present, strip `= ` prefix and validate formula syntax
-- [ ] Update `GET /api/app/:hash/data` endpoint in `server/src/routes/app.ts`:
+- [x] Add optional `computedValue?: string` to `UiComponent` type in `server/src/services/aiService.ts`
+- [x] Update `validateUiComponents()`: if `computedValue` present, strip `= ` prefix and validate formula syntax
+- [x] Update `GET /api/app/:hash/data` endpoint in `server/src/routes/app.ts`:
   - Read app config to find components with `computedValue`
   - Fetch all referenced tables (by name from formulas)
   - Evaluate each formula with table context
   - Return `{ appData: [...], computedValues: Record<number, unknown> }` — key is component index in uiComponents array
-- [ ] Write tests for computedValue validation and evaluation endpoint
-- [ ] Run tests — must pass before next task
+- [x] Write tests for computedValue validation and evaluation endpoint
+- [x] Run tests — must pass before next task
 
 ### Task 8: Client integration
-- [ ] Add `computedValues` to app store (`client/src/stores/app.ts`):
+- [x] Add `computedValues` to app store (`client/src/stores/app.ts`):
   - New ref: `computedValues: Record<number, unknown>`
   - Update `fetchData()` to store computedValues from response
   - Clear on `fetchApp()`
-- [ ] Update `AppRenderer.vue`:
+- [x] Update `AppRenderer.vue`:
   - If component has `computedValue`, resolve from `appStore.computedValues[index]` instead of `dataKey`
   - Priority: `dataSource` > `computedValue` > `dataKey`
-- [ ] Update `AppForm.vue`: skip formula columns when generating form fields (read-only)
-- [ ] Update `AppDataTable.vue`: formula columns display normally (values come pre-computed from server)
-- [ ] Update `AppChart.vue` / `chartData.ts`: formula columns are numeric and usable in charts
-- [ ] TypeScript compiles cleanly for both client and server
+- [x] Update `AppForm.vue`: skip formula columns when generating form fields (read-only)
+- [x] Update `AppDataTable.vue`: formula columns display normally (values come pre-computed from server)
+- [x] Update `AppChart.vue` / `chartData.ts`: formula columns are numeric and usable in charts
+- [x] TypeScript compiles cleanly for both client and server
 
 ### Task 9: AI prompt updates
-- [ ] Update `BRAINSTORM_SYSTEM_PROMPT` in `aiService.ts`:
+- [x] Update `BRAINSTORM_SYSTEM_PROMPT` in `aiService.ts`:
   - Document formula column type: `{ name: "total", type: "formula", formula: "price * quantity" }`
   - Document computedValue on components: `computedValue: "= SUM(expenses.amount)"`
   - List available functions: IF, UPPER, LOWER, CONCAT, LEN, TRIM, ABS, ROUND, FLOOR, CEIL, MIN, MAX, NOW, SUM, AVG, COUNT
   - Examples for common patterns: totals, averages, conditional values, string formatting
   - Guidance: when to use formula columns vs computedValue vs cron aggregate_data
-- [ ] Update `IN_APP_SYSTEM_PROMPT`:
+- [x] Update `IN_APP_SYSTEM_PROMPT`:
   - Add formula syntax to uiUpdate component guide
   - Document computedValue as alternative to dataKey
-- [ ] Write tests verifying prompt includes formula documentation
-- [ ] Run tests — must pass before next task
+- [x] Write tests verifying prompt includes formula documentation
+- [x] Run tests — must pass before next task
 
 ### Task 10: Backward compatibility with compute cron
-- [ ] Verify existing `compute` cron job (date_diff) still works unchanged
-- [ ] Verify existing `aggregate_data` cron job still works unchanged
-- [ ] Add note in AI prompts: prefer formula columns and computedValue for new apps, keep cron for scheduled/periodic computations
-- [ ] Run full test suite — all existing tests must pass
-- [ ] Run tests — must pass before next task
+- [x] Verify existing `compute` cron job (date_diff) still works unchanged
+- [x] Verify existing `aggregate_data` cron job still works unchanged
+- [x] Add note in AI prompts: prefer formula columns and computedValue for new apps, keep cron for scheduled/periodic computations
+- [x] Run full test suite — all existing tests must pass
+- [x] Run tests — must pass before next task
 
 ### Task 11: Verify acceptance criteria
-- [ ] Verify formula parser handles: arithmetic, comparisons, logic, IF/THEN, string ops, nested expressions
-- [ ] Verify formula columns evaluate correctly in table row responses
-- [ ] Verify computedValue evaluates correctly in app data responses
-- [ ] Verify aggregate functions (SUM, AVG, COUNT, MIN, MAX) work across table data
-- [ ] Verify existing apps with dataKey/dataSource still work (backward compatibility)
-- [ ] Verify existing compute/aggregate cron jobs still work
-- [ ] Run full test suite
-- [ ] Server TypeScript compiles (`npm run build --workspace=server`)
-- [ ] Client TypeScript compiles (`npx vue-tsc --noEmit`)
+- [x] Verify formula parser handles: arithmetic, comparisons, logic, IF/THEN, string ops, nested expressions
+- [x] Verify formula columns evaluate correctly in table row responses
+- [x] Verify computedValue evaluates correctly in app data responses
+- [x] Verify aggregate functions (SUM, AVG, COUNT, MIN, MAX) work across table data
+- [x] Verify existing apps with dataKey/dataSource still work (backward compatibility)
+- [x] Verify existing compute/aggregate cron jobs still work
+- [x] Run full test suite
+- [x] Server TypeScript compiles (`npm run build --workspace=server`)
+- [x] Client TypeScript compiles (`npx vue-tsc --noEmit`)
 
 ### Task 12: [Final] Update documentation
-- [ ] Update `CLAUDE.md` — add formula column type, computedValue, formula syntax documentation
-- [ ] Update `README.md` and `README.ru.md` — mention Stage 3 formulas in features
-- [ ] Update `docs/roadmap-v2.md` — mark Stage 3 as completed
+- [x] Update `CLAUDE.md` — add formula column type, computedValue, formula syntax documentation
+- [x] Update `README.md` and `README.ru.md` — mention Stage 3 formulas in features
+- [x] Update `docs/roadmap-v2.md` — mark Stage 3 as completed
 
 ## Technical Details
 

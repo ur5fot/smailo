@@ -1,6 +1,8 @@
+import { parse } from './formula/parser.js';
+
 // Column types and their validators — shared between routes/tables.ts and tests
 
-export const COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'select'] as const;
+export const COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'select', 'formula'] as const;
 export type ColumnType = typeof COLUMN_TYPES[number];
 
 export type ColumnDef = {
@@ -8,6 +10,7 @@ export type ColumnDef = {
   type: ColumnType;
   required?: boolean;
   options?: string[]; // for 'select' type
+  formula?: string;   // for 'formula' type — expression to evaluate
 };
 
 const COLUMN_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{0,49}$/;
@@ -22,6 +25,14 @@ export function isValidColumnDef(col: unknown): col is ColumnDef {
     if (!Array.isArray(c.options) || c.options.length === 0 || c.options.length > 50) return false;
     if (!c.options.every((o: unknown) => typeof o === 'string' && o.length > 0 && o.length <= 200)) return false;
   }
+  if (c.type === 'formula') {
+    if (typeof c.formula !== 'string' || c.formula.trim().length === 0) return false;
+    try {
+      parse(c.formula);
+    } catch {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -33,6 +44,9 @@ export function validateRowData(data: unknown, columns: ColumnDef[]): { valid: b
   const cleaned: Record<string, unknown> = {};
 
   for (const col of columns) {
+    // Formula columns are computed at read time — skip during row validation
+    if (col.type === 'formula') continue;
+
     const value = d[col.name];
 
     // Handle missing/null values

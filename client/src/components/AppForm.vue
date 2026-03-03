@@ -89,13 +89,16 @@ const effectiveFields = computed<FormField[]>(() => {
   if (isTableMode.value && props.dataSource) {
     const tableInfo = appStore.getTableData(props.dataSource.tableId)
     if (!tableInfo) return []
-    return tableInfo.schema.columns.map(col => ({
-      name: col.name,
-      type: col.type,
-      label: col.name,
-      required: col.required,
-      options: col.options,
-    }))
+    // Skip formula columns — they are read-only, computed server-side
+    return tableInfo.schema.columns
+      .filter(col => col.type !== 'formula')
+      .map(col => ({
+        name: col.name,
+        type: col.type,
+        label: col.name,
+        required: col.required,
+        options: col.options,
+      }))
   }
   return (props.fields || []).map(f => ({
     name: f.name,
@@ -159,7 +162,7 @@ async function handleSubmit() {
         }
       }
       await api.post(`/app/${props.hash}/tables/${props.dataSource.tableId}/rows`, { data })
-      await appStore.refreshTable(props.hash, props.dataSource.tableId)
+      appStore.invalidateTableCache(props.dataSource.tableId)
     } else {
       // KV mode: POST to appData
       const formObject: Record<string, unknown> = {}

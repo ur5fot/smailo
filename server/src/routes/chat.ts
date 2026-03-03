@@ -4,7 +4,7 @@ import { randomBytes, createHash } from 'crypto';
 import { eq, desc, isNull, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory, users } from '../db/schema.js';
-import { chatWithAI, validateUiComponents, validateTableDefs, type CronJobConfig, type TableDef } from '../services/aiService.js';
+import { chatWithAI, validateUiComponents, validatePages, validateTableDefs, type CronJobConfig, type TableDef } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 import { userTables } from '../db/schema.js';
 
@@ -19,7 +19,7 @@ const CHAT_HISTORY_LIMIT = 20;
  * Validate action-specific config for a cron job.
  * Returns true if the config has the required fields for the given action type.
  */
-function isValidCronJobConfig(action: string, config: unknown): boolean {
+export function isValidCronJobConfig(action: string, config: unknown): boolean {
   if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
   const c = config as Record<string, unknown>;
 
@@ -185,6 +185,9 @@ chatRouter.post('/', limiter, async (req, res) => {
       } else {
         appConfigToStore.uiComponents = [];
       }
+      if (Array.isArray(appConfigToStore.pages)) {
+        appConfigToStore.pages = validatePages(appConfigToStore.pages);
+      }
 
       validJobs = Array.isArray(claudeResponse.appConfig.cronJobs)
         ? (claudeResponse.appConfig.cronJobs.filter(
@@ -278,12 +281,14 @@ chatRouter.post('/', limiter, async (req, res) => {
           }
         });
 
-        // Remap dataSource.tableId from AI positional index to actual DB ID
+        // Remap dataSource.tableId from AI positional index to actual DB ID.
+        // Walks top-level uiComponents, every page's uiComponents, and
+        // ConditionalGroup children (max 1 level deep per spec).
         if (tableIdMap.size > 0 && appCreationData) {
-          const uiComponents = appCreationData.appConfigToStore.uiComponents as Array<Record<string, unknown>> | undefined;
-          if (Array.isArray(uiComponents)) {
+          const remapComponents = (components: Array<Record<string, unknown>>): boolean => {
             let changed = false;
-            for (const comp of uiComponents) {
+            for (const comp of components) {
+              if (!comp || typeof comp !== 'object') continue;
               const ds = comp.dataSource as Record<string, unknown> | undefined;
               if (ds?.type === 'table' && typeof ds.tableId === 'number') {
                 const actualId = tableIdMap.get(ds.tableId);
@@ -292,13 +297,40 @@ chatRouter.post('/', limiter, async (req, res) => {
                   changed = true;
                 }
               }
+              // Recurse into ConditionalGroup children (max 1 level deep)
+              if (Array.isArray(comp.children)) {
+                if (remapComponents(comp.children as Array<Record<string, unknown>>)) {
+                  changed = true;
+                }
+              }
             }
-            if (changed) {
-              db.update(apps)
-                .set({ config: appCreationData.appConfigToStore })
-                .where(eq(apps.id, insertedAppId!))
-                .run();
+            return changed;
+          };
+
+          let changed = false;
+          const config = appCreationData.appConfigToStore;
+
+          if (Array.isArray(config.uiComponents)) {
+            if (remapComponents(config.uiComponents as Array<Record<string, unknown>>)) {
+              changed = true;
             }
+          }
+
+          if (Array.isArray(config.pages)) {
+            for (const page of config.pages as Array<Record<string, unknown>>) {
+              if (Array.isArray(page.uiComponents)) {
+                if (remapComponents(page.uiComponents as Array<Record<string, unknown>>)) {
+                  changed = true;
+                }
+              }
+            }
+          }
+
+          if (changed) {
+            db.update(apps)
+              .set({ config })
+              .where(eq(apps.id, insertedAppId!))
+              .run();
           }
         }
       } catch (err) {

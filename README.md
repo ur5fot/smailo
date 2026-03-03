@@ -71,7 +71,8 @@ smailo/
 │       │   ├── AppCardList.vue   # Card-per-item list from appData array or table rows (with delete)
 │       │   ├── AppAccordion.vue  # Accordion wrapper for collapsible sections
 │       │   ├── AppPanel.vue      # Panel wrapper with header slot
-│       │   └── AppTabs.vue       # Tabs wrapper showing data per tab
+│       │   ├── AppTabs.vue       # Tabs wrapper showing data per tab
+│       │   └── AppConditionalGroup.vue  # Container that shows/hides children based on a condition
 │       ├── views/
 │       │   ├── HomeView.vue      # Landing: create/enter user ID
 │       │   ├── UserView.vue      # User page: app list (left) + AI chat with example prompts (right)
@@ -84,7 +85,10 @@ smailo/
 │       │   ├── format.ts         # Shared formatIfDate utility (ISO → localized RU date)
 │       │   ├── markdown.ts       # Shared renderMd (marked + DOMPurify)
 │       │   ├── dataKey.ts        # Shared resolveDataKey with prototype-pollution guard
-│       │   └── chartData.ts     # buildChartDataFromTable utility for table→Chart.js conversion
+│       │   ├── chartData.ts      # buildChartDataFromTable utility for table→Chart.js conversion
+│       │   ├── showIf.ts         # evaluateShowIf — client-side formula evaluation for component visibility
+│       │   ├── styleIf.ts        # evaluateStyleIf — client-side conditional CSS class evaluation
+│       │   └── formula/          # Client-side copy of the formula parser (tokenizer, parser, evaluator)
 │       ├── api/index.ts          # Axios instance with JWT + X-User-Id interceptor
 │       └── router/index.ts       # Vue Router with regex-constrained params
 │
@@ -104,6 +108,8 @@ smailo/
         │   ├── chat.ts           # POST/GET /api/chat — home brainstorm flow + chat history
         │   ├── app.ts            # GET/POST /api/app/:hash — app access, chat, data writes
         │   └── tables.ts         # CRUD /api/app/:hash/tables — user-defined tables and rows
+        ├── utils/
+        │   └── formula/          # Safe formula engine (tokenizer, parser, evaluator)
         └── index.ts              # Express entry point
 ```
 
@@ -113,7 +119,8 @@ smailo/
 |------|------|-------------|
 | `/` | HomeView | Landing — create new user or enter existing userId |
 | `/:userId` | UserView | Personal page with app list and AI creation chat |
-| `/:userId/:hash` | AppView | App view with two-column layout |
+| `/:userId/:hash` | AppView | App view with two-column layout (redirects to first page for multi-page apps) |
+| `/:userId/:hash/:pageId` | AppView | Specific page of a multi-page app |
 | `/app/:hash` | AppView | Backward-compatible (userId = null) |
 
 ### Data Flow
@@ -132,6 +139,8 @@ smailo/
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data, compute) and writes results to appData
 - User-defined tables: AI can define structured tables during app creation; CRUD operations available via `/api/app/:hash/tables` endpoints (create/list/update/delete tables, add/update/delete rows)
 - Table data binding: components with `dataSource: { type: "table", tableId }` bind directly to table data — DataTable/CardList display rows, Form writes rows, Chart builds graphs from table data
+- Row filtering: `dataSource` supports an optional `filter` field — single condition `{ column, operator?, value }` or array (AND logic); operators: `eq` (default), `ne`, `lt`, `lte`, `gt`, `gte`, `contains`; server filters rows in memory; enables multi-page apps with per-page views of the same table (e.g., tasks filtered by priority)
+- Multi-page apps: app config may include a `pages` array (max 10 pages, each with its own `uiComponents`); AppView renders PrimeVue tab navigation and reflects the active page in the URL as `/:userId/:hash/:pageId`; AI uses `pagesUpdate` response field to replace the pages array
 
 ### Security
 
@@ -150,9 +159,10 @@ Smailo is evolving from a data dashboard builder into a low-code app platform. T
 
 1. **User-defined tables** — relational data storage with typed columns (text, number, date, boolean, select) ✅
 2. **Table data binding** — bind DataTable, Form, Chart, and CardList to table data via `dataSource` ✅
-3. **Formula engine** — computed columns and aggregate functions (SUM, AVG, COUNT)
-4. **Conditional logic** — show/hide components based on data conditions
-5. **Multi-page apps** — multiple pages with shared data and navigation
+3. **Formula engine** — computed columns and aggregate functions (SUM, AVG, COUNT) ✅
+4. **Conditional logic** — show/hide components and apply conditional styles based on data conditions ✅
+5. **Multi-page apps** — multiple pages with shared data and navigation ✅
+5.5. **Row filtering** — filter table rows in `dataSource` by column values with 7 operators ✅
 6. **Event system** — action chains triggered by user interactions
 7. **Visual editor** — drag-and-drop UI builder alongside the AI chat
 8. **Multi-user access** — roles, permissions, and shared apps

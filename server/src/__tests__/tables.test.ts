@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { isValidColumnDef, validateRowData, COLUMN_TYPES } from '../utils/tableValidation.js'
 import type { ColumnDef } from '../utils/tableValidation.js'
+import { evaluateFormulaColumns } from '../utils/formulaColumns.js'
 
 describe('isValidColumnDef', () => {
   it('accepts valid text column', () => {
@@ -65,7 +66,44 @@ describe('isValidColumnDef', () => {
     expect(COLUMN_TYPES).toContain('date')
     expect(COLUMN_TYPES).toContain('boolean')
     expect(COLUMN_TYPES).toContain('select')
-    expect(COLUMN_TYPES).toHaveLength(5)
+    expect(COLUMN_TYPES).toContain('formula')
+    expect(COLUMN_TYPES).toHaveLength(6)
+  })
+
+  it('accepts valid formula column with parseable expression', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: 'price * quantity' })).toBe(true)
+  })
+
+  it('accepts formula column with complex expression', () => {
+    expect(isValidColumnDef({ name: 'discount', type: 'formula', formula: 'IF(amount > 100, amount * 0.1, 0)' })).toBe(true)
+  })
+
+  it('accepts formula column with string functions', () => {
+    expect(isValidColumnDef({ name: 'fullName', type: 'formula', formula: 'CONCAT(first, " ", last)' })).toBe(true)
+  })
+
+  it('rejects formula column without formula field', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula' })).toBe(false)
+  })
+
+  it('rejects formula column with empty formula string', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: '' })).toBe(false)
+  })
+
+  it('rejects formula column with whitespace-only formula', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: '   ' })).toBe(false)
+  })
+
+  it('rejects formula column with invalid syntax', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: 'price * + quantity' })).toBe(false)
+  })
+
+  it('rejects formula column with unclosed parenthesis', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: 'SUM(amount' })).toBe(false)
+  })
+
+  it('rejects formula column with non-string formula', () => {
+    expect(isValidColumnDef({ name: 'total', type: 'formula', formula: 42 })).toBe(false)
   })
 })
 
@@ -178,6 +216,43 @@ describe('validateRowData', () => {
     expect(result.valid).toBe(false)
     expect(result.error).toContain('max length')
   })
+
+  it('skips formula columns during row validation', () => {
+    const columnsWithFormula: ColumnDef[] = [
+      { name: 'price', type: 'number', required: true },
+      { name: 'quantity', type: 'number', required: true },
+      { name: 'total', type: 'formula', formula: 'price * quantity' },
+    ]
+    // Submit only non-formula fields — formula column should be ignored
+    const result = validateRowData({ price: 10, quantity: 5 }, columnsWithFormula)
+    expect(result.valid).toBe(true)
+    expect(result.cleaned!.price).toBe(10)
+    expect(result.cleaned!.quantity).toBe(5)
+    // Formula column should not appear in cleaned data
+    expect(result.cleaned!).not.toHaveProperty('total')
+  })
+
+  it('skips formula columns even if data is provided for them', () => {
+    const columnsWithFormula: ColumnDef[] = [
+      { name: 'price', type: 'number', required: true },
+      { name: 'total', type: 'formula', formula: 'price * 2' },
+    ]
+    // Even if user submits a value for the formula column, it should be ignored
+    const result = validateRowData({ price: 10, total: 999 }, columnsWithFormula)
+    expect(result.valid).toBe(true)
+    expect(result.cleaned!.price).toBe(10)
+    expect(result.cleaned!).not.toHaveProperty('total')
+  })
+
+  it('does not treat formula column as required', () => {
+    const columnsWithFormula: ColumnDef[] = [
+      { name: 'amount', type: 'number' },
+      { name: 'doubled', type: 'formula', formula: 'amount * 2' },
+    ]
+    // Formula column should never cause a "required" validation failure
+    const result = validateRowData({ amount: 42 }, columnsWithFormula)
+    expect(result.valid).toBe(true)
+  })
 })
 
 describe('GET /api/app/:hash/tables/:tableId response shape', () => {
@@ -232,58 +307,6 @@ describe('GET /api/app/:hash/tables/:tableId response shape', () => {
     expect(row).toHaveProperty('updatedAt')
   })
 
-  it('response rows can be empty', () => {
-    const response = {
-      id: 2,
-      name: 'Tasks',
-      columns: [{ name: 'task', type: 'text' }],
-      createdAt: '2026-03-01T12:00:00.000Z',
-      rows: [],
-    }
-    expect(response.rows).toEqual([])
-  })
-
-  it('row data keys match column names', () => {
-    const columns = [
-      { name: 'task', type: 'text' as const },
-      { name: 'priority', type: 'number' as const },
-    ]
-    const rowData = { task: 'Buy milk', priority: 3 }
-
-    // All column names should be present as keys in row data
-    for (const col of columns) {
-      expect(rowData).toHaveProperty(col.name)
-    }
-  })
-
-  it('client can flatten row data for DataTable display', () => {
-    // Simulates what AppDataTable does: merge row.id + row.data
-    const row = {
-      id: 5,
-      data: { task: 'Buy milk', priority: 3, done: false },
-      createdAt: '2026-03-01',
-      updatedAt: null,
-    }
-
-    const flattened = { id: row.id, ...(row.data as Record<string, unknown>) }
-    expect(flattened).toEqual({ id: 5, task: 'Buy milk', priority: 3, done: false })
-  })
-
-  it('client generates columns from schema for DataTable', () => {
-    // Simulates what AppDataTable effectiveColumns does with table schema
-    const columns = [
-      { name: 'task', type: 'text' as const },
-      { name: 'priority', type: 'number' as const },
-      { name: 'done', type: 'boolean' as const },
-    ]
-
-    const tableColumns = columns.map((col) => ({ field: col.name, header: col.name }))
-    expect(tableColumns).toEqual([
-      { field: 'task', header: 'task' },
-      { field: 'priority', header: 'priority' },
-      { field: 'done', header: 'done' },
-    ])
-  })
 })
 
 describe('POST /api/app/:hash/tables/:tableId/rows — typed validation contract', () => {
@@ -408,21 +431,6 @@ describe('POST /api/app/:hash/tables/:tableId/rows — typed validation contract
     expect(result.cleaned!).not.toHaveProperty('hack')
   })
 
-  it('POST response shape: returns id, data, createdAt', () => {
-    // Documents the expected response shape from POST /tables/:tableId/rows
-    const response = {
-      id: 42,
-      data: { title: 'New item', amount: 99.5 },
-      createdAt: '2026-03-02T10:00:00.000Z',
-    }
-    expect(response).toHaveProperty('id')
-    expect(typeof response.id).toBe('number')
-    expect(response).toHaveProperty('data')
-    expect(typeof response.data).toBe('object')
-    expect(response).toHaveProperty('createdAt')
-    expect(typeof response.createdAt).toBe('string')
-  })
-
   it('ignores unknown fields in submitted data (strips extra fields)', () => {
     const columns: ColumnDef[] = [
       { name: 'title', type: 'text', required: true },
@@ -458,83 +466,194 @@ describe('POST /api/app/:hash/tables/:tableId/rows — typed validation contract
   })
 })
 
-describe('DELETE /api/app/:hash/tables/:tableId/rows/:rowId — response contract', () => {
-  // Documents the expected behavior of the row deletion endpoint
-  // that AppCardList uses in table mode
+describe('evaluateFormulaColumns', () => {
+  function makeRow(id: number, data: Record<string, unknown>) {
+    return { id, data, createdAt: '2026-03-01T00:00:00Z', updatedAt: null }
+  }
 
-  it('successful deletion returns { ok: true }', () => {
-    // Simulates the expected response shape
-    const response = { ok: true }
-    expect(response).toHaveProperty('ok', true)
-  })
-
-  it('deletion with invalid tableId returns 400', () => {
-    // Simulates the error response for invalid tableId
-    const response = { error: 'Invalid tableId or rowId' }
-    expect(response).toHaveProperty('error')
-    expect(response.error).toContain('Invalid')
-  })
-
-  it('deletion of non-existent row returns 404', () => {
-    // Simulates the error response for missing row
-    const response = { error: 'Row not found' }
-    expect(response).toHaveProperty('error')
-    expect(response.error).toBe('Row not found')
-  })
-
-  it('deletion of row from non-existent table returns 404', () => {
-    const response = { error: 'Table not found' }
-    expect(response).toHaveProperty('error')
-    expect(response.error).toBe('Table not found')
-  })
-
-  it('client sends correct URL format for row deletion', () => {
-    // Simulates what AppCardList builds as the API URL
-    const hash = 'abc123'
-    const tableId = 5
-    const rowId = 42
-    const expectedUrl = `/app/${hash}/tables/${tableId}/rows/${rowId}`
-    expect(expectedUrl).toBe('/app/abc123/tables/5/rows/42')
-  })
-
-  it('client refreshes table data after successful deletion', () => {
-    // Documents the expected flow:
-    // 1. DELETE /api/app/:hash/tables/:tableId/rows/:rowId -> { ok: true }
-    // 2. GET /api/app/:hash/tables/:tableId -> { rows: [...] } (refresh)
-    // 3. emit('data-written') for AppView refresh
-    const deleteResponse = { ok: true }
-    expect(deleteResponse.ok).toBe(true)
-
-    // After delete, the table should be refreshed (fewer rows)
-    const refreshResponse = {
-      id: 5,
-      name: 'Expenses',
-      columns: [{ name: 'title', type: 'text' }],
-      createdAt: '2026-03-01T00:00:00.000Z',
-      rows: [], // Row was deleted, table is now empty
-    }
-    expect(refreshResponse.rows).toEqual([])
-  })
-
-  it('AppCardList renders table row data using schema columns', () => {
-    // Documents how AppCardList maps table schema to card display
-    const columns = [
-      { name: 'title', type: 'text' as const },
-      { name: 'amount', type: 'number' as const },
-      { name: 'done', type: 'boolean' as const },
-      { name: 'date', type: 'date' as const },
+  it('evaluates a simple arithmetic formula column', () => {
+    const columns: ColumnDef[] = [
+      { name: 'price', type: 'number' },
+      { name: 'quantity', type: 'number' },
+      { name: 'total', type: 'formula', formula: 'price * quantity' },
     ]
-    const rowData = { title: 'Groceries', amount: 42.5, done: true, date: '2026-03-01T00:00:00Z' }
+    const rows = [
+      makeRow(1, { price: 10, quantity: 5 }),
+      makeRow(2, { price: 20, quantity: 3 }),
+    ]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.total).toBe(50)
+    expect(result[1].data.total).toBe(60)
+  })
 
-    // Each column is displayed as a key-value pair in the card
-    for (const col of columns) {
-      expect(rowData).toHaveProperty(col.name)
-    }
+  it('evaluates multiple formula columns', () => {
+    const columns: ColumnDef[] = [
+      { name: 'price', type: 'number' },
+      { name: 'quantity', type: 'number' },
+      { name: 'total', type: 'formula', formula: 'price * quantity' },
+      { name: 'doubled', type: 'formula', formula: 'price * 2' },
+    ]
+    const rows = [makeRow(1, { price: 10, quantity: 5 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.total).toBe(50)
+    expect(result[0].data.doubled).toBe(20)
+  })
 
-    // Boolean values are formatted as Да/Нет in the UI
-    expect(rowData.done).toBe(true) // rendered as "Да"
-    // Null/undefined values are rendered as "—"
-    const nullableRow = { title: 'Test', amount: null, done: false, date: null }
-    expect(nullableRow.amount).toBeNull() // rendered as "—"
+  it('evaluates formula with IF conditional', () => {
+    const columns: ColumnDef[] = [
+      { name: 'amount', type: 'number' },
+      { name: 'label', type: 'formula', formula: 'IF(amount > 100, "expensive", "cheap")' },
+    ]
+    const rows = [
+      makeRow(1, { amount: 200 }),
+      makeRow(2, { amount: 50 }),
+    ]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.label).toBe('expensive')
+    expect(result[1].data.label).toBe('cheap')
+  })
+
+  it('evaluates formula with string functions', () => {
+    const columns: ColumnDef[] = [
+      { name: 'first', type: 'text' },
+      { name: 'last', type: 'text' },
+      { name: 'fullName', type: 'formula', formula: 'CONCAT(first, " ", last)' },
+    ]
+    const rows = [makeRow(1, { first: 'John', last: 'Doe' })]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.fullName).toBe('John Doe')
+  })
+
+  it('evaluates aggregate function (SUM) within formula column', () => {
+    const columns: ColumnDef[] = [
+      { name: 'amount', type: 'number' },
+      { name: 'pctOfTotal', type: 'formula', formula: 'ROUND(amount / SUM(amount) * 100, 1)' },
+    ]
+    const rows = [
+      makeRow(1, { amount: 30 }),
+      makeRow(2, { amount: 70 }),
+    ]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.pctOfTotal).toBe(30)
+    expect(result[1].data.pctOfTotal).toBe(70)
+  })
+
+  it('evaluates COUNT aggregate within formula column', () => {
+    const columns: ColumnDef[] = [
+      { name: 'item', type: 'text' },
+      { name: 'rowCount', type: 'formula', formula: 'COUNT()' },
+    ]
+    const rows = [
+      makeRow(1, { item: 'a' }),
+      makeRow(2, { item: 'b' }),
+      makeRow(3, { item: 'c' }),
+    ]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.rowCount).toBe(3)
+    expect(result[1].data.rowCount).toBe(3)
+    expect(result[2].data.rowCount).toBe(3)
+  })
+
+  it('returns null for division by zero in formula', () => {
+    const columns: ColumnDef[] = [
+      { name: 'a', type: 'number' },
+      { name: 'b', type: 'number' },
+      { name: 'ratio', type: 'formula', formula: 'a / b' },
+    ]
+    const rows = [makeRow(1, { a: 10, b: 0 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.ratio).toBeNull()
+  })
+
+  it('returns null for missing variable references', () => {
+    const columns: ColumnDef[] = [
+      { name: 'a', type: 'number' },
+      { name: 'result', type: 'formula', formula: 'a + nonexistent' },
+    ]
+    const rows = [makeRow(1, { a: 10 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    // null + 10 = null since nonexistent resolves to null
+    expect(result[0].data.result).toBeNull()
+  })
+
+  it('returns null when formula has runtime error (unknown function)', () => {
+    const columns: ColumnDef[] = [
+      { name: 'a', type: 'number' },
+      { name: 'result', type: 'formula', formula: 'UNKNOWN_FUNC(a)' },
+    ]
+    const rows = [makeRow(1, { a: 10 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    // Unknown function throws EvaluatorError, caught and set to null
+    expect(result[0].data.result).toBeNull()
+  })
+
+  it('does not modify original row data', () => {
+    const columns: ColumnDef[] = [
+      { name: 'price', type: 'number' },
+      { name: 'doubled', type: 'formula', formula: 'price * 2' },
+    ]
+    const originalData = { price: 10 }
+    const rows = [makeRow(1, originalData)]
+    evaluateFormulaColumns(rows, columns)
+    // Original data should not be mutated
+    expect(originalData).not.toHaveProperty('doubled')
+  })
+
+  it('returns rows unchanged when there are no formula columns', () => {
+    const columns: ColumnDef[] = [
+      { name: 'title', type: 'text' },
+      { name: 'amount', type: 'number' },
+    ]
+    const rows = [makeRow(1, { title: 'Test', amount: 42 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    // Should be the same reference since no formula columns
+    expect(result).toBe(rows)
+  })
+
+  it('handles empty rows array', () => {
+    const columns: ColumnDef[] = [
+      { name: 'a', type: 'number' },
+      { name: 'b', type: 'formula', formula: 'a * 2' },
+    ]
+    const result = evaluateFormulaColumns([], columns)
+    expect(result).toEqual([])
+  })
+
+  it('formula columns appear in response data alongside regular columns', () => {
+    const columns: ColumnDef[] = [
+      { name: 'item', type: 'text' },
+      { name: 'price', type: 'number' },
+      { name: 'tax', type: 'formula', formula: 'price * 0.1' },
+    ]
+    const rows = [makeRow(1, { item: 'Widget', price: 100 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    // All keys present: regular + formula
+    expect(result[0].data).toEqual({ item: 'Widget', price: 100, tax: 10 })
+  })
+
+  it('preserves row metadata (id, createdAt, updatedAt)', () => {
+    const columns: ColumnDef[] = [
+      { name: 'n', type: 'number' },
+      { name: 'doubled', type: 'formula', formula: 'n * 2' },
+    ]
+    const rows = [{ id: 42, data: { n: 5 }, createdAt: '2026-03-01T12:00:00Z', updatedAt: '2026-03-02T10:00:00Z' }]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].id).toBe(42)
+    expect(result[0].createdAt).toBe('2026-03-01T12:00:00Z')
+    expect(result[0].updatedAt).toBe('2026-03-02T10:00:00Z')
+    expect(result[0].data.doubled).toBe(10)
+  })
+
+  it('formula column can reference a previously computed formula column', () => {
+    const columns: ColumnDef[] = [
+      { name: 'price', type: 'number' },
+      { name: 'quantity', type: 'number' },
+      { name: 'subtotal', type: 'formula', formula: 'price * quantity' },
+      { name: 'total', type: 'formula', formula: 'subtotal * 1.2' },
+    ]
+    const rows = [makeRow(1, { price: 100, quantity: 3 })]
+    const result = evaluateFormulaColumns(rows, columns)
+    expect(result[0].data.subtotal).toBe(300)
+    expect(result[0].data.total).toBeCloseTo(360)
   })
 })

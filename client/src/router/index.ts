@@ -13,8 +13,18 @@ const router = createRouter({
       component: () => import('../views/AppView.vue'),
     },
     {
+      // Legacy URL with page — for multi-page apps accessed without user context
+      path: '/app/:hash([a-fA-F0-9]{1,128})/:pageId([a-zA-Z0-9_-]{1,50})',
+      component: () => import('../views/AppView.vue'),
+    },
+    {
       // App view with user context — userId available for back navigation
       path: '/:userId([A-Za-z0-9]{1,50})/:hash([a-fA-F0-9]{1,128})',
+      component: () => import('../views/AppView.vue'),
+    },
+    {
+      // App view with specific page — for multi-page apps
+      path: '/:userId([A-Za-z0-9]{1,50})/:hash([a-fA-F0-9]{1,128})/:pageId([a-zA-Z0-9_-]{1,50})',
       component: () => import('../views/AppView.vue'),
     },
     {

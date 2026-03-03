@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { parse as parseFormula } from '../utils/formula/parser.js';
+import { isValidCondition as isValidFilterCondition } from '../utils/filterRows.js';
 
 export type ClaudePhase = 'brainstorm' | 'confirm' | 'created' | 'chat';
 
@@ -9,6 +11,7 @@ export type ClaudeResponse = {
   phase: ClaudePhase;
   appConfig?: AppConfig;
   uiUpdate?: UiComponent[];
+  pagesUpdate?: Page[];
   memoryUpdate?: string;
 };
 
@@ -20,9 +23,23 @@ export type CronJobConfig = {
   config: Record<string, unknown>;
 };
 
+export type FilterOperator = 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte' | 'contains';
+
+export type FilterCondition = {
+  column: string;
+  operator?: FilterOperator;   // defaults to 'eq'
+  value: string | number | boolean;
+};
+
 export type DataSource = {
   type: 'table';
   tableId: number;
+  filter?: FilterCondition | FilterCondition[];
+};
+
+export type StyleIfCondition = {
+  condition: string;
+  class: string;
 };
 
 export type UiComponent = {
@@ -30,22 +47,35 @@ export type UiComponent = {
   props: Record<string, unknown>;
   dataKey?: string;
   dataSource?: DataSource;
+  computedValue?: string;
   action?: { key: string; value?: unknown; mode?: 'append' };
   fields?: Array<{ name: string; type: string; label: string }>;
   outputKey?: string;
   appendMode?: boolean;
+  showIf?: string;
+  styleIf?: StyleIfCondition[];
+  condition?: string;
+  children?: UiComponent[];
 };
 
 export type TableColumnDef = {
   name: string;
-  type: 'text' | 'number' | 'date' | 'boolean' | 'select';
+  type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'formula';
   required?: boolean;
   options?: string[]; // for 'select' type
+  formula?: string;   // for 'formula' type — expression to evaluate
 };
 
 export type TableDef = {
   name: string;
   columns: TableColumnDef[];
+};
+
+export type Page = {
+  id: string;
+  title: string;
+  icon?: string;
+  uiComponents: UiComponent[];
 };
 
 export type AppConfig = {
@@ -54,6 +84,7 @@ export type AppConfig = {
   cronJobs: CronJobConfig[];
   uiComponents: UiComponent[];
   tables?: TableDef[];
+  pages?: Page[];
 };
 
 export type ChatMessage = {
@@ -108,12 +139,20 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
   ],
   "uiComponents": [
     {
-      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form" | "Accordion" | "Panel" | "Chip" | "Badge" | "Slider" | "Rating" | "Tabs" | "Image" | "MeterGroup" | "CardList",
+      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form" | "Accordion" | "Panel" | "Chip" | "Badge" | "Slider" | "Rating" | "Tabs" | "Image" | "MeterGroup" | "CardList" | "ConditionalGroup",
       "props": { /* component-specific props — see component guide below */ },
       "dataKey": "key from appData to bind as value prop",
       "action": { "key": "appDataKey", "value": "optional fixed value" },  // for Button
       "fields": [ { "name": "field_name", "type": "text|number", "label": "Display label" } ],  // for Form
       "outputKey": "appDataKey"  // for Form
+    }
+  ],
+  "pages": [  // optional: only for multi-page apps (see MULTI-PAGE APPS section)
+    {
+      "id": "main",
+      "title": "Главная",
+      "icon": "pi pi-home",  // optional PrimeVue icon name (must include "pi " prefix, e.g. "pi pi-home")
+      "uiComponents": [ /* same structure as top-level uiComponents */ ]
     }
   ]
 }
@@ -125,10 +164,12 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to bind to a user-defined table — columns are auto-generated from the table schema.
   Example (KV): { "component": "DataTable", "props": { "columns": [{ "field": "date", "header": "Date" }, { "field": "note", "header": "Note" }] }, "dataKey": "entries" }
   Example (table): { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
+  Example (filtered): { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } } }
 - Chart: requires "type" prop ("bar", "line", "pie", "doughnut") and "dataKey" for chart data object.
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to build chart data from table rows (first column = labels, numeric columns = datasets).
   Example (KV): { "component": "Chart", "props": { "type": "line" }, "dataKey": "weightData" }
   Example (table): { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1 } }
+  Example (filtered): { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "status", "value": "active" } } }
 - Knob: use "value" prop (number 0-100). Use "dataKey" to bind numeric data.
   Example: { "component": "Knob", "props": { "min": 0, "max": 10 }, "dataKey": "moodScore" }
 - Tag: use "value" prop (string). Use "dataKey" to bind string data.
@@ -136,7 +177,9 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
 - Calendar: displays a date picker, no dataKey needed.
 - Timeline: use "dataKey" to bind array of { date, content } objects.
 - Button: use "label" prop and optional "severity" ("success", "danger", "warning", "info"). Use "action" with { key, value } to write a fixed value on click.
-  Example: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
+  For COUNTERS, use action.mode "increment" — each click ADDS the value to the current number instead of overwriting.
+  Example fixed: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
+  Example counter: { "component": "Button", "props": { "label": "+1", "severity": "success" }, "action": { "key": "count", "value": 1, "mode": "increment" } }
 - InputText: use "label", "type" ("text", "number", or "date"), "placeholder" props. Use "action" with { key } — value comes from user input.
   IMPORTANT: InputText already has a built-in save button — do NOT add a separate Button to save its value.
   For date inputs use type "date" — renders a calendar date picker; saves as ISO string.
@@ -150,6 +193,7 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Add "appendMode": true to ACCUMULATE submissions as an array (for lists, logs, task trackers).
   With appendMode, use CardList (preferred) or DataTable to display. CardList auto-renders all fields per item.
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to write rows to a user-defined table — fields are auto-generated from the table schema. No "outputKey" or "fields" needed.
+  NOTE: Form does NOT support "filter" — filter is for display components only (DataTable, CardList, Chart).
   Example (KV): { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }, { "name": "note", "type": "text", "label": "Заметка" }], "outputKey": "weight_entry" }
   Example list: { "component": "Form", "props": { "submitLabel": "Добавить задачу" }, "fields": [{ "name": "task", "type": "text", "label": "Задача" }], "outputKey": "tasks", "appendMode": true }
   Example (table): { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } }
@@ -177,6 +221,9 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to display rows from a user-defined table as cards with delete support.
   Example (KV): { "component": "CardList", "dataKey": "tasks" }
   Example (table): { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
+  Example (filtered): { "component": "CardList", "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "done", "value": false } } }
+- ConditionalGroup: shows/hides a group of child components based on a formula condition. Use "condition" (formula) and "children" (array of components). No nested ConditionalGroup. Children CANNOT use "computedValue" — use "dataKey" instead.
+  Example: { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [{ "component": "Card", "props": { "title": "Step 2" }, "dataKey": "step2" }] }
 
 NEVER use any component not listed above.
 
@@ -234,12 +281,88 @@ Add "tables" array to appConfig:
   ]
 }
 
-Column types: text, number, date, boolean, select (with "options" array).
+Column types: text, number, date, boolean, select (with "options" array), formula (computed column).
 Column names: must start with a letter, alphanumeric + underscore, max 50 chars.
-Table names: can include Cyrillic, spaces, max 100 chars.
+Table names: can include Cyrillic, spaces, max 100 chars. IMPORTANT: if a table will be referenced in formula columns or computedValue, its name must NOT contain spaces (use underscores instead, e.g. "Мои_расходы").
 Max 20 tables per app, max 30 columns per table.
 "required": true makes the field mandatory when adding rows.
 "select" type requires an "options" array of allowed string values.
+
+FORMULA COLUMNS (computed columns in tables):
+Formula columns are read-only — they compute a value per row from other columns in the same table.
+Define with type "formula" and a "formula" expression string:
+{ "name": "total", "type": "formula", "formula": "price * quantity" }
+{ "name": "full_name", "type": "formula", "formula": "CONCAT(first_name, \" \", last_name)" }
+{ "name": "status", "type": "formula", "formula": "IF(amount > 1000, \"high\", \"normal\")" }
+
+Formula columns are evaluated server-side when rows are read — values appear like regular columns to the client.
+Users do NOT submit data for formula columns — they are skipped in forms automatically.
+
+Available formula functions:
+- Conditional: IF(condition, thenValue, elseValue)
+- Math: ABS(n), ROUND(n, decimals?), FLOOR(n), CEIL(n), MIN(a, b), MAX(a, b)
+- String: UPPER(s), LOWER(s), CONCAT(s1, s2, ...), LEN(s), TRIM(s)
+- Date: NOW() — returns ISO 8601 string
+- Aggregate (over current table): SUM(column), AVG(column), COUNT(), MIN(column), MAX(column)
+- Operators: + - * / % == != < > <= >= && || !
+- Max formula length: 500 characters
+
+Formula column examples:
+{ "name": "total", "type": "formula", "formula": "price * quantity" }
+{ "name": "discount_price", "type": "formula", "formula": "ROUND(price * 0.9, 2)" }
+{ "name": "is_overdue", "type": "formula", "formula": "IF(status == \"pending\", \"да\", \"нет\")" }
+{ "name": "category_upper", "type": "formula", "formula": "UPPER(category)" }
+
+COMPUTED VALUES ON COMPONENTS (computedValue):
+Use "computedValue" on display components to show aggregate calculations over table data.
+The value is a formula string starting with "= " that references table columns as tableName.columnName:
+{ "component": "Card", "props": { "title": "Всего расходов" }, "computedValue": "= SUM(Расходы.amount)" }
+{ "component": "Card", "props": { "title": "Средний балл" }, "computedValue": "= AVG(Оценки.score)" }
+{ "component": "Card", "props": { "title": "Кол-во задач" }, "computedValue": "= COUNT(Задачи)" }
+{ "component": "Badge", "props": { "severity": "info" }, "computedValue": "= MAX(Заказы.total) - MIN(Заказы.total)" }
+
+computedValue is evaluated server-side. Priority: dataSource > computedValue > dataKey.
+Use computedValue when you need real-time aggregates over table data on a display component.
+
+CONDITIONAL RENDERING (showIf, styleIf, ConditionalGroup):
+Any component can have conditional visibility and styling based on appData values.
+
+showIf — hide/show a single component based on a formula:
+- "showIf": formula string — component is hidden when the result is falsy (false, null, 0, "")
+- Missing showIf = always visible
+  Example (show only after submission): { "component": "Card", "props": { "title": "Результат" }, "dataKey": "result", "showIf": "submitted == 1" }
+  Example (hide once done): { "component": "Button", "props": { "label": "Начать" }, "action": { "key": "step", "value": 1 }, "showIf": "step != 1" }
+
+styleIf — apply CSS classes conditionally:
+- "styleIf": array of { "condition": formula, "class": className }
+- Available classes: warning (yellow border), critical (red border), success (green border), muted (gray, dimmed), highlight (accent background)
+- Multiple classes can apply simultaneously
+  Example: { "component": "Card", "props": { "title": "Баланс" }, "dataKey": "balance", "styleIf": [{ "condition": "balance < 0", "class": "critical" }, { "condition": "balance > 1000", "class": "success" }] }
+  Example: { "component": "Card", "props": { "title": "Уровень" }, "dataKey": "level", "styleIf": [{ "condition": "level < 3", "class": "warning" }, { "condition": "level >= 3", "class": "highlight" }] }
+
+ConditionalGroup — show/hide a group of components together:
+{ "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [
+  { "component": "Card", "props": { "title": "Шаг 2: Детали" }, "dataKey": "step2_data" },
+  { "component": "Button", "props": { "label": "Далее" }, "action": { "key": "step", "value": 3 } }
+]}
+- condition: formula — group shows when truthy, hides when falsy
+- children: array of regular components (NO nested ConditionalGroup — max 1 level)
+- children CANNOT use "computedValue" (server-side aggregates are not available inside ConditionalGroup); use "dataKey" instead
+- Use for wizard/multi-step flows, dynamic dashboards, or any "show only when X" group
+
+CONDITIONAL RENDERING USE CASES:
+- Multi-step wizard: ConditionalGroup with condition "step == 1" for each step
+- Status-based styling: styleIf to color a balance Card red when negative
+- Show result after action: showIf "submitted == 1" on a results Card
+- Progressive disclosure: showIf to reveal advanced options after initial setup
+
+WHEN TO USE WHAT:
+- "formula" columns: per-row calculations within a table (totals, concatenations, conditionals per row)
+- "computedValue": aggregate calculations across table rows displayed on a UI component (SUM, AVG, COUNT)
+- "dataKey": single values from flat KV storage (counters, settings, API data from fetch_url, cron results)
+- "dataSource": bind DataTable/Form/CardList/Chart directly to a table for full CRUD
+- "aggregate_data" cron: scheduled periodic aggregations that run on a timer and store result in appData
+- Prefer formula columns and computedValue for new apps — they are instant (no cron delay). Keep cron for scheduled/periodic computations (e.g., daily summaries, timed fetches).
 
 Tables work alongside the old flat KV storage — both coexist.
 
@@ -250,6 +373,69 @@ WHEN TO USE dataSource vs dataKey:
 - The tableId in dataSource refers to the table's position in the "tables" array (1-based: first table = 1, second = 2, etc.). After app creation, actual IDs are assigned by the database.
 
 After app creation, the tables API is available at /api/app/:hash/tables for CRUD operations.
+
+DATASOURCE FILTERING (filter field):
+Add "filter" to dataSource on DataTable, CardList, or Chart to show only rows matching a condition.
+- Supported operators: "eq" (default), "ne", "lt", "lte", "gt", "gte", "contains"
+- Single condition: { "column": "priority", "value": "high" }  — operator defaults to "eq"
+- With operator: { "column": "amount", "operator": "gt", "value": 100 }
+- Multiple conditions (AND): [{ "column": "status", "value": "active" }, { "column": "score", "operator": "gte", "value": 80 }]
+- Form does NOT support filter — it is stripped automatically.
+Use filter with multi-page apps to show the same table with different criteria per page:
+  Page "High priority": DataTable with filter { "column": "priority", "value": "high" }
+  Page "All tasks": DataTable with no filter
+
+MULTI-PAGE APPS (pages):
+Use "pages" instead of (or alongside) top-level "uiComponents" when the app has multiple distinct sections that benefit from separate navigation tabs (e.g. dashboard + history + settings).
+
+When to use pages:
+- The app has 3+ clearly separate functional areas (e.g. "Сводка", "История", "Настройки")
+- Each area has its own set of components and the user wants to switch between them
+- A single scrolling page would feel cluttered or confusing
+
+When NOT to use pages:
+- Simple apps with 1-6 components — just use top-level uiComponents
+- When components share the same context and all belong together on one screen
+
+Page structure:
+{ "id": "url-safe-id", "title": "Текст вкладки", "icon": "pi pi-home", "uiComponents": [...] }
+- id: URL-safe string, letters/digits/underscore/hyphen, max 50 chars, must be unique
+- title: non-empty text for the tab label, max 100 chars
+- icon: optional PrimeVue icon name with "pi " prefix (e.g. "pi pi-home", "pi pi-chart-bar", "pi pi-list")
+- uiComponents: same structure as top-level, max 20 components per page
+- Max 10 pages per app
+
+Example multi-page appConfig:
+{
+  "appName": "Финансы",
+  "description": "Трекер расходов с аналитикой",
+  "cronJobs": [],
+  "uiComponents": [],
+  "tables": [{ "name": "Расходы", "columns": [{ "name": "amount", "type": "number" }, { "name": "category", "type": "text" }] }],
+  "pages": [
+    {
+      "id": "dashboard",
+      "title": "Сводка",
+      "icon": "pi pi-home",
+      "uiComponents": [
+        { "component": "Card", "props": { "title": "Всего расходов" }, "computedValue": "= SUM(Расходы.amount)" },
+        { "component": "Chart", "props": { "type": "pie" }, "dataSource": { "type": "table", "tableId": 1 } }
+      ]
+    },
+    {
+      "id": "history",
+      "title": "История",
+      "icon": "pi pi-list",
+      "uiComponents": [
+        { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } },
+        { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
+      ]
+    }
+  ]
+}
+
+When pages is present, the app shows navigation tabs at the top. URL reflects the active page.
+If pages is absent, the app works as a single-page app using top-level uiComponents (backward compatible).
 
 UX RULES (always follow when designing apps):
 - Use the user's language for all labels, titles, button text
@@ -279,7 +465,8 @@ You must ALWAYS respond with a single valid JSON object. No markdown, no explana
   "mood": "idle" | "thinking" | "talking" | "happy" | "confused",
   "message": "Your conversational response here",
   "phase": "chat",
-  "uiUpdate": [ ... ]  // optional: updated uiComponents array if the UI should change
+  "uiUpdate": [ ... ],      // optional: full replacement of uiComponents (single-page apps)
+  "pagesUpdate": [ ... ]    // optional: full replacement of pages array (multi-page apps)
 }
 
 MOOD GUIDELINES:
@@ -289,12 +476,37 @@ MOOD GUIDELINES:
 - happy: when sharing positive insights
 - confused: when you need more context
 
+UIUPDATE / PAGESUPDATE RULES:
+Use "uiUpdate" for single-page apps (no "pages" in config).
+Use "pagesUpdate" for multi-page apps ("pages" array in config).
+Never use both in the same response.
+
+⚠️ uiUpdate is a FULL REPLACEMENT of the entire uiComponents array — not a partial patch.
+When you return uiUpdate, you MUST include ALL existing components from the current config.
+- To modify a component: copy it and change only the relevant fields.
+- To remove a component: simply omit it from the array.
+- To add a component: include all existing components plus the new one.
+If you only return the changed component, all other components will be DELETED.
+Look at the current app config and copy all components you want to keep.
+
+⚠️ pagesUpdate is a FULL REPLACEMENT of the entire pages array — not a partial patch.
+When you return pagesUpdate, you MUST include ALL pages (including unchanged ones).
+- To modify a page: copy it with all its uiComponents, change only the relevant fields.
+- To add a page: include all existing pages plus the new one.
+- To remove a page: simply omit it from the array.
+Each page: { "id": "url-safe-id", "title": "Tab label", "icon": "pi pi-home (optional, must include 'pi ' prefix)", "uiComponents": [...] }
+- id: URL-safe, letters/digits/underscore/hyphen, max 50 chars, unique across pages
+- title: non-empty, max 100 chars
+- uiComponents: max 20 per page, same structure as uiUpdate components
+
 UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Card: { "component": "Card", "props": { "title": "Title" }, "dataKey": "key" }
 - DataTable: { "component": "DataTable", "props": { "columns": [{"field":"f","header":"H"}] }, "dataKey": "key" }
   Or with table: { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
+  Or filtered: { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } } }
 - Chart: { "component": "Chart", "props": { "type": "line" }, "dataKey": "key" }
   Or with table: { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1 } }
+  Or filtered: { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "status", "value": "active" } } }
 - Knob: { "component": "Knob", "props": { "min": 0, "max": 100 }, "dataKey": "key" }
 - Tag: { "component": "Tag", "props": { "value": "Статус" } } or use dataKey
 - ProgressBar: { "component": "ProgressBar", "props": { "value": 0 }, "dataKey": "progress" }
@@ -310,16 +522,46 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Tabs: { "component": "Tabs", "props": { "tabs": [{ "label": "Вкладка", "dataKey": "key" }] } }
 - Image: { "component": "Image", "props": { "width": "200", "alt": "Изображение" }, "dataKey": "image_url" }
 - Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
+  For counters use mode "increment": { "component": "Button", "props": { "label": "+1" }, "action": { "key": "count", "value": 1, "mode": "increment" } }
 - InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
   Use action.mode "append" to accumulate items: { "action": { "key": "notes", "mode": "append" } }
   When InputText uses mode "append", items are stored as { value, timestamp }. Use CardList to display.
 - Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry" }
   Add "appendMode": true to accumulate submissions as array. Use CardList to display — auto-renders all fields.
   Or with table: { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } }
+  NOTE: Form does NOT support "filter" on dataSource.
 - CardList: DYNAMIC card-per-item list — PREFERRED for any task/log/note list. Use "dataKey" to bind array.
   { "component": "CardList", "dataKey": "tasks" }
   Or with table: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
+  Or filtered: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "done", "value": false } } }
+- ConditionalGroup: shows/hides a group of children based on a formula condition. Children CANNOT use "computedValue" — use "dataKey" instead.
+  { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [{ "component": "Card", "props": { "title": "Шаг 2" }, "dataKey": "step2" }] }
 - NEVER use components not listed above.
+
+COMPUTED VALUES (computedValue on components):
+Use "computedValue" on any display component to show aggregate calculations over table data.
+Syntax: "= FORMULA" where FORMULA references table columns as tableName.columnName.
+Examples:
+{ "component": "Card", "props": { "title": "Итого" }, "computedValue": "= SUM(Расходы.amount)" }
+{ "component": "Card", "props": { "title": "Среднее" }, "computedValue": "= AVG(Оценки.score)" }
+{ "component": "Badge", "props": { "severity": "info" }, "computedValue": "= COUNT(Задачи)" }
+
+Available functions: IF, ABS, ROUND, FLOOR, CEIL, MIN, MAX, UPPER, LOWER, CONCAT, LEN, TRIM, NOW, SUM, AVG, COUNT.
+computedValue is evaluated server-side. Priority: dataSource > computedValue > dataKey.
+
+CONDITIONAL RENDERING (showIf, styleIf, ConditionalGroup):
+Any component can have:
+- "showIf": formula string — component is hidden when the result is falsy (false, null, 0, "")
+  Example: { "component": "Card", "props": { "title": "Результат" }, "dataKey": "result", "showIf": "submitted == 1" }
+- "styleIf": array of { "condition": formula, "class": className } — applies CSS classes conditionally
+  Available classes: warning (yellow), critical (red), success (green), muted (gray), highlight (accent)
+  Example: { "component": "Card", "dataKey": "balance", "styleIf": [{ "condition": "balance < 0", "class": "critical" }, { "condition": "balance > 1000", "class": "success" }] }
+- ConditionalGroup: shows/hides a group of components together based on a condition
+  { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [
+    { "component": "Card", "props": { "title": "Шаг 2" }, "dataKey": "step2" },
+    { "component": "Button", "props": { "label": "Готово" }, "action": { "key": "step", "value": 3 } }
+  ]}
+  No nested ConditionalGroup (max 1 level). Children are regular components. Children CANNOT use "computedValue" — use "dataKey" instead.
 
 DATE/TIME DISPLAY: ISO timestamp strings are automatically formatted by the UI into human-readable dates (e.g. "21 февраля 2026, 17:09"). Always use ISO strings for dates — never format them manually.
 
@@ -330,10 +572,35 @@ If the user replies with just a number (e.g. "2"), treat it as selecting that op
 USER TABLES:
 This app may have user-defined tables (structured relational data). A TABLES section may be injected into your context showing the table schemas and row counts. Tables support CRUD operations via the API at /api/app/:hash/tables/:tableId/rows.
 Tables work alongside the old flat KV storage — both coexist.
+Tables can have formula columns (type "formula") that compute values per row. Formula columns are read-only and evaluated server-side.
 
 When suggesting UI updates (uiUpdate), use "dataSource": { "type": "table", "tableId": N } to bind DataTable, Form, Chart, or CardList to a table.
 - dataSource is for structured lists (expenses, tasks, contacts) stored in tables
 - dataKey is for single values (counters, settings, API data) stored in flat KV appData
+- computedValue is for aggregate calculations over table data (SUM, AVG, COUNT etc.) on display components
+
+DATASOURCE FILTERING (filter field):
+Add "filter" to dataSource on DataTable, CardList, or Chart to show only matching rows.
+Operators: "eq" (default, ==), "ne" (!=), "lt" (<), "lte" (<=), "gt" (>), "gte" (>=), "contains" (case-insensitive substring).
+Single condition: { "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } }
+With operator: { "type": "table", "tableId": 2, "filter": { "column": "amount", "operator": "gt", "value": 100 } }
+Multiple (AND): { "type": "table", "tableId": 1, "filter": [{ "column": "status", "value": "active" }, { "column": "score", "operator": "gte", "value": 80 }] }
+Form does NOT support filter.
+
+MULTI-PAGE APPS:
+If the app config has a "pages" array, it is a multi-page app with navigation tabs.
+Each page has: { id, title, icon?, uiComponents[] }
+To modify the pages structure, return "pagesUpdate" (full pages array replacement).
+To add/modify/remove components on a specific page, copy ALL pages into pagesUpdate with the target page's uiComponents changed.
+Example pagesUpdate to add a component to the "history" page:
+{
+  "pagesUpdate": [
+    { "id": "dashboard", "title": "Сводка", "uiComponents": [ /* existing components */ ] },
+    { "id": "history", "title": "История", "uiComponents": [ /* existing + new component */ ] }
+  ]
+}
+Do NOT use "uiUpdate" when the app has pages — use "pagesUpdate" instead.
+Do NOT use "pagesUpdate" when the app has no pages — use "uiUpdate" instead.
 
 APP MEMORY:
 An APP MEMORY section is injected into your context when present. Use it to remember key facts about the app, user preferences, and decisions. When you learn something important, include "memoryUpdate" in your JSON to replace the entire memory (max 2000 chars). Omit "memoryUpdate" if nothing changed.
@@ -355,6 +622,7 @@ const ALLOWED_UI_COMPONENTS = [
   'Card', 'Chart', 'Timeline', 'Knob', 'Tag', 'ProgressBar',
   'Calendar', 'DataTable', 'Button', 'InputText', 'Form',
   'Accordion', 'Panel', 'Chip', 'Badge', 'Slider', 'Rating', 'Tabs', 'Image', 'MeterGroup', 'CardList',
+  'ConditionalGroup',
 ];
 
 /**
@@ -392,6 +660,16 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
         if (Array.isArray(fields) && !fields.every(validField)) return false;
       }
 
+      // ConditionalGroup requires condition (parseable formula) and children (non-empty array)
+      if (item.component === 'ConditionalGroup') {
+        if (typeof item.condition !== 'string') return false;
+        const cond = (item.condition as string).trim();
+        if (cond.length === 0) return false;
+        try { parseFormula(cond); } catch { return false; }
+        if (!Array.isArray(item.children) || (item.children as unknown[]).length === 0) return false;
+        return true;
+      }
+
       // Validate dataKey segments against prototype pollution
       if (item.dataKey != null && !isValidDataKey(item.dataKey as string)) return false;
 
@@ -404,6 +682,44 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
       return true;
     })
     .map((item) => {
+      // ConditionalGroup: validate condition and recursively validate children (no nested ConditionalGroup)
+      if (item.component === 'ConditionalGroup') {
+        item.condition = (item.condition as string).trim();
+        const validatedChildren = validateUiComponents(item.children as unknown[])
+          .filter((child: UiComponent) => child.component !== 'ConditionalGroup')
+          .map((child: UiComponent) => {
+            // computedValue is not supported inside ConditionalGroup children (index mismatch)
+            child.computedValue = undefined;
+            return child;
+          });
+        item.children = validatedChildren;
+        // If all children were invalid, drop this group entirely by returning null
+        if (validatedChildren.length === 0) return null;
+        // showIf is ignored on ConditionalGroup (client uses `condition` for visibility)
+        item.showIf = undefined;
+        // Validate styleIf using the same class regex as regular components
+        if (Array.isArray(item.styleIf)) {
+          item.styleIf = (item.styleIf as Array<Record<string, unknown>>)
+            .filter((entry) => {
+              if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
+              if (typeof entry.condition !== 'string' || typeof entry.class !== 'string') return false;
+              const cls = (entry.class as string).trim();
+              if (cls.length === 0 || !/^[a-zA-Z0-9_-]+$/.test(cls)) return false;
+              const cond = (entry.condition as string).trim();
+              if (cond.length === 0) return false;
+              try { parseFormula(cond); return true; } catch { return false; }
+            })
+            .map((entry) => ({
+              condition: (entry.condition as string).trim(),
+              class: (entry.class as string).trim(),
+            }));
+          if ((item.styleIf as unknown[]).length === 0) item.styleIf = undefined;
+        } else {
+          item.styleIf = undefined;
+        }
+        return item;
+      }
+
       // Validate dataSource: if present but invalid, drop it (set to undefined)
       const ds = item.dataSource as Record<string, unknown> | null | undefined;
       if (ds === null || ds === undefined) {
@@ -414,13 +730,100 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
         typeof ds.tableId !== 'number' || !Number.isInteger(ds.tableId) || ds.tableId <= 0
       ) {
         item.dataSource = undefined;
+      } else {
+        // Form components: strip filter (not applicable for writes)
+        if (item.component === 'Form') {
+          (item.dataSource as Record<string, unknown>).filter = undefined;
+        } else if (ds.filter !== undefined) {
+          if (Array.isArray(ds.filter)) {
+            const validConditions = (ds.filter as unknown[]).filter(isValidFilterCondition);
+            if (validConditions.length === 0) {
+              (item.dataSource as Record<string, unknown>).filter = undefined;
+            } else {
+              (item.dataSource as Record<string, unknown>).filter = validConditions;
+            }
+          } else if (isValidFilterCondition(ds.filter)) {
+            // keep as-is (single condition)
+          } else {
+            (item.dataSource as Record<string, unknown>).filter = undefined;
+          }
+        }
       }
+
+      // Validate computedValue: strip "= " prefix and validate formula syntax
+      if (typeof item.computedValue === 'string') {
+        let formula = item.computedValue.trim();
+        if (formula.startsWith('= ')) {
+          formula = formula.slice(2).trim();
+        } else if (formula.startsWith('=')) {
+          formula = formula.slice(1).trim();
+        }
+        if (formula.length > 0) {
+          try {
+            parseFormula(formula);
+            item.computedValue = formula;
+          } catch {
+            item.computedValue = undefined;
+          }
+        } else {
+          item.computedValue = undefined;
+        }
+      } else {
+        item.computedValue = undefined;
+      }
+
+      // Validate showIf: must be a parseable formula expression
+      if (typeof item.showIf === 'string') {
+        const expr = (item.showIf as string).trim();
+        if (expr.length > 0) {
+          try {
+            parseFormula(expr);
+            item.showIf = expr;
+          } catch {
+            item.showIf = undefined;
+          }
+        } else {
+          item.showIf = undefined;
+        }
+      } else {
+        item.showIf = undefined;
+      }
+
+      // Validate styleIf: array of { condition, class } where condition is parseable and class is valid CSS class name
+      if (Array.isArray(item.styleIf)) {
+        item.styleIf = (item.styleIf as Array<Record<string, unknown>>)
+          .filter((entry) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
+            if (typeof entry.condition !== 'string' || typeof entry.class !== 'string') return false;
+            const cls = (entry.class as string).trim();
+            if (cls.length === 0 || !/^[a-zA-Z0-9_-]+$/.test(cls)) return false;
+            const cond = (entry.condition as string).trim();
+            if (cond.length === 0) return false;
+            try {
+              parseFormula(cond);
+              return true;
+            } catch {
+              return false;
+            }
+          })
+          .map((entry) => ({
+            condition: (entry.condition as string).trim(),
+            class: (entry.class as string).trim(),
+          }));
+        if ((item.styleIf as unknown[]).length === 0) {
+          item.styleIf = undefined;
+        }
+      } else {
+        item.styleIf = undefined;
+      }
+
       return item;
     })
+    .filter(Boolean)
     .slice(0, 20) as UiComponent[];
 }
 
-const TABLE_COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'select'] as const;
+const TABLE_COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'select', 'formula'] as const;
 const TABLE_COLUMN_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{0,49}$/;
 const TABLE_NAME_REGEX = /^[a-zA-Z\u0400-\u04FF][a-zA-Z0-9\u0400-\u04FF_ ]{0,99}$/;
 
@@ -449,6 +852,10 @@ export function validateTableDefs(tables: unknown[]): TableDef[] {
           if (!Array.isArray(col.options) || col.options.length === 0 || col.options.length > 50) return false;
           if (!col.options.every((o: unknown) => typeof o === 'string' && o.length > 0 && o.length <= 200)) return false;
         }
+        if (col.type === 'formula') {
+          if (typeof col.formula !== 'string' || col.formula.trim().length === 0) return false;
+          try { parseFormula(col.formula); } catch { return false; }
+        }
         return true;
       });
     })
@@ -464,9 +871,44 @@ export function validateTableDefs(tables: unknown[]): TableDef[] {
         if (col.type === 'select' && Array.isArray(col.options)) {
           result.options = col.options as string[];
         }
+        if (col.type === 'formula' && typeof col.formula === 'string') {
+          result.formula = col.formula;
+        }
         return result;
       }),
     }));
+}
+
+const PAGE_ID_REGEX = /^[a-zA-Z0-9_-]{1,50}$/;
+
+export function validatePages(items: unknown[]): Page[] {
+  if (!Array.isArray(items)) return [];
+  const seenIds = new Set<string>();
+  return items
+    .filter((item): item is Record<string, unknown> => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+      const p = item as Record<string, unknown>;
+      if (typeof p.id !== 'string' || !PAGE_ID_REGEX.test(p.id)) return false;
+      if (seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
+      if (typeof p.title !== 'string' || p.title.trim().length === 0 || p.title.trim().length > 100) return false;
+      if (p.icon !== undefined && (typeof p.icon !== 'string' || p.icon.length > 50 || (p.icon.length > 0 && !/^[a-zA-Z0-9 _-]+$/.test(p.icon)))) return false;
+      if (!Array.isArray(p.uiComponents)) return false;
+      return true;
+    })
+    .slice(0, 10)
+    .map((item) => {
+      const p = item as Record<string, unknown>;
+      const result: Page = {
+        id: p.id as string,
+        title: (p.title as string).trim(),
+        uiComponents: validateUiComponents(p.uiComponents as unknown[]),
+      };
+      if (typeof p.icon === 'string' && p.icon.length > 0) {
+        result.icon = p.icon;
+      }
+      return result;
+    });
 }
 
 let anthropicClient: Anthropic | null = null;
@@ -580,6 +1022,7 @@ async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Prom
   const response = await getDeepSeekClient().chat.completions.create({
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
     max_tokens: 4096,
+    response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: systemPrompt },
       ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),

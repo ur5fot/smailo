@@ -28,7 +28,7 @@ npm run build --workspace=server
 npx vue-tsc --workspace=client
 ```
 
-Server tests use vitest (`npm test --workspace=server`). There is no linter configured.
+Server tests use vitest (`npm test --workspace=server`). Client tests use vitest (`npm test --workspace=client`). There is no linter configured.
 
 ## Architecture
 
@@ -45,10 +45,11 @@ npm workspaces; root `package.json` has scripts that delegate to both. Server us
 ### Routes
 
 ```
-/                   → HomeView       (landing: create user or enter existing userId)
-/:userId            → UserView       (user's app list + AI chat for creating apps)
-/:userId/:hash      → AppView        (two-column: app left, AI assistant right)
-/app/:hash          → AppView        (backward-compatible; userId = null)
+/                        → HomeView       (landing: create user or enter existing userId)
+/:userId                 → UserView       (user's app list + AI chat for creating apps)
+/:userId/:hash           → AppView        (two-column: app left, AI assistant right; redirects to first page if multi-page)
+/:userId/:hash/:pageId   → AppView        (specific page of a multi-page app)
+/app/:hash               → AppView        (backward-compatible; userId = null)
 ```
 
 ### App lifecycle (the core flow)
@@ -83,24 +84,43 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     component: 'Card' | 'DataTable' | 'Chart' | 'Timeline' | 'Knob' | 'Tag' | 'ProgressBar' | 'Calendar'
              | 'Button' | 'InputText' | 'Form'
              | 'Accordion' | 'Panel' | 'Chip' | 'Badge' | 'Slider' | 'Rating' | 'Tabs' | 'Image' | 'MeterGroup'
-             | 'CardList'
+             | 'CardList' | 'ConditionalGroup'
     props: Record<string, unknown>  // component-specific, no 'on*' props
     dataKey?: string                // key into appData to bind as value/data prop
-    dataSource?: { type: 'table'; tableId: number }  // bind to user-defined table (alternative to dataKey)
+    dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }  // bind to user-defined table; filter limits rows shown (display components only, not Form)
+    // FilterCondition: { column: string; operator?: 'eq'|'ne'|'lt'|'lte'|'gt'|'gte'|'contains'; value: string|number|boolean }
     // Input component fields (top-level, NOT inside props):
     action?: { key: string; value?: unknown }  // Button: fixed value; InputText: value from user input
     fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only; `name` must match /^[a-zA-Z0-9_]{1,100}$/ and 'timestamp' is reserved (auto-injected)
     outputKey?: string             // Form only: appData key for the submitted object
+    computedValue?: string         // server-evaluated formula: "= SUM(expenses.amount)" — alternative to dataKey for display components
+    // Conditional logic fields:
+    showIf?: string                // client-evaluated formula; component hidden when falsy (e.g. "status == \"active\"" — note: only double-quoted strings are supported)
+    styleIf?: Array<{ condition: string; class: string }>  // conditional CSS classes applied when condition is truthy
+    // ConditionalGroup fields (only when component == 'ConditionalGroup'):
+    condition?: string             // formula evaluated on client; group shown when truthy
+    children?: UiComponent[]       // nested components shown/hidden together (max 1 level deep)
   }>
+  pages?: Array<{                  // optional multi-page mode; if present, uiComponents is ignored for rendering
+    id: string                     // URL-safe: /^[a-zA-Z0-9_-]{1,50}$/, unique across pages
+    title: string                  // tab label, max 100 chars
+    icon?: string                  // optional PrimeVue icon name with "pi " prefix, max 50 chars (e.g. "pi pi-home")
+    uiComponents: UiComponent[]    // per-page components, max 20 each
+  }>                               // max 10 pages per app
 }
 ```
 
+When `pages` is present the app enters multi-page mode: AppView renders PrimeVue tab navigation above the content area, the active page is reflected in the URL as `/:userId/:hash/:pageId`, and navigating to `/:userId/:hash` automatically redirects to the first page. `computedValues` from the server use global component indices (flatMap of all pages); the client maps them to local per-page indices via an offset calculated from preceding pages.
+
+AI response may include `pagesUpdate?: Page[]` (replaces entire `config.pages`). `uiUpdate` still works for single-page apps.
+
 ### Dynamic UI rendering (`client/src/components/AppRenderer.vue`)
 
-Iterates `uiConfig` array and renders each component dynamically. Ten components use dedicated wrappers:
+Iterates `uiConfig` array and renders each component dynamically. Eleven components use dedicated wrappers:
 - `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue`, `CardList` → `AppCardList.vue`, `Chart` → `AppChart.vue` (data display)
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
 - `Accordion` → `AppAccordion.vue`, `Panel` → `AppPanel.vue`, `Tabs` → `AppTabs.vue` (slot-based layout)
+- `ConditionalGroup` → `AppConditionalGroup.vue` (conditional visibility container)
 
 All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map with the following prop bindings:
 - `Image` → binds to `src` prop
@@ -119,7 +139,7 @@ New display-only components: `Chip` (label tag), `Badge` (numeric badge with sev
 
 The server validates and truncates `uiComponents` to a maximum of 20 items after filtering invalid ones.
 
-`dataSource` is an alternative to `dataKey` for binding components to user-defined tables. When `dataSource: { type: 'table', tableId }` is present, it takes priority over `dataKey`. Four components support table binding:
+`dataSource` is an alternative to `dataKey` for binding components to user-defined tables. When `dataSource: { type: 'table', tableId }` is present, it takes priority over `computedValue` and `dataKey`. `computedValue` (server-evaluated formula) takes priority over `dataKey`. Four components support table binding:
 - `DataTable` — auto-generates columns from table schema, fetches and displays rows
 - `Form` — auto-generates form fields from table schema columns (text→InputText, number→InputNumber, date→DatePicker, boolean→Checkbox, select→Dropdown), submits rows via `POST /api/app/:hash/tables/:tableId/rows`
 - `CardList` — displays table rows as cards with key-value pairs per column, supports row deletion via `DELETE /api/app/:hash/tables/:tableId/rows/:rowId`
@@ -128,6 +148,13 @@ The server validates and truncates `uiComponents` to a maximum of 20 items after
 Table data is cached in the `app.ts` store (`tableData` map keyed by tableId). Rows are fetched on demand when a component with `dataSource` first renders. After Form writes or CardList deletes a row, `appStore.refreshTable()` is called to update all bound components.
 
 Input wrapper components call `POST /api/app/:hash/data` on user interaction and emit `'data-written'`, which bubbles up through `AppRenderer` to `AppView.vue`, triggering `appStore.fetchData(hash)` to refresh displayed data.
+
+**Conditional logic (showIf / styleIf / ConditionalGroup)**: Evaluated client-side in `AppRenderer.vue` using a ported copy of the server formula parser (`client/src/utils/formula/`). `buildFormulaContext()` assembles a flat `Record<string, unknown>` from `appStore.appData` (JSON string values are auto-parsed into objects for member access); this context is passed to `evaluateShowIf()` and `evaluateStyleIf()`.
+- `showIf` — hides the component when the expression is falsy; absence means always visible
+- `styleIf` — applies CSS classes conditionally; predefined classes: `warning` (yellow), `critical` (red), `success` (green), `muted` (gray), `highlight` (blue highlight)
+- `ConditionalGroup` — container that shows or hides all its `children` together; max 1 level of nesting; validated on server, rendered via `AppConditionalGroup.vue`
+- Server validates `showIf`/`styleIf` expressions via `parseFormula()` at save time; invalid expressions are silently dropped
+- Client utilities: `client/src/utils/showIf.ts` → `evaluateShowIf(expr, ctx): boolean`; `client/src/utils/styleIf.ts` → `evaluateStyleIf(conditions, ctx): string[]`; `client/src/utils/conditionalClasses.ts` → `getConditionalClasses(styleIf, appData): string[]` (applies `si-` prefix; CSS in `client/src/assets/conditional-styles.css`); `client/src/utils/formulaContext.ts` → `buildFormulaContext(appData): Record<string, unknown>`
 
 ### Cron automation (`server/src/services/cronManager.ts`)
 
@@ -140,6 +167,31 @@ Input wrapper components call `POST /api/app/:hash/data` on user interaction and
 
 All cron expressions must be 5-field only (no seconds). Minimum frequency: every 5 minutes. Jobs are loaded from DB on server start via `cronManager.loadAll()`. Max 5 jobs per app. Cron job configs are validated per action type in `isValidCronJobConfig()` (`server/src/routes/chat.ts`) before storage (e.g., `fetch_url` requires `url` starting with `https://` and a non-empty `outputKey`).
 
+### Formula engine (`server/src/utils/formula/`)
+
+Safe expression evaluator (recursive descent parser, no `eval`). Used for two features:
+
+**Formula columns** in user-defined tables: `{ name: "total", type: "formula", formula: "price * quantity" }`. Evaluated per-row on the server when reading table data (`GET /api/app/:hash/tables/:tableId`). Formula columns are read-only — skipped in form inputs and row validation.
+
+**computedValue on UI components**: `computedValue: "= SUM(expenses.amount)"`. Evaluated on the server during `GET /api/app/:hash/data`. Returns `{ appData: [...], computedValues: Record<number, unknown> }` where keys are component indices. Priority: `dataSource` > `computedValue` > `dataKey`.
+
+**Syntax**: arithmetic (`+`, `-`, `*`, `/`, `%`), comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`), logic (`&&`, `||`, `!`), string concatenation (`+`), parentheses, function calls, member access (`.`).
+
+**Built-in functions** (case-insensitive):
+- Conditional: `IF(cond, then, else)`
+- Math: `ABS(n)`, `ROUND(n, decimals?)`, `FLOOR(n)`, `CEIL(n)`, `MIN(a, b)`, `MAX(a, b)`
+- String: `UPPER(s)`, `LOWER(s)`, `CONCAT(s1, s2, ...)`, `LEN(s)`, `TRIM(s)`
+- Date: `NOW()`
+- Aggregate: `SUM(col)`, `AVG(col)`, `COUNT(tbl?)`, `MIN(col)`, `MAX(col)` — aggregate over table columns
+
+**Identifiers**: supports ASCII and Cyrillic letters (`\u0400-\u04FF`), digits, and underscores.
+
+**Safety**: max formula length 500 chars, max AST depth 20, division by zero returns `null`, type mismatch in functions returns `null`, missing references return `null`.
+
+Formula integration utilities:
+- `server/src/utils/computedValues.ts` — `getGlobalComponents(config)` returns the flat list of all components across pages (flatMap if `config.pages` exists, else `config.uiComponents`); `extractReferencedTableNames(components)` extracts table names from formulas; `evaluateComputedValues(components, tables)` evaluates all `computedValue` formulas and returns `Record<number, unknown>` keyed by component index
+- `server/src/utils/formulaColumns.ts` — `evaluateFormulaColumns(rows, columns)` evaluates formula columns per-row, injecting computed values into each row's data; formula columns can reference earlier formula columns in the same row
+
 ### Database (`server/src/db/schema.ts`)
 
 Seven tables, all using Drizzle ORM with SQLite via better-sqlite3:
@@ -151,7 +203,7 @@ Seven tables, all using Drizzle ORM with SQLite via better-sqlite3:
 | `cron_jobs` | Automation jobs per app; `config` is action-specific JSON |
 | `app_data` | Append-only log of key/value entries written by cron jobs and user input components (Button, InputText, Form); queries always get latest row per key; auto-pruned to 100 rows per key on startup and hourly |
 | `chat_history` | Full chat history; home chat rows have `appId = NULL`; in-app rows use `sessionId = 'app-<hash>'` |
-| `user_tables` | User-defined table schemas per app; `columns` is JSON array of `{ name, type, required?, options? }`. Max 20 tables per app, max 30 columns per table |
+| `user_tables` | User-defined table schemas per app; `columns` is JSON array of `{ name, type, required?, options?, formula? }`. Max 20 tables per app, max 30 columns per table |
 | `user_rows` | Row data for user-defined tables; `data` is JSON object matching column definitions. FK cascade-deletes when table is deleted. Max 10,000 rows per table |
 
 ### Auth
@@ -175,13 +227,13 @@ Input components write to `appData` directly without AI involvement:
 
 ### App data read (`GET /api/app/:hash/data`)
 
-Returns `{ appData: [...] }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`. Shared query logic lives in `server/src/db/queries.ts`.
+Returns `{ appData: [...], computedValues?: Record<number, unknown> }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. If the app config has components with `computedValue`, the server evaluates formulas against table data and includes results keyed by component index. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`. Shared query logic lives in `server/src/db/queries.ts`.
 
 ### User-defined tables (`server/src/routes/tables.ts`)
 
 Structured relational data storage alongside the flat KV `app_data`. Tables are defined with typed columns and support CRUD operations. The AI can generate table definitions during app creation (via `tables` array in `appConfig`), and tables are also manageable via API.
 
-Column types: `text`, `number`, `date`, `boolean`, `select` (with `options` array).
+Column types: `text`, `number`, `date`, `boolean`, `select` (with `options` array), `formula` (with `formula` expression string).
 Column names: must start with letter, alphanumeric + underscore, max 50 chars (`/^[a-zA-Z][a-zA-Z0-9_]{0,49}$/`).
 Table names: can include Cyrillic and spaces, max 100 chars.
 
@@ -211,7 +263,7 @@ Auth middleware (`server/src/middleware/auth.ts`) is shared between `app.ts` and
 Three Pinia stores:
 - `user.ts` — user identity: `userId`, list of user's apps; methods: `createUser()`, `fetchApps(userId)`
 - `chat.ts` — creation chat state: messages array, current phase, appHash after creation
-- `app.ts` — per-app state: app config, appData map, tableData cache (table rows keyed by tableId), auth token, in-app chat messages
+- `app.ts` — per-app state: app config, appData map, tableData cache (table rows keyed by tableId), computedValues (formula results keyed by component index), auth token, in-app chat messages
 
 Three views:
 - `HomeView.vue` — minimal landing: create new userId or enter existing one; no chat

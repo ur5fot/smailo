@@ -37,6 +37,17 @@ describe('buildSystemPrompt', () => {
       expect(prompt).toContain('single values')
     })
 
+    it('documents dataSource filter field with operators and examples', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('DATASOURCE FILTERING')
+      expect(prompt).toContain('"filter"')
+      expect(prompt).toContain('"operator"')
+      expect(prompt).toContain('"eq"')
+      expect(prompt).toContain('"contains"')
+      expect(prompt).toContain('"gt"')
+      expect(prompt).toContain('Form does NOT support')
+    })
+
     it('does not mention "coming in a future update" for tables', () => {
       const prompt = buildSystemPrompt('brainstorm')
       expect(prompt).not.toContain('coming in a future update')
@@ -54,6 +65,15 @@ describe('buildSystemPrompt', () => {
       const prompt = buildSystemPrompt('chat')
       expect(prompt).toContain('dataSource')
       expect(prompt).toContain('"type": "table"')
+    })
+
+    it('documents dataSource filter field in in-app prompt', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('DATASOURCE FILTERING')
+      expect(prompt).toContain('"filter"')
+      expect(prompt).toContain('"operator"')
+      expect(prompt).toContain('"contains"')
+      expect(prompt).toContain('Form does NOT support filter')
     })
 
     it('does not mention "coming in a future update" for tables', () => {
@@ -159,6 +179,201 @@ describe('buildSystemPrompt', () => {
       const prompt = buildSystemPrompt('chat', context)
       expect(prompt).toContain('<app-memory>')
       expect(prompt).toContain('User prefers metric units')
+    })
+  })
+
+  describe('brainstorm prompt includes formula documentation', () => {
+    it('documents formula column type with syntax', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('FORMULA COLUMNS')
+      expect(prompt).toContain('"type": "formula"')
+      expect(prompt).toContain('"formula"')
+    })
+
+    it('lists available formula functions', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('IF(condition, thenValue, elseValue)')
+      expect(prompt).toContain('SUM(column)')
+      expect(prompt).toContain('AVG(column)')
+      expect(prompt).toContain('COUNT()')
+      expect(prompt).toContain('ABS(n)')
+      expect(prompt).toContain('ROUND(n, decimals?)')
+      expect(prompt).toContain('UPPER(s)')
+      expect(prompt).toContain('LOWER(s)')
+      expect(prompt).toContain('CONCAT(s1, s2, ...)')
+      expect(prompt).toContain('NOW()')
+    })
+
+    it('includes formula column examples', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('price * quantity')
+      expect(prompt).toContain('ROUND(price * 0.9, 2)')
+    })
+
+    it('documents computedValue on components', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('COMPUTED VALUES ON COMPONENTS')
+      expect(prompt).toContain('computedValue')
+      expect(prompt).toContain('= SUM(')
+      expect(prompt).toContain('= AVG(')
+      expect(prompt).toContain('= COUNT(')
+    })
+
+    it('provides guidance on when to use formulas vs cron', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('WHEN TO USE WHAT')
+      expect(prompt).toContain('formula')
+      expect(prompt).toContain('computedValue')
+      expect(prompt).toContain('aggregate_data')
+      expect(prompt).toContain('Prefer formula columns and computedValue for new apps')
+    })
+
+    it('includes formula in column types list', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toMatch(/Column types:.*formula/)
+    })
+  })
+
+  describe('chat prompt includes formula documentation', () => {
+    it('documents computedValue syntax', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('COMPUTED VALUES')
+      expect(prompt).toContain('computedValue')
+      expect(prompt).toContain('= SUM(')
+    })
+
+    it('lists available formula functions', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('IF')
+      expect(prompt).toContain('SUM')
+      expect(prompt).toContain('AVG')
+      expect(prompt).toContain('COUNT')
+      expect(prompt).toContain('ROUND')
+    })
+
+    it('mentions formula columns in tables section', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('formula columns')
+    })
+
+    it('includes computedValue in data binding options', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('computedValue is for aggregate calculations')
+    })
+  })
+
+  describe('brainstorm prompt includes conditional rendering documentation', () => {
+    it('documents showIf field on components', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('CONDITIONAL RENDERING')
+      expect(prompt).toContain('showIf')
+      expect(prompt).toContain('hidden when the result is falsy')
+    })
+
+    it('documents styleIf with available classes', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('styleIf')
+      expect(prompt).toContain('warning')
+      expect(prompt).toContain('critical')
+      expect(prompt).toContain('success')
+      expect(prompt).toContain('muted')
+      expect(prompt).toContain('highlight')
+    })
+
+    it('documents ConditionalGroup component', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('ConditionalGroup')
+      expect(prompt).toContain('"condition"')
+      expect(prompt).toContain('"children"')
+      expect(prompt).toContain('max 1 level')
+    })
+
+    it('includes ConditionalGroup in the component type list', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('"ConditionalGroup"')
+    })
+  })
+
+  describe('chat prompt includes conditional rendering documentation', () => {
+    it('documents showIf field', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('CONDITIONAL RENDERING')
+      expect(prompt).toContain('showIf')
+    })
+
+    it('documents styleIf with available classes', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('styleIf')
+      expect(prompt).toContain('warning')
+      expect(prompt).toContain('critical')
+      expect(prompt).toContain('success')
+    })
+
+    it('documents ConditionalGroup in component guide', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('ConditionalGroup')
+      expect(prompt).toContain('"condition"')
+      expect(prompt).toContain('"children"')
+    })
+  })
+
+  describe('brainstorm prompt includes multi-page documentation', () => {
+    it('documents pages field with MULTI-PAGE APPS section', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('MULTI-PAGE APPS')
+      expect(prompt).toContain('"pages"')
+    })
+
+    it('documents page structure with id, title, icon, uiComponents', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('"id"')
+      expect(prompt).toContain('"title"')
+      expect(prompt).toContain('"icon"')
+    })
+
+    it('documents page constraints (max 10 pages, max 20 components)', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('Max 10 pages')
+      expect(prompt).toContain('max 20 components per page')
+    })
+
+    it('includes pages in app config format', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toMatch(/"pages".*optional/s)
+    })
+
+    it('describes when to use vs when not to use pages', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('When to use pages')
+      expect(prompt).toContain('When NOT to use pages')
+    })
+  })
+
+  describe('chat prompt includes multi-page documentation', () => {
+    it('documents pagesUpdate field in response format', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('pagesUpdate')
+    })
+
+    it('documents pagesUpdate as full replacement of pages array', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('FULL REPLACEMENT of the entire pages array')
+    })
+
+    it('documents MULTI-PAGE APPS section with pages structure', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('MULTI-PAGE APPS')
+      expect(prompt).toContain('"pages"')
+    })
+
+    it('advises not to use uiUpdate when app has pages', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('Do NOT use "uiUpdate" when the app has pages')
+    })
+
+    it('advises not to use pagesUpdate when app has no pages', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('Do NOT use "pagesUpdate" when the app has no pages')
     })
   })
 
