@@ -159,7 +159,7 @@ async function deleteTableRow(rowId: number) {
   deletingId.value = rowId
   try {
     await api.delete(`/app/${props.hash}/tables/${props.dataSource.tableId}/rows/${rowId}`)
-    await appStore.refreshTable(props.hash, props.dataSource.tableId, props.dataSource.filter)
+    appStore.invalidateTableCache(props.dataSource.tableId)
     emit('data-written')
   } finally {
     deletingId.value = null
