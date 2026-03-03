@@ -103,7 +103,7 @@ The AI generates and the server stores configs in this shape (cronJobs are store
   pages?: Array<{                  // optional multi-page mode; if present, uiComponents is ignored for rendering
     id: string                     // URL-safe: /^[a-zA-Z0-9_-]{1,50}$/, unique across pages
     title: string                  // tab label, max 100 chars
-    icon?: string                  // optional PrimeVue icon name, max 50 chars
+    icon?: string                  // optional PrimeVue icon name with "pi " prefix, max 50 chars (e.g. "pi pi-home")
     uiComponents: UiComponent[]    // per-page components, max 20 each
   }>                               // max 10 pages per app
 }

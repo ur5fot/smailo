@@ -141,7 +141,7 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
     {
       "id": "main",
       "title": "Главная",
-      "icon": "pi-home",  // optional PrimeVue icon name
+      "icon": "pi pi-home",  // optional PrimeVue icon name (must include "pi " prefix, e.g. "pi pi-home")
       "uiComponents": [ /* same structure as top-level uiComponents */ ]
     }
   ]
@@ -373,10 +373,10 @@ When NOT to use pages:
 - When components share the same context and all belong together on one screen
 
 Page structure:
-{ "id": "url-safe-id", "title": "Текст вкладки", "icon": "pi-home", "uiComponents": [...] }
+{ "id": "url-safe-id", "title": "Текст вкладки", "icon": "pi pi-home", "uiComponents": [...] }
 - id: URL-safe string, letters/digits/underscore/hyphen, max 50 chars, must be unique
 - title: non-empty text for the tab label, max 100 chars
-- icon: optional PrimeVue icon name (e.g. "pi-home", "pi-chart-bar", "pi-list")
+- icon: optional PrimeVue icon name with "pi " prefix (e.g. "pi pi-home", "pi pi-chart-bar", "pi pi-list")
 - uiComponents: same structure as top-level, max 20 components per page
 - Max 10 pages per app
 
@@ -391,7 +391,7 @@ Example multi-page appConfig:
     {
       "id": "dashboard",
       "title": "Сводка",
-      "icon": "pi-home",
+      "icon": "pi pi-home",
       "uiComponents": [
         { "component": "Card", "props": { "title": "Всего расходов" }, "computedValue": "= SUM(Расходы.amount)" },
         { "component": "Chart", "props": { "type": "pie" }, "dataSource": { "type": "table", "tableId": 1 } }
@@ -400,7 +400,7 @@ Example multi-page appConfig:
     {
       "id": "history",
       "title": "История",
-      "icon": "pi-list",
+      "icon": "pi pi-list",
       "uiComponents": [
         { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } },
         { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
@@ -469,7 +469,7 @@ When you return pagesUpdate, you MUST include ALL pages (including unchanged one
 - To modify a page: copy it with all its uiComponents, change only the relevant fields.
 - To add a page: include all existing pages plus the new one.
 - To remove a page: simply omit it from the array.
-Each page: { "id": "url-safe-id", "title": "Tab label", "icon": "pi-icon (optional)", "uiComponents": [...] }
+Each page: { "id": "url-safe-id", "title": "Tab label", "icon": "pi pi-home (optional, must include 'pi ' prefix)", "uiComponents": [...] }
 - id: URL-safe, letters/digits/underscore/hyphen, max 50 chars, unique across pages
 - title: non-empty, max 100 chars
 - uiComponents: max 20 per page, same structure as uiUpdate components

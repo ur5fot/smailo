@@ -63,7 +63,7 @@
           </header>
 
           <!-- Page tabs (multi-page apps) -->
-          <div v-if="pages && pages.length > 1" class="app-view__page-tabs">
+          <div v-if="pages && pages.length >= 1" class="app-view__page-tabs">
             <Tabs :value="activePageId" @update:value="(id) => onPageChange(id as string)">
               <TabList>
                 <Tab v-for="page in pages" :key="page.id" :value="page.id">
