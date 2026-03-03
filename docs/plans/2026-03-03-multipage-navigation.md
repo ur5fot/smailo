@@ -71,10 +71,10 @@
 
 ### Task 4: Vue Router — маршрут с pageId
 
-- [ ] прочитать `client/src/router/index.ts`
-- [ ] добавить маршрут `/:userId/:hash/:pageId` → AppView, расположить после `/:userId/:hash`
-- [ ] убедиться, что legacy маршрут `/app/:hash` не затронут
-- [ ] запустить клиентские тесты — должны проходить
+- [x] прочитать `client/src/router/index.ts`
+- [x] добавить маршрут `/:userId/:hash/:pageId` → AppView, расположить после `/:userId/:hash`
+- [x] убедиться, что legacy маршрут `/app/:hash` не затронут
+- [x] запустить клиентские тесты — должны проходить
 
 ### Task 5: AppView — вкладки и страничная навигация
 
