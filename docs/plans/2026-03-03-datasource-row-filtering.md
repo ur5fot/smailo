@@ -79,7 +79,7 @@ excluded — it writes to the table, filtering write targets doesn't make sense.
 
 ### Task 2: Server-side in-memory row filtering
 
-- [ ] create utility `server/src/utils/filterRows.ts`:
+- [x] create utility `server/src/utils/filterRows.ts`:
   ```ts
   export function applyFilter(rows: TableRow[], filter: FilterCondition | FilterCondition[]): TableRow[]
   ```
@@ -88,12 +88,12 @@ excluded — it writes to the table, filtering write targets doesn't make sense.
   - `eq`: `==` (loose), `ne`: `!=`, `lt`/`lte`/`gt`/`gte`: numeric/date comparison, `contains`: case-insensitive string include
   - unknown column → condition passes (don't exclude rows for missing data)
   - operator default: `eq`
-- [ ] update `GET /:tableId` handler in `server/src/routes/tables.ts`:
+- [x] update `GET /:tableId` handler in `server/src/routes/tables.ts`:
   - accept `filter` query param (JSON string)
   - parse and validate via `parseFilter()` helper (or inline)
   - apply `applyFilter()` after `evaluateFormulaColumns()` call
   - malformed `filter` param → ignored (return all rows)
-- [ ] write tests in `server/src/__tests__/filterRows.test.ts` (new file):
+- [x] write tests in `server/src/__tests__/filterRows.test.ts` (new file):
   - eq: match, no match
   - ne: match, no match
   - lt/lte/gt/gte: numbers, dates as strings
@@ -102,7 +102,7 @@ excluded — it writes to the table, filtering write targets doesn't make sense.
   - array of conditions (AND): all must match
   - invalid operator → ignored (row passes)
   - empty filter array → all rows returned
-- [ ] run server tests — must pass before task 3: `npm test --workspace=server`
+- [x] run server tests — must pass before task 3: `npm test --workspace=server`
 
 ### Task 3: Client store — filter-aware caching
 

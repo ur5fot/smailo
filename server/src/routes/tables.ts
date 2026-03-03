@@ -7,6 +7,7 @@ import { requireAuthIfProtected, type AuthenticatedRequest } from '../middleware
 import { isValidColumnDef, validateRowData } from '../utils/tableValidation.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
 import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
+import { applyFilter, parseFilterParam } from '../utils/filterRows.js';
 
 export const tablesRouter = Router({ mergeParams: true });
 
@@ -131,12 +132,15 @@ tablesRouter.get('/:tableId', requireAuthIfProtected, async (req, res) => {
     }));
     const rowsWithFormulas = evaluateFormulaColumns(mappedRows, columns);
 
+    const filterParam = parseFilterParam(req.query.filter);
+    const filteredRows = filterParam ? applyFilter(rowsWithFormulas, filterParam) : rowsWithFormulas;
+
     return res.json({
       id: table.id,
       name: table.name,
       columns: table.columns,
       createdAt: table.createdAt,
-      rows: rowsWithFormulas,
+      rows: filteredRows,
     });
   } catch (error) {
     console.error('[GET /tables/:tableId] Error:', error);
