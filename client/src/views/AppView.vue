@@ -234,12 +234,15 @@ const localComputedValues = computed<Record<number, unknown>>(() => {
   return result
 })
 
-// When a multi-page app loads without a pageId in the URL, redirect to the first page
+// When a multi-page app loads without a pageId, or with an unknown pageId, redirect to the first page
 watch(
   [pages, currentPageId, () => loading.value],
   ([ps, pid, isLoading]) => {
     if (isLoading) return
-    if (ps?.length && !pid && userId.value) {
+    if (!ps?.length || !userId.value) return
+    const noPage = !pid
+    const unknownPage = pid && !ps.find(p => p.id === pid)
+    if (noPage || unknownPage) {
       router.replace(`/${userId.value}/${hash.value}/${ps[0].id}`)
     }
   },
