@@ -45,10 +45,11 @@ npm workspaces; root `package.json` has scripts that delegate to both. Server us
 ### Routes
 
 ```
-/                   → HomeView       (landing: create user or enter existing userId)
-/:userId            → UserView       (user's app list + AI chat for creating apps)
-/:userId/:hash      → AppView        (two-column: app left, AI assistant right)
-/app/:hash          → AppView        (backward-compatible; userId = null)
+/                        → HomeView       (landing: create user or enter existing userId)
+/:userId                 → UserView       (user's app list + AI chat for creating apps)
+/:userId/:hash           → AppView        (two-column: app left, AI assistant right; redirects to first page if multi-page)
+/:userId/:hash/:pageId   → AppView        (specific page of a multi-page app)
+/app/:hash               → AppView        (backward-compatible; userId = null)
 ```
 
 ### App lifecycle (the core flow)
@@ -99,8 +100,18 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     condition?: string             // formula evaluated on client; group shown when truthy
     children?: UiComponent[]       // nested components shown/hidden together (max 1 level deep)
   }>
+  pages?: Array<{                  // optional multi-page mode; if present, uiComponents is ignored for rendering
+    id: string                     // URL-safe: /^[a-zA-Z0-9_-]{1,50}$/, unique across pages
+    title: string                  // tab label, max 100 chars
+    icon?: string                  // optional PrimeVue icon name, max 50 chars
+    uiComponents: UiComponent[]    // per-page components, max 20 each
+  }>                               // max 10 pages per app
 }
 ```
+
+When `pages` is present the app enters multi-page mode: AppView renders PrimeVue tab navigation above the content area, the active page is reflected in the URL as `/:userId/:hash/:pageId`, and navigating to `/:userId/:hash` automatically redirects to the first page. `computedValues` from the server use global component indices (flatMap of all pages); the client maps them to local per-page indices via an offset calculated from preceding pages.
+
+AI response may include `pagesUpdate?: Page[]` (replaces entire `config.pages`). `uiUpdate` still works for single-page apps.
 
 ### Dynamic UI rendering (`client/src/components/AppRenderer.vue`)
 

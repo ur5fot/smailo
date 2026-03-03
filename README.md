@@ -119,7 +119,8 @@ smailo/
 |------|------|-------------|
 | `/` | HomeView | Landing — create new user or enter existing userId |
 | `/:userId` | UserView | Personal page with app list and AI creation chat |
-| `/:userId/:hash` | AppView | App view with two-column layout |
+| `/:userId/:hash` | AppView | App view with two-column layout (redirects to first page for multi-page apps) |
+| `/:userId/:hash/:pageId` | AppView | Specific page of a multi-page app |
 | `/app/:hash` | AppView | Backward-compatible (userId = null) |
 
 ### Data Flow
@@ -138,6 +139,7 @@ smailo/
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data, compute) and writes results to appData
 - User-defined tables: AI can define structured tables during app creation; CRUD operations available via `/api/app/:hash/tables` endpoints (create/list/update/delete tables, add/update/delete rows)
 - Table data binding: components with `dataSource: { type: "table", tableId }` bind directly to table data — DataTable/CardList display rows, Form writes rows, Chart builds graphs from table data
+- Multi-page apps: app config may include a `pages` array (max 10 pages, each with its own `uiComponents`); AppView renders PrimeVue tab navigation and reflects the active page in the URL as `/:userId/:hash/:pageId`; AI uses `pagesUpdate` response field to replace the pages array
 
 ### Security
 
@@ -158,7 +160,7 @@ Smailo is evolving from a data dashboard builder into a low-code app platform. T
 2. **Table data binding** — bind DataTable, Form, Chart, and CardList to table data via `dataSource` ✅
 3. **Formula engine** — computed columns and aggregate functions (SUM, AVG, COUNT) ✅
 4. **Conditional logic** — show/hide components and apply conditional styles based on data conditions ✅
-5. **Multi-page apps** — multiple pages with shared data and navigation
+5. **Multi-page apps** — multiple pages with shared data and navigation ✅
 6. **Event system** — action chains triggered by user interactions
 7. **Visual editor** — drag-and-drop UI builder alongside the AI chat
 8. **Multi-user access** — roles, permissions, and shared apps

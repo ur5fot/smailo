@@ -107,9 +107,9 @@
 
 ### Task 7: Обновить документацию
 
-- [ ] обновить `README.md`: добавить описание многостраничности в секцию App config
-- [ ] обновить `README.ru.md`: то же самое на русском
-- [ ] обновить `CLAUDE.md` если описание uiComponents устарело (поле pages в конфиге)
+- [x] обновить `README.md`: добавить описание многостраничности в секцию App config
+- [x] обновить `README.ru.md`: то же самое на русском
+- [x] обновить `CLAUDE.md` если описание uiComponents устарело (поле pages в конфиге)
 
 *Note: ralphex automatically moves completed plans to `docs/plans/completed/`*
 
