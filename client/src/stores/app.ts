@@ -43,7 +43,11 @@ export function buildTableCacheKey(tableId: number, filter?: FilterCondition | F
   if (!filter) return String(tableId)
   const normalized = (Array.isArray(filter) ? filter : [filter])
     .slice()
-    .sort((a, b) => a.column.localeCompare(b.column))
+    .sort((a, b) =>
+      a.column.localeCompare(b.column)
+      || (a.operator ?? 'eq').localeCompare(b.operator ?? 'eq')
+      || JSON.stringify(a.value).localeCompare(JSON.stringify(b.value))
+    )
   return `${tableId}:${JSON.stringify(normalized)}`
 }
 
@@ -137,6 +141,17 @@ export const useAppStore = defineStore('app', () => {
     return fetchTableRows(hash, tableId, filter)
   }
 
+  function invalidateTableCache(tableId: number): void {
+    const prefix = String(tableId)
+    const newData = { ...tableData.value }
+    for (const key of Object.keys(newData)) {
+      if (key === prefix || key.startsWith(`${prefix}:`)) {
+        delete newData[key]
+      }
+    }
+    tableData.value = newData
+  }
+
   function clearTableCache() {
     tableData.value = {}
   }
@@ -151,6 +166,6 @@ export const useAppStore = defineStore('app', () => {
     appConfig, appName, appData, isAuthenticated,
     tableSchemas, tableData, computedValues, pages,
     fetchApp, verifyPassword, fetchData, chatWithApp,
-    fetchTableRows, getTableData, refreshTable, clearTableCache,
+    fetchTableRows, getTableData, refreshTable, invalidateTableCache, clearTableCache,
   }
 })

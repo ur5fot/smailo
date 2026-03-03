@@ -162,7 +162,7 @@ async function handleSubmit() {
         }
       }
       await api.post(`/app/${props.hash}/tables/${props.dataSource.tableId}/rows`, { data })
-      await appStore.refreshTable(props.hash, props.dataSource.tableId)
+      appStore.invalidateTableCache(props.dataSource.tableId)
     } else {
       // KV mode: POST to appData
       const formObject: Record<string, unknown> = {}

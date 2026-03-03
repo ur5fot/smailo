@@ -2,7 +2,7 @@ import type { FilterCondition, FilterOperator } from '../services/aiService.js';
 
 type RowWithMeta = { id: number; data: Record<string, unknown>; createdAt: string; updatedAt: string | null };
 
-const VALID_OPERATORS: Set<string> = new Set(['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'contains']);
+export const VALID_OPERATORS: Set<string> = new Set(['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'contains']);
 
 function applyCondition(rowData: Record<string, unknown>, condition: FilterCondition): boolean {
   const { column, value } = condition;
@@ -23,14 +23,19 @@ function applyCondition(rowData: Record<string, unknown>, condition: FilterCondi
       // eslint-disable-next-line eqeqeq
       return cellValue != value;
     case 'lt':
+      if (cellValue === null || cellValue === undefined) return false;
       return compareOrdered(cellValue, value) < 0;
     case 'lte':
+      if (cellValue === null || cellValue === undefined) return false;
       return compareOrdered(cellValue, value) <= 0;
     case 'gt':
+      if (cellValue === null || cellValue === undefined) return false;
       return compareOrdered(cellValue, value) > 0;
     case 'gte':
+      if (cellValue === null || cellValue === undefined) return false;
       return compareOrdered(cellValue, value) >= 0;
     case 'contains':
+      if (cellValue === null || cellValue === undefined) return false;
       return String(cellValue).toLowerCase().includes(String(value).toLowerCase());
     default:
       // Unknown operator — condition passes
@@ -102,7 +107,7 @@ function compareOrdered(a: unknown, b: unknown): number {
   return 0;
 }
 
-function isValidCondition(v: unknown): v is FilterCondition {
+export function isValidCondition(v: unknown): v is FilterCondition {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
   const obj = v as Record<string, unknown>;
 

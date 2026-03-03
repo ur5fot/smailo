@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { parse as parseFormula } from '../utils/formula/parser.js';
+import { isValidCondition as isValidFilterCondition } from '../utils/filterRows.js';
 
 export type ClaudePhase = 'brainstorm' | 'confirm' | 'created' | 'chat';
 
@@ -730,18 +731,6 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
       ) {
         item.dataSource = undefined;
       } else {
-        // Validate and sanitize filter field on dataSource
-        const VALID_FILTER_OPERATORS = new Set(['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'contains']);
-        const isValidFilterCondition = (f: unknown): f is FilterCondition => {
-          if (!f || typeof f !== 'object' || Array.isArray(f)) return false;
-          const fc = f as Record<string, unknown>;
-          if (typeof fc.column !== 'string' || fc.column.length === 0) return false;
-          if (fc.operator !== undefined && !VALID_FILTER_OPERATORS.has(fc.operator as string)) return false;
-          const vt = typeof fc.value;
-          if (vt !== 'string' && vt !== 'number' && vt !== 'boolean') return false;
-          return true;
-        };
-
         // Form components: strip filter (not applicable for writes)
         if (item.component === 'Form') {
           (item.dataSource as Record<string, unknown>).filter = undefined;

@@ -14,6 +14,7 @@ import { computed, defineAsyncComponent } from 'vue'
 import { buildFormulaContext } from '../utils/formulaContext'
 import { evaluateShowIf } from '../utils/showIf'
 import type { StyleIfCondition } from '../utils/styleIf'
+import type { FilterCondition } from '../stores/app'
 
 // Break circular dependency: AppRenderer → AppConditionalGroup → AppRenderer
 const AppRenderer = defineAsyncComponent(() => import('./AppRenderer.vue'))
@@ -22,7 +23,7 @@ interface UiConfigItem {
   component: string
   props: Record<string, any>
   dataKey?: string
-  dataSource?: { type: 'table'; tableId: number }
+  dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }
   computedValue?: string
   action?: { key: string; value?: unknown; mode?: 'append' }
   fields?: Array<{ name: string; type: string; label: string }>

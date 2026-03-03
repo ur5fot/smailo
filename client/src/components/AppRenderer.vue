@@ -137,8 +137,8 @@ import { useAppStore } from '../stores/app'
 import type { FilterCondition } from '../stores/app'
 import { buildFormulaContext } from '../utils/formulaContext'
 import { evaluateShowIf } from '../utils/showIf'
-import { evaluateStyleIf, type StyleIfCondition } from '../utils/styleIf'
-import { STYLE_IF_PREFIX } from '../utils/conditionalClasses'
+import type { StyleIfCondition } from '../utils/styleIf'
+import { getConditionalClasses as computeConditionalClasses } from '../utils/conditionalClasses'
 import '../assets/conditional-styles.css'
 
 interface UiConfigItem {
@@ -183,8 +183,7 @@ function shouldShow(item: UiConfigItem, _index: number): boolean {
 }
 
 function getConditionalClasses(item: UiConfigItem, _index: number): string[] {
-  if (!item.styleIf || item.styleIf.length === 0) return []
-  return evaluateStyleIf(item.styleIf, formulaContext.value).map(c => STYLE_IF_PREFIX + c)
+  return computeConditionalClasses(item.styleIf, props.appData)
 }
 
 const componentMap: Record<string, any> = {
