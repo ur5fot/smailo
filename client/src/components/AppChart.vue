@@ -12,14 +12,15 @@
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue'
 import Chart from 'primevue/chart'
-import { useAppStore } from '../stores/app'
+import { useAppStore, buildTableCacheKey } from '../stores/app'
 import { buildChartDataFromTable } from '../utils/chartData'
+import type { FilterCondition } from '../stores/app'
 
 const props = defineProps<{
   type?: string
   data?: any
   options?: any
-  dataSource?: { type: 'table'; tableId: number }
+  dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }
   hash?: string
 }>()
 
@@ -30,10 +31,11 @@ const loading = ref(false)
 watchEffect(async () => {
   if (props.dataSource?.type === 'table' && props.hash) {
     const tableId = props.dataSource.tableId
-    if (!appStore.tableData[tableId]) {
+    const filter = props.dataSource.filter
+    if (!appStore.tableData[buildTableCacheKey(tableId, filter)]) {
       loading.value = true
       try {
-        await appStore.fetchTableRows(props.hash, tableId)
+        await appStore.fetchTableRows(props.hash, tableId, filter)
       } finally {
         loading.value = false
       }
@@ -44,7 +46,7 @@ watchEffect(async () => {
 const chartData = computed(() => {
   // Table dataSource mode: build chart data from table rows
   if (props.dataSource?.type === 'table') {
-    const td = appStore.getTableData(props.dataSource.tableId)
+    const td = appStore.getTableData(props.dataSource.tableId, props.dataSource.filter)
     if (!td) return null
     return buildChartDataFromTable(td.schema.columns, td.rows, props.type)
   }

@@ -27,6 +27,8 @@ import { computed, ref, watchEffect } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import { useAppStore } from '../stores/app'
+import { buildTableCacheKey } from '../stores/app'
+import type { FilterCondition } from '../stores/app'
 
 interface ColumnDef {
   field: string
@@ -39,7 +41,7 @@ const props = defineProps<{
   // optional explicit column definitions
   columns?: ColumnDef[]
   // table dataSource binding
-  dataSource?: { type: 'table'; tableId: number }
+  dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }
   hash?: string
 }>()
 
@@ -50,11 +52,12 @@ const loading = ref(false)
 watchEffect(async () => {
   if (props.dataSource?.type === 'table' && props.hash) {
     const tableId = props.dataSource.tableId
-    // Only fetch if not already cached
-    if (!appStore.tableData[tableId]) {
+    const filter = props.dataSource.filter
+    // Only fetch if not already cached (use filter-aware cache key)
+    if (!appStore.tableData[buildTableCacheKey(tableId, filter)]) {
       loading.value = true
       try {
-        await appStore.fetchTableRows(props.hash, tableId)
+        await appStore.fetchTableRows(props.hash, tableId, filter)
       } finally {
         loading.value = false
       }
@@ -65,7 +68,7 @@ watchEffect(async () => {
 const rows = computed<any[]>(() => {
   // Table dataSource mode: get rows from store
   if (props.dataSource?.type === 'table') {
-    const td = appStore.getTableData(props.dataSource.tableId)
+    const td = appStore.getTableData(props.dataSource.tableId, props.dataSource.filter)
     if (!td) return []
     // Flatten row data for DataTable (merge row.data fields + row.id)
     return td.rows.map((r) => ({ id: r.id, ...r.data as Record<string, unknown> }))
@@ -83,7 +86,7 @@ const effectiveColumns = computed<ColumnDef[]>(() => {
 
   // Table dataSource mode: generate from schema
   if (props.dataSource?.type === 'table') {
-    const td = appStore.getTableData(props.dataSource.tableId)
+    const td = appStore.getTableData(props.dataSource.tableId, props.dataSource.filter)
     if (td) {
       return td.schema.columns.map((col) => ({ field: col.name, header: col.name }))
     }

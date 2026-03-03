@@ -129,16 +129,16 @@ excluded — it writes to the table, filtering write targets doesn't make sense.
 
 ### Task 4: Wire filter through AppRenderer → components
 
-- [ ] update `AppRenderer.vue`: pass `item.dataSource` (including `filter`) as prop to wrapper components
+- [x] update `AppRenderer.vue`: pass `item.dataSource` (including `filter`) as prop to wrapper components
   - check how dataSource is currently passed; ensure `filter` field flows through
-- [ ] update `AppDataTable.vue`:
+- [x] update `AppDataTable.vue`:
   - extract `dataSource.filter` from props
   - pass `filter` to `fetchTableRows(hash, tableId, filter)`
   - pass `filter` to `appStore.refreshTable(hash, tableId, filter)` on data-written events
-- [ ] update `AppCardList.vue` same as DataTable
-- [ ] update `AppChart.vue` same as DataTable
+- [x] update `AppCardList.vue` same as DataTable
+- [x] update `AppChart.vue` same as DataTable
   - `buildChartDataFromTable()` already works on the returned rows, no changes needed there
-- [ ] run server + client tests: `npm test --workspace=server && npm test --workspace=client`
+- [x] run server + client tests: `npm test --workspace=server && npm test --workspace=client`
 
 ### Task 5: AI system prompts + CLAUDE.md
 

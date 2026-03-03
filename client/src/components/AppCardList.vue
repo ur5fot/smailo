@@ -86,15 +86,15 @@
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue'
 import api from '../api'
-import { useAppStore } from '../stores/app'
+import { useAppStore, buildTableCacheKey } from '../stores/app'
 import { formatIfDate } from '../utils/format'
-import type { TableRow, TableColumn } from '../stores/app'
+import type { TableRow, TableColumn, FilterCondition } from '../stores/app'
 
 const props = defineProps<{
   value?: any
   hash?: string
   dataKey?: string
-  dataSource?: { type: 'table'; tableId: number }
+  dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }
 }>()
 
 const emit = defineEmits<{
@@ -110,12 +110,12 @@ const loading = ref(false)
 watchEffect(async () => {
   if (!isTableMode.value || !props.hash || !props.dataSource) return
   const tableId = props.dataSource.tableId
-  const cached = appStore.getTableData(tableId)
-  // Only fetch if no cached rows yet (schema-only means rows haven't been loaded)
-  if (!cached || !appStore.tableData[tableId]) {
+  const filter = props.dataSource.filter
+  // Only fetch if no cached rows yet (use filter-aware cache key)
+  if (!appStore.tableData[buildTableCacheKey(tableId, filter)]) {
     loading.value = true
     try {
-      await appStore.fetchTableRows(props.hash, tableId)
+      await appStore.fetchTableRows(props.hash, tableId, filter)
     } finally {
       loading.value = false
     }
@@ -125,7 +125,7 @@ watchEffect(async () => {
 // Table mode computed
 const tableData = computed(() => {
   if (!isTableMode.value || !props.dataSource) return null
-  return appStore.getTableData(props.dataSource.tableId)
+  return appStore.getTableData(props.dataSource.tableId, props.dataSource.filter)
 })
 
 const tableRows = computed<TableRow[]>(() => tableData.value?.rows ?? [])
@@ -159,7 +159,7 @@ async function deleteTableRow(rowId: number) {
   deletingId.value = rowId
   try {
     await api.delete(`/app/${props.hash}/tables/${props.dataSource.tableId}/rows/${rowId}`)
-    await appStore.refreshTable(props.hash, props.dataSource.tableId)
+    await appStore.refreshTable(props.hash, props.dataSource.tableId, props.dataSource.filter)
     emit('data-written')
   } finally {
     deletingId.value = null

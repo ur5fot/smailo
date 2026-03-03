@@ -134,6 +134,7 @@ import AppChart from './AppChart.vue'
 import AppConditionalGroup from './AppConditionalGroup.vue'
 import { resolveDataKey } from '../utils/dataKey'
 import { useAppStore } from '../stores/app'
+import type { FilterCondition } from '../stores/app'
 import { buildFormulaContext } from '../utils/formulaContext'
 import { evaluateShowIf } from '../utils/showIf'
 import { evaluateStyleIf, type StyleIfCondition } from '../utils/styleIf'
@@ -144,7 +145,7 @@ interface UiConfigItem {
   component: string
   props: Record<string, any>
   dataKey?: string
-  dataSource?: { type: 'table'; tableId: number }
+  dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }
   computedValue?: string
   action?: { key: string; value?: unknown; mode?: 'append' }
   fields?: Array<{ name: string; type: string; label: string }>

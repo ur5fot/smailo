@@ -39,7 +39,7 @@ export interface FilterCondition {
   value: string | number | boolean;
 }
 
-function buildTableCacheKey(tableId: number, filter?: FilterCondition | FilterCondition[]): string {
+export function buildTableCacheKey(tableId: number, filter?: FilterCondition | FilterCondition[]): string {
   if (!filter) return String(tableId)
   const normalized = (Array.isArray(filter) ? filter : [filter])
     .slice()
