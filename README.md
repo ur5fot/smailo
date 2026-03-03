@@ -71,7 +71,8 @@ smailo/
 │       │   ├── AppCardList.vue   # Card-per-item list from appData array or table rows (with delete)
 │       │   ├── AppAccordion.vue  # Accordion wrapper for collapsible sections
 │       │   ├── AppPanel.vue      # Panel wrapper with header slot
-│       │   └── AppTabs.vue       # Tabs wrapper showing data per tab
+│       │   ├── AppTabs.vue       # Tabs wrapper showing data per tab
+│       │   └── AppConditionalGroup.vue  # Container that shows/hides children based on a condition
 │       ├── views/
 │       │   ├── HomeView.vue      # Landing: create/enter user ID
 │       │   ├── UserView.vue      # User page: app list (left) + AI chat with example prompts (right)
@@ -84,7 +85,10 @@ smailo/
 │       │   ├── format.ts         # Shared formatIfDate utility (ISO → localized RU date)
 │       │   ├── markdown.ts       # Shared renderMd (marked + DOMPurify)
 │       │   ├── dataKey.ts        # Shared resolveDataKey with prototype-pollution guard
-│       │   └── chartData.ts     # buildChartDataFromTable utility for table→Chart.js conversion
+│       │   ├── chartData.ts      # buildChartDataFromTable utility for table→Chart.js conversion
+│       │   ├── showIf.ts         # evaluateShowIf — client-side formula evaluation for component visibility
+│       │   ├── styleIf.ts        # evaluateStyleIf — client-side conditional CSS class evaluation
+│       │   └── formula/          # Client-side copy of the formula parser (tokenizer, parser, evaluator)
 │       ├── api/index.ts          # Axios instance with JWT + X-User-Id interceptor
 │       └── router/index.ts       # Vue Router with regex-constrained params
 │
@@ -153,7 +157,7 @@ Smailo is evolving from a data dashboard builder into a low-code app platform. T
 1. **User-defined tables** — relational data storage with typed columns (text, number, date, boolean, select) ✅
 2. **Table data binding** — bind DataTable, Form, Chart, and CardList to table data via `dataSource` ✅
 3. **Formula engine** — computed columns and aggregate functions (SUM, AVG, COUNT) ✅
-4. **Conditional logic** — show/hide components based on data conditions
+4. **Conditional logic** — show/hide components and apply conditional styles based on data conditions ✅
 5. **Multi-page apps** — multiple pages with shared data and navigation
 6. **Event system** — action chains triggered by user interactions
 7. **Visual editor** — drag-and-drop UI builder alongside the AI chat

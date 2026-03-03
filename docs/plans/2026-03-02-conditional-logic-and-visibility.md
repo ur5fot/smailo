@@ -101,9 +101,9 @@
 - [x] Убедиться что все тесты проходят
 
 ### Task 8: [Final] Обновить документацию
-- [ ] Обновить `CLAUDE.md` — добавить описание showIf/styleIf/ConditionalGroup
-- [ ] Обновить `README.md` и `README.ru.md` если нужно
-- [ ] Обновить `docs/roadmap-v2.md` — пометить Этап 4 как ✅ реализован
+- [x] Обновить `CLAUDE.md` — добавить описание showIf/styleIf/ConditionalGroup
+- [x] Обновить `README.md` и `README.ru.md` если нужно
+- [x] Обновить `docs/roadmap-v2.md` — пометить Этап 4 как ✅ реализован
 
 ## Technical Details
 

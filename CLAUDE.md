@@ -83,7 +83,7 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     component: 'Card' | 'DataTable' | 'Chart' | 'Timeline' | 'Knob' | 'Tag' | 'ProgressBar' | 'Calendar'
              | 'Button' | 'InputText' | 'Form'
              | 'Accordion' | 'Panel' | 'Chip' | 'Badge' | 'Slider' | 'Rating' | 'Tabs' | 'Image' | 'MeterGroup'
-             | 'CardList'
+             | 'CardList' | 'ConditionalGroup'
     props: Record<string, unknown>  // component-specific, no 'on*' props
     dataKey?: string                // key into appData to bind as value/data prop
     dataSource?: { type: 'table'; tableId: number }  // bind to user-defined table (alternative to dataKey)
@@ -92,16 +92,23 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only; `name` must match /^[a-zA-Z0-9_]{1,100}$/ and 'timestamp' is reserved (auto-injected)
     outputKey?: string             // Form only: appData key for the submitted object
     computedValue?: string         // server-evaluated formula: "= SUM(expenses.amount)" — alternative to dataKey for display components
+    // Conditional logic fields:
+    showIf?: string                // client-evaluated formula; component hidden when falsy (e.g. "status == 'active'")
+    styleIf?: Array<{ condition: string; class: string }>  // conditional CSS classes applied when condition is truthy
+    // ConditionalGroup fields (only when component == 'ConditionalGroup'):
+    condition?: string             // formula evaluated on client; group shown when truthy
+    children?: UiComponent[]       // nested components shown/hidden together (max 1 level deep)
   }>
 }
 ```
 
 ### Dynamic UI rendering (`client/src/components/AppRenderer.vue`)
 
-Iterates `uiConfig` array and renders each component dynamically. Ten components use dedicated wrappers:
+Iterates `uiConfig` array and renders each component dynamically. Eleven components use dedicated wrappers:
 - `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue`, `CardList` → `AppCardList.vue`, `Chart` → `AppChart.vue` (data display)
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
 - `Accordion` → `AppAccordion.vue`, `Panel` → `AppPanel.vue`, `Tabs` → `AppTabs.vue` (slot-based layout)
+- `ConditionalGroup` → `AppConditionalGroup.vue` (conditional visibility container)
 
 All others use `<component :is="...">`. `dataKey` is resolved against the latest `appData` map with the following prop bindings:
 - `Image` → binds to `src` prop
@@ -129,6 +136,13 @@ The server validates and truncates `uiComponents` to a maximum of 20 items after
 Table data is cached in the `app.ts` store (`tableData` map keyed by tableId). Rows are fetched on demand when a component with `dataSource` first renders. After Form writes or CardList deletes a row, `appStore.refreshTable()` is called to update all bound components.
 
 Input wrapper components call `POST /api/app/:hash/data` on user interaction and emit `'data-written'`, which bubbles up through `AppRenderer` to `AppView.vue`, triggering `appStore.fetchData(hash)` to refresh displayed data.
+
+**Conditional logic (showIf / styleIf / ConditionalGroup)**: Evaluated client-side in `AppRenderer.vue` using a ported copy of the server formula parser (`client/src/utils/formula/`). `buildFormulaContext()` assembles a flat `Record<string, unknown>` from `appStore.appData` and `appStore.tableData`; this context is passed to `evaluateShowIf()` and `evaluateStyleIf()`.
+- `showIf` — hides the component when the expression is falsy; absence means always visible
+- `styleIf` — applies CSS classes conditionally; predefined classes: `warning` (yellow), `critical` (red), `success` (green), `muted` (gray), `highlight` (blue highlight)
+- `ConditionalGroup` — container that shows or hides all its `children` together; max 1 level of nesting; validated on server, rendered via `AppConditionalGroup.vue`
+- Server validates `showIf`/`styleIf` expressions via `parseFormula()` at save time; invalid expressions are silently dropped
+- Client utilities: `client/src/utils/showIf.ts` → `evaluateShowIf(expr, ctx): boolean`; `client/src/utils/styleIf.ts` → `evaluateStyleIf(conditions, ctx): string[]`
 
 ### Cron automation (`server/src/services/cronManager.ts`)
 
