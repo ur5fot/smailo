@@ -134,6 +134,17 @@ describe('validatePages', () => {
       expect(result).toHaveLength(1)
     })
 
+    it('accepts title that is 100 characters after trimming whitespace', () => {
+      const result = validatePages([{ ...basePage, title: '  ' + 'a'.repeat(100) + '  ' }])
+      expect(result).toHaveLength(1)
+      expect(result[0].title).toBe('a'.repeat(100))
+    })
+
+    it('drops page with title longer than 100 characters after trimming', () => {
+      const result = validatePages([{ ...basePage, title: '  ' + 'a'.repeat(101) + '  ' }])
+      expect(result).toHaveLength(0)
+    })
+
     it('drops page with non-string title', () => {
       const result = validatePages([{ ...basePage, title: 42 }])
       expect(result).toHaveLength(0)
@@ -166,6 +177,11 @@ describe('validatePages', () => {
       const result = validatePages([{ ...basePage, icon: '' }])
       expect(result).toHaveLength(1)
       expect(result[0].icon).toBeUndefined()
+    })
+
+    it('drops page when icon contains characters outside alphanumeric, space, hyphen, underscore', () => {
+      const result = validatePages([{ ...basePage, icon: 'pi@home' }])
+      expect(result).toHaveLength(0)
     })
   })
 

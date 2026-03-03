@@ -836,8 +836,8 @@ export function validatePages(items: unknown[]): Page[] {
       if (typeof p.id !== 'string' || !PAGE_ID_REGEX.test(p.id)) return false;
       if (seenIds.has(p.id)) return false;
       seenIds.add(p.id);
-      if (typeof p.title !== 'string' || p.title.trim().length === 0 || p.title.length > 100) return false;
-      if (p.icon !== undefined && (typeof p.icon !== 'string' || p.icon.length > 50)) return false;
+      if (typeof p.title !== 'string' || p.title.trim().length === 0 || p.title.trim().length > 100) return false;
+      if (p.icon !== undefined && (typeof p.icon !== 'string' || p.icon.length > 50 || (p.icon.length > 0 && !/^[a-zA-Z0-9 _-]+$/.test(p.icon)))) return false;
       if (!Array.isArray(p.uiComponents)) return false;
       return true;
     })

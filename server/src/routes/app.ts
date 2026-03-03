@@ -490,10 +490,10 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       phase: 'chat',
     } satisfies ChatHistoryInsert);
 
-    // If the AI returned an updated UI layout, validate it before persisting.
-    // Filter uiUpdate to only allowed components; save whatever passes the whitelist.
-    // validItems is hoisted so the response can reuse it without re-filtering.
+    // If the AI returned an updated UI layout or pages, validate and persist.
+    // uiUpdate and pagesUpdate are mutually exclusive: if both are present, uiUpdate takes priority.
     let validUiItems: ReturnType<typeof validateUiComponents> | undefined;
+    let validPages: ReturnType<typeof validatePages> | undefined;
     if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
       validUiItems = validateUiComponents(claudeResponse.uiUpdate);
       if (validUiItems.length > 0) {
@@ -502,12 +502,8 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       } else {
         console.warn(`[POST /api/app/:hash/chat] uiUpdate had no valid components for app ${row.id}`);
       }
-    }
-
-    // If the AI returned updated pages (multi-page app), validate and persist.
-    // pagesUpdate replaces the entire config.pages array.
-    let validPages: ReturnType<typeof validatePages> | undefined;
-    if (claudeResponse.pagesUpdate && Array.isArray(claudeResponse.pagesUpdate)) {
+    } else if (claudeResponse.pagesUpdate && Array.isArray(claudeResponse.pagesUpdate)) {
+      // pagesUpdate replaces the entire config.pages array.
       validPages = validatePages(claudeResponse.pagesUpdate);
       if (validPages.length > 0) {
         const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), pages: validPages };

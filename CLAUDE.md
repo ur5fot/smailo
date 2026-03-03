@@ -188,7 +188,7 @@ Safe expression evaluator (recursive descent parser, no `eval`). Used for two fe
 **Safety**: max formula length 500 chars, max AST depth 20, division by zero returns `null`, type mismatch in functions returns `null`, missing references return `null`.
 
 Formula integration utilities:
-- `server/src/utils/computedValues.ts` — `extractReferencedTableNames(components)` extracts table names from formulas; `evaluateComputedValues(components, tables)` evaluates all `computedValue` formulas and returns `Record<number, unknown>` keyed by component index
+- `server/src/utils/computedValues.ts` — `getGlobalComponents(config)` returns the flat list of all components across pages (flatMap if `config.pages` exists, else `config.uiComponents`); `extractReferencedTableNames(components)` extracts table names from formulas; `evaluateComputedValues(components, tables)` evaluates all `computedValue` formulas and returns `Record<number, unknown>` keyed by component index
 - `server/src/utils/formulaColumns.ts` — `evaluateFormulaColumns(rows, columns)` evaluates formula columns per-row, injecting computed values into each row's data; formula columns can reference earlier formula columns in the same row
 
 ### Database (`server/src/db/schema.ts`)

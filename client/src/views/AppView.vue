@@ -239,11 +239,15 @@ watch(
   [pages, currentPageId, () => loading.value],
   ([ps, pid, isLoading]) => {
     if (isLoading) return
-    if (!ps?.length || !userId.value) return
+    if (!ps?.length) return
     const noPage = !pid
     const unknownPage = pid && !ps.find(p => p.id === pid)
     if (noPage || unknownPage) {
-      router.replace(`/${userId.value}/${hash.value}/${ps[0].id}`)
+      if (userId.value) {
+        router.replace(`/${userId.value}/${hash.value}/${ps[0].id}`)
+      } else {
+        router.replace(`/app/${hash.value}/${ps[0].id}`)
+      }
     }
   },
 )
@@ -251,6 +255,8 @@ watch(
 function onPageChange(pageId: string) {
   if (userId.value) {
     router.push(`/${userId.value}/${hash.value}/${pageId}`)
+  } else {
+    router.push(`/app/${hash.value}/${pageId}`)
   }
 }
 
