@@ -46,17 +46,17 @@
 
 ### Task 2: Обновить обработку uiUpdate/pagesUpdate в chat endpoint
 
-- [ ] прочитать `server/src/routes/app.ts` — найти место применения `uiUpdate`
-- [ ] при наличии `pagesUpdate` в ответе AI: валидировать через `validatePages()`,
+- [x] прочитать `server/src/routes/app.ts` — найти место применения `uiUpdate`
+- [x] при наличии `pagesUpdate` в ответе AI: валидировать через `validatePages()`,
   сохранить `config.pages = pagesUpdate` в БД (остальные поля config не трогать)
-- [ ] при наличии `uiUpdate` (без `pagesUpdate`) — поведение не меняется (backward compat)
-- [ ] добавить утилиту `getGlobalComponents(config: AppConfig): UiComponent[]`:
+- [x] при наличии `uiUpdate` (без `pagesUpdate`) — поведение не меняется (backward compat)
+- [x] добавить утилиту `getGlobalComponents(config: AppConfig): UiComponent[]`:
   если `config.pages` есть → `pages.flatMap(p => p.uiComponents)`;
   иначе → `config.uiComponents`
-- [ ] обновить вызов `evaluateComputedValues` в `GET /api/app/:hash/data` и
+- [x] обновить вызов `evaluateComputedValues` в `GET /api/app/:hash/data` и
   `GET /api/app/:hash` для использования `getGlobalComponents()`
-- [ ] написать тесты для pagesUpdate handling и getGlobalComponents
-- [ ] запустить тесты — должны проходить
+- [x] написать тесты для pagesUpdate handling и getGlobalComponents
+- [x] запустить тесты — должны проходить
 
 ### Task 3: Обновить AI system prompts
 

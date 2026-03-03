@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateUiComponents } from '../services/aiService.js';
-import { extractReferencedTableNames, evaluateComputedValues } from '../utils/computedValues.js';
-import type { UiComponent } from '../services/aiService.js';
+import { extractReferencedTableNames, evaluateComputedValues, getGlobalComponents } from '../utils/computedValues.js';
+import type { UiComponent, AppConfig } from '../services/aiService.js';
 
 describe('computedValue in validateUiComponents', () => {
   const baseCard = { component: 'Card', props: { title: 'Test' } };
@@ -316,5 +316,100 @@ describe('evaluateComputedValues', () => {
     const result = evaluateComputedValues(components, cyrillicTables);
     expect(result[0]).toBe(450);
     expect(result[1]).toBe(3);
+  });
+});
+
+describe('getGlobalComponents', () => {
+  const cardA: UiComponent = { component: 'Card', props: { title: 'A' }, dataKey: 'a' };
+  const cardB: UiComponent = { component: 'Card', props: { title: 'B' }, dataKey: 'b' };
+  const cardC: UiComponent = { component: 'Card', props: { title: 'C' }, dataKey: 'c' };
+
+  it('returns uiComponents for single-page app (no pages field)', () => {
+    const config: AppConfig = {
+      appName: 'Test',
+      description: 'Test app',
+      cronJobs: [],
+      uiComponents: [cardA, cardB],
+    };
+    expect(getGlobalComponents(config)).toEqual([cardA, cardB]);
+  });
+
+  it('returns uiComponents when pages is empty array', () => {
+    const config: AppConfig = {
+      appName: 'Test',
+      description: 'Test app',
+      cronJobs: [],
+      uiComponents: [cardA],
+      pages: [],
+    };
+    expect(getGlobalComponents(config)).toEqual([cardA]);
+  });
+
+  it('returns flatMap of all pages uiComponents for multi-page app', () => {
+    const config: AppConfig = {
+      appName: 'Test',
+      description: 'Test app',
+      cronJobs: [],
+      uiComponents: [],
+      pages: [
+        { id: 'main', title: 'Main', uiComponents: [cardA, cardB] },
+        { id: 'reports', title: 'Reports', uiComponents: [cardC] },
+      ],
+    };
+    const result = getGlobalComponents(config);
+    expect(result).toEqual([cardA, cardB, cardC]);
+    expect(result).toHaveLength(3);
+  });
+
+  it('preserves component order across pages', () => {
+    const config: AppConfig = {
+      appName: 'Test',
+      description: 'Test app',
+      cronJobs: [],
+      uiComponents: [],
+      pages: [
+        { id: 'p1', title: 'Page 1', uiComponents: [cardC, cardA] },
+        { id: 'p2', title: 'Page 2', uiComponents: [cardB] },
+      ],
+    };
+    const result = getGlobalComponents(config);
+    expect(result[0]).toBe(cardC);
+    expect(result[1]).toBe(cardA);
+    expect(result[2]).toBe(cardB);
+  });
+
+  it('handles page with empty uiComponents', () => {
+    const config: AppConfig = {
+      appName: 'Test',
+      description: 'Test app',
+      cronJobs: [],
+      uiComponents: [],
+      pages: [
+        { id: 'p1', title: 'Page 1', uiComponents: [] },
+        { id: 'p2', title: 'Page 2', uiComponents: [cardA] },
+      ],
+    };
+    const result = getGlobalComponents(config);
+    expect(result).toEqual([cardA]);
+  });
+
+  it('global indices align correctly for computedValues evaluation', () => {
+    const compA: UiComponent = { component: 'Card', props: {}, computedValue: '1 + 1' };
+    const compB: UiComponent = { component: 'Card', props: {}, dataKey: 'x' };
+    const compC: UiComponent = { component: 'Card', props: {}, computedValue: '2 + 2' };
+    const config: AppConfig = {
+      appName: 'Test',
+      description: 'Test app',
+      cronJobs: [],
+      uiComponents: [],
+      pages: [
+        { id: 'p1', title: 'Page 1', uiComponents: [compA, compB] },
+        { id: 'p2', title: 'Page 2', uiComponents: [compC] },
+      ],
+    };
+    const allComponents = getGlobalComponents(config);
+    const result = evaluateComputedValues(allComponents, {});
+    // compA is at global index 0, compC is at global index 2
+    expect(result).toEqual({ 0: 2, 2: 4 });
   });
 });

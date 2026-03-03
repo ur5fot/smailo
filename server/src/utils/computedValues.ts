@@ -1,6 +1,18 @@
 import { evaluateFormula } from './formula/index.js';
 import type { FormulaContext } from './formula/index.js';
-import type { UiComponent } from '../services/aiService.js';
+import type { UiComponent, AppConfig } from '../services/aiService.js';
+
+/**
+ * Get all UI components across all pages (for multi-page apps) or the top-level
+ * uiComponents array (for single-page apps). Used to evaluate computedValues
+ * with correct global indices.
+ */
+export function getGlobalComponents(config: AppConfig): UiComponent[] {
+  if (config.pages && config.pages.length > 0) {
+    return config.pages.flatMap(p => p.uiComponents);
+  }
+  return config.uiComponents;
+}
 
 /**
  * Extract table names referenced in computedValue formulas.

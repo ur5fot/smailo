@@ -7,11 +7,11 @@ import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appData, chatHistory, userTables, userRows } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
-import { chatWithAI, validateUiComponents } from '../services/aiService.js';
-import type { UiComponent } from '../services/aiService.js';
+import { chatWithAI, validateUiComponents, validatePages } from '../services/aiService.js';
+import type { UiComponent, AppConfig } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 import { requireAuthIfProtected, JWT_SECRET, type AuthenticatedRequest } from '../middleware/auth.js';
-import { extractReferencedTableNames, evaluateComputedValues } from '../utils/computedValues.js';
+import { extractReferencedTableNames, evaluateComputedValues, getGlobalComponents } from '../utils/computedValues.js';
 import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
 
@@ -200,15 +200,15 @@ appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
     const data = await getLatestAppData(row.id);
 
     // Evaluate computedValue formulas from UI components
-    const config = row.config as Record<string, unknown> | null;
-    const uiComponents = (config?.uiComponents ?? []) as UiComponent[];
-    const componentsWithComputed = uiComponents.filter(c => c.computedValue);
+    const config = row.config as AppConfig | null;
+    const allComponents = config ? getGlobalComponents(config) : [];
+    const componentsWithComputed = allComponents.filter(c => c.computedValue);
 
     let computedValues: Record<number, unknown> | undefined;
     if (componentsWithComputed.length > 0) {
       try {
         // Find which tables are referenced by the formulas
-        const tableNames = extractReferencedTableNames(uiComponents);
+        const tableNames = extractReferencedTableNames(allComponents);
 
         if (tableNames.size > 0) {
           // Fetch referenced tables by name
@@ -244,10 +244,10 @@ appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
             }
           }
 
-          computedValues = evaluateComputedValues(uiComponents, tablesContext);
+          computedValues = evaluateComputedValues(allComponents, tablesContext);
         } else {
           // No table references, but formulas might use literals or non-table functions
-          computedValues = evaluateComputedValues(uiComponents, {});
+          computedValues = evaluateComputedValues(allComponents, {});
         }
       } catch (err) {
         console.error('[GET /api/app/:hash/data] computedValues error:', err);
@@ -504,6 +504,19 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       }
     }
 
+    // If the AI returned updated pages (multi-page app), validate and persist.
+    // pagesUpdate replaces the entire config.pages array.
+    let validPages: ReturnType<typeof validatePages> | undefined;
+    if (claudeResponse.pagesUpdate && Array.isArray(claudeResponse.pagesUpdate)) {
+      validPages = validatePages(claudeResponse.pagesUpdate);
+      if (validPages.length > 0) {
+        const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), pages: validPages };
+        await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
+      } else {
+        console.warn(`[POST /api/app/:hash/chat] pagesUpdate had no valid pages for app ${row.id}`);
+      }
+    }
+
     // Save memory update if the AI provided one
     if (claudeResponse.memoryUpdate !== undefined) {
       await db.update(apps)
@@ -517,6 +530,8 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       // Only include uiUpdate when at least one component passed validation so the client
       // does not call fetchApp() when the AI's proposed update was entirely rejected.
       uiUpdate: validUiItems && validUiItems.length > 0 ? validUiItems : undefined,
+      // Only include pagesUpdate when at least one page passed validation.
+      pagesUpdate: validPages && validPages.length > 0 ? validPages : undefined,
     });
   } catch (error) {
     console.error('[POST /api/app/:hash/chat] Error:', error);
