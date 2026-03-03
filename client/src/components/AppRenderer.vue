@@ -168,6 +168,11 @@ const emit = defineEmits<{
 const appStore = useAppStore()
 
 function shouldShow(item: UiConfigItem, _index: number): boolean {
+  // For ConditionalGroup, check condition to avoid phantom flex gaps when the group is hidden
+  if (item.component === 'ConditionalGroup' && item.condition) {
+    const context = buildFormulaContext(props.appData)
+    return evaluateShowIf(item.condition, context)
+  }
   if (!item.showIf) return true
   const context = buildFormulaContext(props.appData)
   return evaluateShowIf(item.showIf, context)

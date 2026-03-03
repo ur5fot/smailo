@@ -28,7 +28,7 @@ npm run build --workspace=server
 npx vue-tsc --workspace=client
 ```
 
-Server tests use vitest (`npm test --workspace=server`). There is no linter configured.
+Server tests use vitest (`npm test --workspace=server`). Client tests use vitest (`npm test --workspace=client`). There is no linter configured.
 
 ## Architecture
 
@@ -93,7 +93,7 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     outputKey?: string             // Form only: appData key for the submitted object
     computedValue?: string         // server-evaluated formula: "= SUM(expenses.amount)" — alternative to dataKey for display components
     // Conditional logic fields:
-    showIf?: string                // client-evaluated formula; component hidden when falsy (e.g. "status == 'active'")
+    showIf?: string                // client-evaluated formula; component hidden when falsy (e.g. "status == \"active\"" — note: only double-quoted strings are supported)
     styleIf?: Array<{ condition: string; class: string }>  // conditional CSS classes applied when condition is truthy
     // ConditionalGroup fields (only when component == 'ConditionalGroup'):
     condition?: string             // formula evaluated on client; group shown when truthy
@@ -137,12 +137,12 @@ Table data is cached in the `app.ts` store (`tableData` map keyed by tableId). R
 
 Input wrapper components call `POST /api/app/:hash/data` on user interaction and emit `'data-written'`, which bubbles up through `AppRenderer` to `AppView.vue`, triggering `appStore.fetchData(hash)` to refresh displayed data.
 
-**Conditional logic (showIf / styleIf / ConditionalGroup)**: Evaluated client-side in `AppRenderer.vue` using a ported copy of the server formula parser (`client/src/utils/formula/`). `buildFormulaContext()` assembles a flat `Record<string, unknown>` from `appStore.appData` and `appStore.tableData`; this context is passed to `evaluateShowIf()` and `evaluateStyleIf()`.
+**Conditional logic (showIf / styleIf / ConditionalGroup)**: Evaluated client-side in `AppRenderer.vue` using a ported copy of the server formula parser (`client/src/utils/formula/`). `buildFormulaContext()` assembles a flat `Record<string, unknown>` from `appStore.appData` (JSON string values are auto-parsed into objects for member access); this context is passed to `evaluateShowIf()` and `evaluateStyleIf()`.
 - `showIf` — hides the component when the expression is falsy; absence means always visible
 - `styleIf` — applies CSS classes conditionally; predefined classes: `warning` (yellow), `critical` (red), `success` (green), `muted` (gray), `highlight` (blue highlight)
 - `ConditionalGroup` — container that shows or hides all its `children` together; max 1 level of nesting; validated on server, rendered via `AppConditionalGroup.vue`
 - Server validates `showIf`/`styleIf` expressions via `parseFormula()` at save time; invalid expressions are silently dropped
-- Client utilities: `client/src/utils/showIf.ts` → `evaluateShowIf(expr, ctx): boolean`; `client/src/utils/styleIf.ts` → `evaluateStyleIf(conditions, ctx): string[]`
+- Client utilities: `client/src/utils/showIf.ts` → `evaluateShowIf(expr, ctx): boolean`; `client/src/utils/styleIf.ts` → `evaluateStyleIf(conditions, ctx): string[]`; `client/src/utils/conditionalClasses.ts` → `getConditionalClasses(styleIf, appData): string[]` (applies `si-` prefix; CSS in `client/src/assets/conditional-styles.css`); `client/src/utils/formulaContext.ts` → `buildFormulaContext(appData): Record<string, unknown>`
 
 ### Cron automation (`server/src/services/cronManager.ts`)
 

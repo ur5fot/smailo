@@ -550,8 +550,15 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
       if (item.component === 'ConditionalGroup') {
         item.condition = (item.condition as string).trim();
         const validatedChildren = validateUiComponents(item.children as unknown[])
-          .filter((child: UiComponent) => child.component !== 'ConditionalGroup');
+          .filter((child: UiComponent) => child.component !== 'ConditionalGroup')
+          .map((child: UiComponent) => {
+            // computedValue is not supported inside ConditionalGroup children (index mismatch)
+            child.computedValue = undefined;
+            return child;
+          });
         item.children = validatedChildren;
+        // If all children were invalid, drop this group entirely by returning null
+        if (validatedChildren.length === 0) return null;
         return item;
       }
 
@@ -636,6 +643,7 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
 
       return item;
     })
+    .filter(Boolean)
     .slice(0, 20) as UiComponent[];
 }
 

@@ -648,4 +648,130 @@ describe('validateUiComponents', () => {
       expect(result).toHaveLength(20)
     })
   })
+
+  describe('computedValue validation', () => {
+    it('strips "= " prefix from valid formula', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Total' }, computedValue: '= SUM(expenses.amount)' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].computedValue).toBe('SUM(expenses.amount)')
+    })
+
+    it('strips "=" prefix without space', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Total' }, computedValue: '=COUNT(items)' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].computedValue).toBe('COUNT(items)')
+    })
+
+    it('keeps valid formula without prefix', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Total' }, computedValue: 'x + y' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].computedValue).toBe('x + y')
+    })
+
+    it('drops invalid (unparseable) formula', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Total' }, computedValue: '= >>> invalid <<<' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].computedValue).toBeUndefined()
+    })
+
+    it('drops empty formula string', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Total' }, computedValue: '= ' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].computedValue).toBeUndefined()
+    })
+
+    it('drops non-string computedValue', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Total' }, computedValue: 42 },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].computedValue).toBeUndefined()
+    })
+  })
+
+  describe('dataKey prototype pollution prevention', () => {
+    it('rejects component with __proto__ as dataKey', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Test' }, dataKey: '__proto__' },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects component with __proto__ as a segment in dotted dataKey', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Test' }, dataKey: 'a.__proto__.b' },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects component with "constructor" as dataKey', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Test' }, dataKey: 'constructor' },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects component with "prototype" as dataKey', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Test' }, dataKey: 'prototype' },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('accepts normal dotted dataKey', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Test' }, dataKey: 'rates.USD' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].dataKey).toBe('rates.USD')
+    })
+  })
+
+  describe('ConditionalGroup drops entire group when all children are invalid', () => {
+    it('drops ConditionalGroup when the only valid children would all be removed', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: [
+            { component: 'InvalidComponent', props: {} },
+            { component: 'Button', props: { label: 'Click' } }, // Button without action — invalid
+          ],
+        },
+      ])
+      // All children are invalid → group is dropped entirely
+      expect(result).toHaveLength(0)
+    })
+
+    it('strips computedValue from ConditionalGroup children', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: [
+            {
+              component: 'Card',
+              props: { title: 'Total' },
+              computedValue: '= SUM(expenses.amount)',
+            },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      // computedValue is not supported inside ConditionalGroup children
+      expect(result[0].children![0].computedValue).toBeUndefined()
+    })
+  })
 })

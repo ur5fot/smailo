@@ -3,8 +3,7 @@
  * Auto-parses JSON string values so member access works (e.g., rates.USD > 80).
  */
 export function buildFormulaContext(
-  appData: Record<string, unknown>,
-  tableData?: Record<number, { schema: { name: string }; rows: Array<Record<string, unknown>> }>
+  appData: Record<string, unknown>
 ): Record<string, unknown> {
   const context: Record<string, unknown> = {}
 

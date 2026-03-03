@@ -52,10 +52,10 @@ describe('getConditionalClasses', () => {
     expect(result).toEqual(['si-warning'])
   })
 
-  it('auto-parses JSON string values in appData', () => {
+  it('treats non-empty string context values as truthy (no JSON parsing for plain strings)', () => {
     const styleIf = [{ condition: 'active', class: 'highlight' }]
     const appData = { active: 'true' }
-    // 'true' as a string is truthy (non-empty string)
+    // 'true' as a non-empty string is truthy — no JSON parsing occurs since it's not a JSON object/array
     const result = getConditionalClasses(styleIf, appData)
     expect(result).toEqual(['si-highlight'])
   })
