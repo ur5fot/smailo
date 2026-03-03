@@ -113,7 +113,7 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
       return ast.value;
 
     case 'Identifier':
-      if (context.row && ast.name in context.row) {
+      if (context.row && Object.prototype.hasOwnProperty.call(context.row, ast.name)) {
         return context.row[ast.name];
       }
       return null;
@@ -127,7 +127,7 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
         const prop = ast.property;
 
         // Try row context first: row.a.b
-        if (context.row && objName in context.row) {
+        if (context.row && Object.prototype.hasOwnProperty.call(context.row, objName)) {
           const obj = context.row[objName];
           if (obj !== null && obj !== undefined && typeof obj === 'object') {
             return (obj as Record<string, unknown>)[prop] ?? null;
@@ -136,7 +136,7 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
         }
 
         // Try tables context: tables.a (for aggregates — return table reference)
-        if (context.tables && objName in context.tables) {
+        if (context.tables && Object.prototype.hasOwnProperty.call(context.tables, objName)) {
           // MemberAccess on a table returns the column data for aggregate use
           // This is handled by aggregate functions; here we just return null
           // as direct table.column access doesn't produce a scalar value

@@ -560,6 +560,28 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
         item.children = validatedChildren;
         // If all children were invalid, drop this group entirely by returning null
         if (validatedChildren.length === 0) return null;
+        // showIf is ignored on ConditionalGroup (client uses `condition` for visibility)
+        item.showIf = undefined;
+        // Validate styleIf using the same class regex as regular components
+        if (Array.isArray(item.styleIf)) {
+          item.styleIf = (item.styleIf as Array<Record<string, unknown>>)
+            .filter((entry) => {
+              if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
+              if (typeof entry.condition !== 'string' || typeof entry.class !== 'string') return false;
+              const cls = (entry.class as string).trim();
+              if (cls.length === 0 || !/^[a-zA-Z0-9_-]+$/.test(cls)) return false;
+              const cond = (entry.condition as string).trim();
+              if (cond.length === 0) return false;
+              try { parseFormula(cond); return true; } catch { return false; }
+            })
+            .map((entry) => ({
+              condition: (entry.condition as string).trim(),
+              class: (entry.class as string).trim(),
+            }));
+          if ((item.styleIf as unknown[]).length === 0) item.styleIf = undefined;
+        } else {
+          item.styleIf = undefined;
+        }
         return item;
       }
 

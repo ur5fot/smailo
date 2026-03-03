@@ -111,7 +111,7 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
       return ast.value;
 
     case 'Identifier':
-      if (context.row && ast.name in context.row) {
+      if (context.row && Object.prototype.hasOwnProperty.call(context.row, ast.name)) {
         return context.row[ast.name];
       }
       return null;
@@ -123,7 +123,7 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
         const objName = ast.object.name;
         const prop = ast.property;
 
-        if (context.row && objName in context.row) {
+        if (context.row && Object.prototype.hasOwnProperty.call(context.row, objName)) {
           const obj = context.row[objName];
           if (obj !== null && obj !== undefined && typeof obj === 'object') {
             return (obj as Record<string, unknown>)[prop] ?? null;
@@ -131,7 +131,7 @@ export function evaluate(ast: ASTNode, context: FormulaContext, depth: number = 
           return null;
         }
 
-        if (context.tables && objName in context.tables) {
+        if (context.tables && Object.prototype.hasOwnProperty.call(context.tables, objName)) {
           return null;
         }
       }
