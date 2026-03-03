@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import api from '../api'
+
+export interface PageConfig {
+  id: string
+  title: string
+  icon?: string
+  uiComponents: any[]
+}
 
 export interface TableColumn {
   name: string
@@ -105,9 +112,15 @@ export const useAppStore = defineStore('app', () => {
     tableData.value = {}
   }
 
+  const pages = computed((): PageConfig[] | undefined => {
+    const cfg = appConfig.value as any
+    if (!cfg?.pages || !Array.isArray(cfg.pages)) return undefined
+    return cfg.pages as PageConfig[]
+  })
+
   return {
     appConfig, appName, appData, isAuthenticated,
-    tableSchemas, tableData, computedValues,
+    tableSchemas, tableData, computedValues, pages,
     fetchApp, verifyPassword, fetchData, chatWithApp,
     fetchTableRows, getTableData, refreshTable, clearTableCache,
   }

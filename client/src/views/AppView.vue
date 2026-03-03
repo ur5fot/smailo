@@ -62,13 +62,26 @@
             />
           </header>
 
+          <!-- Page tabs (multi-page apps) -->
+          <div v-if="pages && pages.length > 1" class="app-view__page-tabs">
+            <Tabs :value="activePageId" @update:value="(id) => onPageChange(id as string)">
+              <TabList>
+                <Tab v-for="page in pages" :key="page.id" :value="page.id">
+                  <i v-if="page.icon" :class="page.icon" class="app-view__tab-icon" />
+                  {{ page.title }}
+                </Tab>
+              </TabList>
+            </Tabs>
+          </div>
+
           <!-- Scrollable app content -->
           <div class="app-view__content">
             <AppRenderer
-              v-if="uiComponents.length > 0"
-              :ui-config="uiComponents"
+              v-if="currentComponents.length > 0"
+              :ui-config="currentComponents"
               :app-data="appDataMap"
               :hash="hash"
+              :computed-values="localComputedValues"
               class="app-view__renderer"
               @data-written="handleDataWritten"
             />
@@ -123,9 +136,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
 import Smailo from '../components/Smailo.vue'
 import InputBar from '../components/InputBar.vue'
 import AppRenderer from '../components/AppRenderer.vue'
@@ -136,6 +152,7 @@ import type { Mood } from '../types'
 import api from '../api'
 
 const route = useRoute()
+const router = useRouter()
 const appStore = useAppStore()
 const hash = computed(() => route.params.hash as string)
 const userId = computed(() => route.params.userId as string | undefined)
@@ -169,12 +186,70 @@ const appDataMap = computed<Record<string, any>>(() => {
   }, {})
 })
 
-// Extract uiComponents from appConfig
-const uiComponents = computed(() => {
+// Multi-page support
+const pages = computed(() => appStore.pages)
+
+const currentPageId = computed(() => route.params.pageId as string | undefined)
+
+// The currently active page: find by id or fall back to first
+const currentPage = computed(() => {
+  const ps = pages.value
+  if (!ps?.length) return null
+  if (currentPageId.value) {
+    return ps.find(p => p.id === currentPageId.value) ?? ps[0]
+  }
+  return ps[0]
+})
+
+// Used as the :value binding for Tabs — falls back to first page id
+const activePageId = computed(() => currentPage.value?.id ?? pages.value?.[0]?.id)
+
+// Components to render: current page's components or top-level uiComponents (single-page compat)
+const currentComponents = computed(() => {
+  if (currentPage.value) {
+    return currentPage.value.uiComponents as any[]
+  }
   const config = appStore.appConfig
   if (!config) return []
   return (config.uiComponents as any[]) || []
 })
+
+// Remap global computedValues indices to local page indices
+const localComputedValues = computed<Record<number, unknown>>(() => {
+  const ps = pages.value
+  const cp = currentPage.value
+  if (!ps?.length || !cp) {
+    // Single-page app: pass store values directly
+    return appStore.computedValues
+  }
+  const pageIndex = ps.findIndex(p => p.id === cp.id)
+  const offset = ps.slice(0, pageIndex).reduce((sum, p) => sum + p.uiComponents.length, 0)
+  const result: Record<number, unknown> = {}
+  for (const [key, value] of Object.entries(appStore.computedValues)) {
+    const localIdx = Number(key) - offset
+    if (localIdx >= 0 && localIdx < cp.uiComponents.length) {
+      result[localIdx] = value
+    }
+  }
+  return result
+})
+
+// When a multi-page app loads without a pageId in the URL, redirect to the first page
+watch(
+  [pages, currentPageId, () => loading.value],
+  ([ps, pid, isLoading]) => {
+    if (isLoading) return
+    if (ps?.length && !pid && userId.value) {
+      router.replace(`/${userId.value}/${hash.value}/${ps[0].id}`)
+    }
+  },
+)
+
+function onPageChange(pageId: string) {
+  if (userId.value) {
+    router.push(`/${userId.value}/${hash.value}/${pageId}`)
+  }
+}
 
 async function fetchChatHistory() {
   try {
@@ -273,9 +348,9 @@ async function handleChatSubmit(message: string) {
     }
     chatMessages.value.push({ role: 'assistant', content: res.message, mood: res.mood })
 
-    // If Claude returned a uiUpdate, refresh the full app (config + appData).
+    // If Claude returned a uiUpdate or pagesUpdate, refresh the full app (config + appData).
     // Failures here are non-fatal: the AI response is already shown; data refreshes on next interaction.
-    if (res.uiUpdate) {
+    if (res.uiUpdate || (res as any).pagesUpdate) {
       try {
         await appStore.fetchApp(hash.value)
         await appStore.fetchData(hash.value)
@@ -437,6 +512,18 @@ onMounted(() => {
 
 .app-view__refresh-btn {
   color: #6b7280 !important;
+}
+
+/* ── Page tabs ─────────────────────────────────── */
+.app-view__page-tabs {
+  flex-shrink: 0;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 0 1rem;
+}
+
+.app-view__tab-icon {
+  margin-right: 0.35rem;
+  font-size: 0.9rem;
 }
 
 /* ── Scrollable content ────────────────────────── */

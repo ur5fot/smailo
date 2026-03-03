@@ -160,6 +160,7 @@ const props = defineProps<{
   uiConfig: UiConfigItem[]
   appData: Record<string, any>
   hash: string
+  computedValues?: Record<number, unknown>
 }>()
 
 const emit = defineEmits<{
@@ -214,8 +215,9 @@ function resolvedProps(item: UiConfigItem, index: number): Record<string, any> {
   let data: unknown
   if (item.dataSource) {
     // dataSource takes priority — data fetching is handled by wrapper components
-  } else if (item.computedValue && index in appStore.computedValues) {
-    data = appStore.computedValues[index]
+  } else if (item.computedValue) {
+    const cvMap = props.computedValues ?? appStore.computedValues
+    if (index in cvMap) data = cvMap[index]
   } else if (item.dataKey !== undefined) {
     data = resolveDataKey(props.appData, item.dataKey)
   }

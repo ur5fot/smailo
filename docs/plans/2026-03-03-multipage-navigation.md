@@ -78,9 +78,9 @@
 
 ### Task 5: AppView — вкладки и страничная навигация
 
-- [ ] прочитать `client/src/views/AppView.vue` и `client/src/stores/app.ts` полностью
-- [ ] в `app.ts` store: добавить геттер `pages` из `appConfig?.pages`
-- [ ] в `AppView.vue`:
+- [x] прочитать `client/src/views/AppView.vue` и `client/src/stores/app.ts` полностью
+- [x] в `app.ts` store: добавить геттер `pages` из `appConfig?.pages`
+- [x] в `AppView.vue`:
   - добавить `currentPageId` из `route.params.pageId`
   - computed `currentPage`: найти страницу по id или взять первую
   - computed `currentComponents`: `currentPage?.uiComponents ?? appConfig?.uiComponents ?? []`
@@ -88,12 +88,12 @@
   - рендерить PrimeVue Tabs над AppRenderer когда `pages` присутствует
   - при смене таба → `router.push({ name: 'app', params: { userId, hash, pageId } })`
   - передавать `currentComponents` в AppRenderer вместо `appConfig?.uiComponents`
-- [ ] computed `localComputedValues`: пересчитать глобальные индексы в локальные
+- [x] computed `localComputedValues`: пересчитать глобальные индексы в локальные
   (offset = sum of uiComponents.length for pages before current)
-- [ ] передавать `localComputedValues` в AppRenderer
-- [ ] backward compat: если `pages` нет — всё работает как раньше
-- [ ] написать тесты для store (pages геттер) и router
-- [ ] запустить тесты — должны проходить
+- [x] передавать `localComputedValues` в AppRenderer
+- [x] backward compat: если `pages` нет — всё работает как раньше
+- [x] написать тесты для store (pages геттер) и router
+- [x] запустить тесты — должны проходить
 
 ### Task 6: Verify acceptance criteria
 
