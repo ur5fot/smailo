@@ -168,9 +168,9 @@ excluded — it writes to the table, filtering write targets doesn't make sense.
 
 ### Task 7: [Final] Update documentation
 
-- [ ] update `README.md`: add dataSource filter to feature list / config reference
-- [ ] update `README.ru.md`: same in Russian
-- [ ] update roadmap `docs/roadmap-v2.md`: mark Stage 5.5 as ✅ Реализован
+- [x] update `README.md`: add dataSource filter to feature list / config reference
+- [x] update `README.ru.md`: same in Russian
+- [x] update roadmap `docs/roadmap-v2.md`: mark Stage 5.5 as ✅ Реализован
 
 *Note: ralphex automatically moves completed plans to `docs/plans/completed/`*
 
