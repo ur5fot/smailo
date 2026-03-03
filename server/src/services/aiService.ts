@@ -10,6 +10,7 @@ export type ClaudeResponse = {
   phase: ClaudePhase;
   appConfig?: AppConfig;
   uiUpdate?: UiComponent[];
+  pagesUpdate?: Page[];
   memoryUpdate?: string;
 };
 
@@ -60,12 +61,20 @@ export type TableDef = {
   columns: TableColumnDef[];
 };
 
+export type Page = {
+  id: string;
+  title: string;
+  icon?: string;
+  uiComponents: UiComponent[];
+};
+
 export type AppConfig = {
   appName: string;
   description: string;
   cronJobs: CronJobConfig[];
   uiComponents: UiComponent[];
   tables?: TableDef[];
+  pages?: Page[];
 };
 
 export type ChatMessage = {
@@ -724,6 +733,38 @@ export function validateTableDefs(tables: unknown[]): TableDef[] {
         return result;
       }),
     }));
+}
+
+const PAGE_ID_REGEX = /^[a-zA-Z0-9_-]{1,50}$/;
+
+export function validatePages(items: unknown[]): Page[] {
+  if (!Array.isArray(items)) return [];
+  const seenIds = new Set<string>();
+  return items
+    .filter((item): item is Record<string, unknown> => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+      const p = item as Record<string, unknown>;
+      if (typeof p.id !== 'string' || !PAGE_ID_REGEX.test(p.id)) return false;
+      if (seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
+      if (typeof p.title !== 'string' || p.title.trim().length === 0 || p.title.length > 100) return false;
+      if (p.icon !== undefined && (typeof p.icon !== 'string' || p.icon.length > 50)) return false;
+      if (!Array.isArray(p.uiComponents)) return false;
+      return true;
+    })
+    .slice(0, 10)
+    .map((item) => {
+      const p = item as Record<string, unknown>;
+      const result: Page = {
+        id: p.id as string,
+        title: (p.title as string).trim(),
+        uiComponents: validateUiComponents(p.uiComponents as unknown[]),
+      };
+      if (typeof p.icon === 'string' && p.icon.length > 0) {
+        result.icon = p.icon;
+      }
+      return result;
+    });
 }
 
 let anthropicClient: Anthropic | null = null;
