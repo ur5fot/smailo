@@ -156,15 +156,15 @@ excluded — it writes to the table, filtering write targets doesn't make sense.
 
 ### Task 6: Verify acceptance criteria
 
-- [ ] verify DataTable with `filter` shows only matching rows
-- [ ] verify CardList with `filter` shows only matching rows
-- [ ] verify Chart with `filter` uses only matching rows for datasets
-- [ ] verify Form ignores `filter` field (stripped during validation)
-- [ ] verify dataSource without `filter` still works (backward compat)
-- [ ] verify multiple filters (AND) work correctly
-- [ ] verify all operators work: eq, ne, lt, lte, gt, gte, contains
-- [ ] run full server tests: `npm test --workspace=server`
-- [ ] run full client tests: `npm test --workspace=client`
+- [x] verify DataTable with `filter` shows only matching rows
+- [x] verify CardList with `filter` shows only matching rows
+- [x] verify Chart with `filter` uses only matching rows for datasets
+- [x] verify Form ignores `filter` field (stripped during validation)
+- [x] verify dataSource without `filter` still works (backward compat)
+- [x] verify multiple filters (AND) work correctly
+- [x] verify all operators work: eq, ne, lt, lte, gt, gte, contains
+- [x] run full server tests: `npm test --workspace=server`
+- [x] run full client tests: `npm test --workspace=client`
 
 ### Task 7: [Final] Update documentation
 
