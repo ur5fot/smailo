@@ -191,7 +191,7 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to display rows from a user-defined table as cards with delete support.
   Example (KV): { "component": "CardList", "dataKey": "tasks" }
   Example (table): { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
-- ConditionalGroup: shows/hides a group of child components based on a formula condition. Use "condition" (formula) and "children" (array of components). No nested ConditionalGroup.
+- ConditionalGroup: shows/hides a group of child components based on a formula condition. Use "condition" (formula) and "children" (array of components). No nested ConditionalGroup. Children CANNOT use "computedValue" — use "dataKey" instead.
   Example: { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [{ "component": "Card", "props": { "title": "Step 2" }, "dataKey": "step2" }] }
 
 NEVER use any component not listed above.
@@ -316,6 +316,7 @@ ConditionalGroup — show/hide a group of components together:
 ]}
 - condition: formula — group shows when truthy, hides when falsy
 - children: array of regular components (NO nested ConditionalGroup — max 1 level)
+- children CANNOT use "computedValue" (server-side aggregates are not available inside ConditionalGroup); use "dataKey" instead
 - Use for wizard/multi-step flows, dynamic dashboards, or any "show only when X" group
 
 CONDITIONAL RENDERING USE CASES:
@@ -421,7 +422,7 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - CardList: DYNAMIC card-per-item list — PREFERRED for any task/log/note list. Use "dataKey" to bind array.
   { "component": "CardList", "dataKey": "tasks" }
   Or with table: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
-- ConditionalGroup: shows/hides a group of children based on a formula condition.
+- ConditionalGroup: shows/hides a group of children based on a formula condition. Children CANNOT use "computedValue" — use "dataKey" instead.
   { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [{ "component": "Card", "props": { "title": "Шаг 2" }, "dataKey": "step2" }] }
 - NEVER use components not listed above.
 
@@ -448,7 +449,7 @@ Any component can have:
     { "component": "Card", "props": { "title": "Шаг 2" }, "dataKey": "step2" },
     { "component": "Button", "props": { "label": "Готово" }, "action": { "key": "step", "value": 3 } }
   ]}
-  No nested ConditionalGroup (max 1 level). Children are regular components.
+  No nested ConditionalGroup (max 1 level). Children are regular components. Children CANNOT use "computedValue" — use "dataKey" instead.
 
 DATE/TIME DISPLAY: ISO timestamp strings are automatically formatted by the UI into human-readable dates (e.g. "21 февраля 2026, 17:09"). Always use ISO strings for dates — never format them manually.
 

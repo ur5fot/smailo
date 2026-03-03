@@ -109,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import Timeline from 'primevue/timeline'
 import Knob from 'primevue/knob'
 import Tag from 'primevue/tag'
@@ -135,8 +136,8 @@ import { resolveDataKey } from '../utils/dataKey'
 import { useAppStore } from '../stores/app'
 import { buildFormulaContext } from '../utils/formulaContext'
 import { evaluateShowIf } from '../utils/showIf'
-import { type StyleIfCondition } from '../utils/styleIf'
-import { getConditionalClasses as computeClasses } from '../utils/conditionalClasses'
+import { evaluateStyleIf, type StyleIfCondition } from '../utils/styleIf'
+import { STYLE_IF_PREFIX } from '../utils/conditionalClasses'
 import '../assets/conditional-styles.css'
 
 interface UiConfigItem {
@@ -167,19 +168,21 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 
+// Build formula context once per appData change, shared across all shouldShow/getConditionalClasses calls
+const formulaContext = computed(() => buildFormulaContext(props.appData))
+
 function shouldShow(item: UiConfigItem, _index: number): boolean {
   // For ConditionalGroup, check condition to avoid phantom flex gaps when the group is hidden
   if (item.component === 'ConditionalGroup' && item.condition) {
-    const context = buildFormulaContext(props.appData)
-    return evaluateShowIf(item.condition, context)
+    return evaluateShowIf(item.condition, formulaContext.value)
   }
   if (!item.showIf) return true
-  const context = buildFormulaContext(props.appData)
-  return evaluateShowIf(item.showIf, context)
+  return evaluateShowIf(item.showIf, formulaContext.value)
 }
 
 function getConditionalClasses(item: UiConfigItem, _index: number): string[] {
-  return computeClasses(item.styleIf, props.appData)
+  if (!item.styleIf || item.styleIf.length === 0) return []
+  return evaluateStyleIf(item.styleIf, formulaContext.value).map(c => STYLE_IF_PREFIX + c)
 }
 
 const componentMap: Record<string, any> = {
