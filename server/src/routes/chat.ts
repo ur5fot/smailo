@@ -281,12 +281,14 @@ chatRouter.post('/', limiter, async (req, res) => {
           }
         });
 
-        // Remap dataSource.tableId from AI positional index to actual DB ID
+        // Remap dataSource.tableId from AI positional index to actual DB ID.
+        // Walks top-level uiComponents, every page's uiComponents, and
+        // ConditionalGroup children (max 1 level deep per spec).
         if (tableIdMap.size > 0 && appCreationData) {
-          const uiComponents = appCreationData.appConfigToStore.uiComponents as Array<Record<string, unknown>> | undefined;
-          if (Array.isArray(uiComponents)) {
+          const remapComponents = (components: Array<Record<string, unknown>>): boolean => {
             let changed = false;
-            for (const comp of uiComponents) {
+            for (const comp of components) {
+              if (!comp || typeof comp !== 'object') continue;
               const ds = comp.dataSource as Record<string, unknown> | undefined;
               if (ds?.type === 'table' && typeof ds.tableId === 'number') {
                 const actualId = tableIdMap.get(ds.tableId);
@@ -295,13 +297,40 @@ chatRouter.post('/', limiter, async (req, res) => {
                   changed = true;
                 }
               }
+              // Recurse into ConditionalGroup children (max 1 level deep)
+              if (Array.isArray(comp.children)) {
+                if (remapComponents(comp.children as Array<Record<string, unknown>>)) {
+                  changed = true;
+                }
+              }
             }
-            if (changed) {
-              db.update(apps)
-                .set({ config: appCreationData.appConfigToStore })
-                .where(eq(apps.id, insertedAppId!))
-                .run();
+            return changed;
+          };
+
+          let changed = false;
+          const config = appCreationData.appConfigToStore;
+
+          if (Array.isArray(config.uiComponents)) {
+            if (remapComponents(config.uiComponents as Array<Record<string, unknown>>)) {
+              changed = true;
             }
+          }
+
+          if (Array.isArray(config.pages)) {
+            for (const page of config.pages as Array<Record<string, unknown>>) {
+              if (Array.isArray(page.uiComponents)) {
+                if (remapComponents(page.uiComponents as Array<Record<string, unknown>>)) {
+                  changed = true;
+                }
+              }
+            }
+          }
+
+          if (changed) {
+            db.update(apps)
+              .set({ config })
+              .where(eq(apps.id, insertedAppId!))
+              .run();
           }
         }
       } catch (err) {

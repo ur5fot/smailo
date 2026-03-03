@@ -494,6 +494,7 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
     // uiUpdate and pagesUpdate are mutually exclusive: if both are present, uiUpdate takes priority.
     let validUiItems: ReturnType<typeof validateUiComponents> | undefined;
     let validPages: ReturnType<typeof validatePages> | undefined;
+    let revertedToSinglePage = false;
     if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
       validUiItems = validateUiComponents(claudeResponse.uiUpdate);
       if (validUiItems.length > 0) {
@@ -504,12 +505,19 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       }
     } else if (claudeResponse.pagesUpdate && Array.isArray(claudeResponse.pagesUpdate)) {
       // pagesUpdate replaces the entire config.pages array.
-      validPages = validatePages(claudeResponse.pagesUpdate);
-      if (validPages.length > 0) {
-        const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), pages: validPages };
-        await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
+      // Empty array means "revert to single-page mode" (remove pages from config).
+      if (claudeResponse.pagesUpdate.length === 0) {
+        const { pages: _removed, ...configWithoutPages } = (row.config as Record<string, unknown> ?? {});
+        await db.update(apps).set({ config: configWithoutPages }).where(eq(apps.id, row.id));
+        revertedToSinglePage = true;
       } else {
-        console.warn(`[POST /api/app/:hash/chat] pagesUpdate had no valid pages for app ${row.id}`);
+        validPages = validatePages(claudeResponse.pagesUpdate);
+        if (validPages.length > 0) {
+          const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), pages: validPages };
+          await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
+        } else {
+          console.warn(`[POST /api/app/:hash/chat] pagesUpdate had no valid pages for app ${row.id}`);
+        }
       }
     }
 
@@ -526,8 +534,9 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       // Only include uiUpdate when at least one component passed validation so the client
       // does not call fetchApp() when the AI's proposed update was entirely rejected.
       uiUpdate: validUiItems && validUiItems.length > 0 ? validUiItems : undefined,
-      // Only include pagesUpdate when at least one page passed validation.
-      pagesUpdate: validPages && validPages.length > 0 ? validPages : undefined,
+      // Include pagesUpdate when at least one page passed validation, or as empty array
+      // when reverting to single-page mode so the client triggers a refresh.
+      pagesUpdate: revertedToSinglePage ? [] : (validPages && validPages.length > 0 ? validPages : undefined),
     });
   } catch (error) {
     console.error('[POST /api/app/:hash/chat] Error:', error);
