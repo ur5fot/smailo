@@ -11,7 +11,7 @@ export function getGlobalComponents(config: AppConfig): UiComponent[] {
   if (config.pages && config.pages.length > 0) {
     return config.pages.flatMap(p => p.uiComponents);
   }
-  return config.uiComponents;
+  return config.uiComponents || [];
 }
 
 /**

@@ -236,9 +236,10 @@ const localComputedValues = computed<Record<number, unknown>>(() => {
 
 // When a multi-page app loads without a pageId, or with an unknown pageId, redirect to the first page
 watch(
-  [pages, currentPageId, () => loading.value],
-  ([ps, pid, isLoading]) => {
+  [pages, currentPageId, () => loading.value, () => requiresAuth.value],
+  ([ps, pid, isLoading, isAuthRequired]) => {
     if (isLoading) return
+    if (loadError.value || isAuthRequired) return
     if (!ps?.length) return
     const noPage = !pid
     const unknownPage = pid && !ps.find(p => p.id === pid)
