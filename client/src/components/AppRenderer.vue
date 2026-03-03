@@ -1,7 +1,7 @@
 <template>
   <div class="app-renderer">
     <template v-for="(item, index) in uiConfig" :key="index">
-      <template v-if="shouldShow(item, index)">
+      <div v-if="shouldShow(item, index)" :class="getConditionalClasses(item, index)">
       <!-- Card: PrimeVue Card uses slots, not props — use wrapper -->
       <AppCard
         v-if="item.component === 'Card'"
@@ -93,7 +93,7 @@
         :is="componentMap[item.component]"
         v-bind="resolvedProps(item, index)"
       />
-      </template>
+      </div>
     </template>
   </div>
 </template>
@@ -124,6 +124,9 @@ import { resolveDataKey } from '../utils/dataKey'
 import { useAppStore } from '../stores/app'
 import { buildFormulaContext } from '../utils/formulaContext'
 import { evaluateShowIf } from '../utils/showIf'
+import { type StyleIfCondition } from '../utils/styleIf'
+import { getConditionalClasses as computeClasses } from '../utils/conditionalClasses'
+import '../assets/conditional-styles.css'
 
 interface UiConfigItem {
   component: string
@@ -136,6 +139,7 @@ interface UiConfigItem {
   outputKey?: string
   appendMode?: boolean
   showIf?: string
+  styleIf?: StyleIfCondition[]
 }
 
 const props = defineProps<{
@@ -154,6 +158,10 @@ function shouldShow(item: UiConfigItem, _index: number): boolean {
   if (!item.showIf) return true
   const context = buildFormulaContext(props.appData)
   return evaluateShowIf(item.showIf, context)
+}
+
+function getConditionalClasses(item: UiConfigItem, _index: number): string[] {
+  return computeClasses(item.styleIf, props.appData)
 }
 
 const componentMap: Record<string, any> = {

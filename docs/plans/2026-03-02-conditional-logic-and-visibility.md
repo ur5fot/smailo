@@ -70,11 +70,11 @@
 
 ### Task 4: Клиентская логика styleIf в AppRenderer
 Условные CSS-классы на компонентах.
-- [ ] Определить набор предустановленных CSS-классов (warning, critical, success, muted, highlight) в `client/src/assets/` или scoped в AppRenderer
-- [ ] В `AppRenderer.vue` добавить функцию `getConditionalClasses(item, index): string[]` — вызывает `evaluateStyleIf`
-- [ ] Применить результат через `:class` на обёртке каждого компонента
-- [ ] Написать тесты для корректного применения классов
-- [ ] Запустить тесты — должны проходить перед Task 5
+- [x] Определить набор предустановленных CSS-классов (warning, critical, success, muted, highlight) в `client/src/assets/` или scoped в AppRenderer
+- [x] В `AppRenderer.vue` добавить функцию `getConditionalClasses(item, index): string[]` — вызывает `evaluateStyleIf`
+- [x] Применить результат через `:class` на обёртке каждого компонента
+- [x] Написать тесты для корректного применения классов
+- [x] Запустить тесты — должны проходить перед Task 5
 
 ### Task 5: Компонент ConditionalGroup
 Контейнер для условного показа группы вложенных компонентов.
