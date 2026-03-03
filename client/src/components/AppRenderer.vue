@@ -87,6 +87,16 @@
         :hash="props.hash"
       />
 
+      <!-- ConditionalGroup: conditionally renders a group of child components -->
+      <AppConditionalGroup
+        v-else-if="item.component === 'ConditionalGroup' && item.condition && item.children"
+        :condition="item.condition"
+        :children="item.children"
+        :hash="props.hash"
+        :app-data="props.appData"
+        @data-written="emit('data-written')"
+      />
+
       <!-- All other PrimeVue components via dynamic :is -->
       <component
         v-else-if="componentMap[item.component]"
@@ -120,6 +130,7 @@ import AppPanel from './AppPanel.vue'
 import AppTabs from './AppTabs.vue'
 import AppCardList from './AppCardList.vue'
 import AppChart from './AppChart.vue'
+import AppConditionalGroup from './AppConditionalGroup.vue'
 import { resolveDataKey } from '../utils/dataKey'
 import { useAppStore } from '../stores/app'
 import { buildFormulaContext } from '../utils/formulaContext'
@@ -140,6 +151,8 @@ interface UiConfigItem {
   appendMode?: boolean
   showIf?: string
   styleIf?: StyleIfCondition[]
+  condition?: string
+  children?: UiConfigItem[]
 }
 
 const props = defineProps<{

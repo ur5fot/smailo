@@ -401,6 +401,215 @@ describe('validateUiComponents', () => {
     })
   })
 
+  describe('ConditionalGroup validation', () => {
+    const baseChild = { component: 'Card', props: { title: 'Child' }, dataKey: 'data' }
+
+    it('accepts valid ConditionalGroup with condition and children', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: [baseChild],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].component).toBe('ConditionalGroup')
+      expect(result[0].condition).toBe('count > 0')
+      expect(result[0].children).toHaveLength(1)
+      expect(result[0].children![0].component).toBe('Card')
+    })
+
+    it('trims whitespace from condition', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: '  count > 0  ',
+          children: [baseChild],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].condition).toBe('count > 0')
+    })
+
+    it('rejects ConditionalGroup without condition', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          children: [baseChild],
+        },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects ConditionalGroup with empty condition string', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: '',
+          children: [baseChild],
+        },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects ConditionalGroup with whitespace-only condition', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: '   ',
+          children: [baseChild],
+        },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects ConditionalGroup with invalid (unparseable) condition', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: '>>> invalid <<<',
+          children: [baseChild],
+        },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects ConditionalGroup without children', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+        },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects ConditionalGroup with empty children array', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: [],
+        },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('rejects ConditionalGroup with non-array children', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: 'not-an-array',
+        },
+      ])
+      expect(result).toHaveLength(0)
+    })
+
+    it('filters out nested ConditionalGroup from children (max 1 level)', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: [
+            baseChild,
+            {
+              component: 'ConditionalGroup',
+              props: {},
+              condition: 'x > 0',
+              children: [baseChild],
+            },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      // Nested ConditionalGroup should be filtered out from children
+      expect(result[0].children).toHaveLength(1)
+      expect(result[0].children![0].component).toBe('Card')
+    })
+
+    it('validates children through normal validation (invalid children are filtered out)', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: [
+            baseChild,
+            { component: 'InvalidComponent', props: {} },
+            { component: 'Button', props: { label: 'Click' } }, // Button without action — invalid
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      // Only the valid Card child should remain
+      expect(result[0].children).toHaveLength(1)
+      expect(result[0].children![0].component).toBe('Card')
+    })
+
+    it('accepts ConditionalGroup with multiple valid children', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'status == "active"',
+          children: [
+            { component: 'Card', props: { title: 'First' }, dataKey: 'data1' },
+            { component: 'Tag', props: { value: 'Active' } },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].children).toHaveLength(2)
+    })
+
+    it('accepts complex condition expression', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'LEN(name) > 0 && count >= 5',
+          children: [baseChild],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].condition).toBe('LEN(name) > 0 && count >= 5')
+    })
+
+    it('children in ConditionalGroup can have showIf and styleIf', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'active == 1',
+          children: [
+            {
+              component: 'Card',
+              props: { title: 'Status' },
+              dataKey: 'data',
+              showIf: 'x > 0',
+              styleIf: [{ condition: 'x > 10', class: 'warning' }],
+            },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].children).toHaveLength(1)
+      expect(result[0].children![0].showIf).toBe('x > 0')
+      expect(result[0].children![0].styleIf).toEqual([{ condition: 'x > 10', class: 'warning' }])
+    })
+  })
+
   describe('existing validation still works', () => {
     it('rejects components with invalid component name', () => {
       const result = validateUiComponents([

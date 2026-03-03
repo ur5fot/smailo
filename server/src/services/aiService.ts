@@ -43,6 +43,8 @@ export type UiComponent = {
   appendMode?: boolean;
   showIf?: string;
   styleIf?: StyleIfCondition[];
+  condition?: string;
+  children?: UiComponent[];
 };
 
 export type TableColumnDef = {
@@ -435,6 +437,7 @@ const ALLOWED_UI_COMPONENTS = [
   'Card', 'Chart', 'Timeline', 'Knob', 'Tag', 'ProgressBar',
   'Calendar', 'DataTable', 'Button', 'InputText', 'Form',
   'Accordion', 'Panel', 'Chip', 'Badge', 'Slider', 'Rating', 'Tabs', 'Image', 'MeterGroup', 'CardList',
+  'ConditionalGroup',
 ];
 
 /**
@@ -472,6 +475,16 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
         if (Array.isArray(fields) && !fields.every(validField)) return false;
       }
 
+      // ConditionalGroup requires condition (parseable formula) and children (non-empty array)
+      if (item.component === 'ConditionalGroup') {
+        if (typeof item.condition !== 'string') return false;
+        const cond = (item.condition as string).trim();
+        if (cond.length === 0) return false;
+        try { parseFormula(cond); } catch { return false; }
+        if (!Array.isArray(item.children) || (item.children as unknown[]).length === 0) return false;
+        return true;
+      }
+
       // Validate dataKey segments against prototype pollution
       if (item.dataKey != null && !isValidDataKey(item.dataKey as string)) return false;
 
@@ -484,6 +497,15 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
       return true;
     })
     .map((item) => {
+      // ConditionalGroup: validate condition and recursively validate children (no nested ConditionalGroup)
+      if (item.component === 'ConditionalGroup') {
+        item.condition = (item.condition as string).trim();
+        const validatedChildren = validateUiComponents(item.children as unknown[])
+          .filter((child: UiComponent) => child.component !== 'ConditionalGroup');
+        item.children = validatedChildren;
+        return item;
+      }
+
       // Validate dataSource: if present but invalid, drop it (set to undefined)
       const ds = item.dataSource as Record<string, unknown> | null | undefined;
       if (ds === null || ds === undefined) {

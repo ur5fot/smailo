@@ -78,13 +78,13 @@
 
 ### Task 5: Компонент ConditionalGroup
 Контейнер для условного показа группы вложенных компонентов.
-- [ ] Добавить `'ConditionalGroup'` в `ALLOWED_UI_COMPONENTS`
-- [ ] Расширить тип `UiComponent`: добавить `condition?: string`, `children?: UiComponent[]`
-- [ ] В `validateUiComponents()` добавить валидацию для ConditionalGroup: парсинг `condition`, рекурсивная валидация `children` (с ограничением вложенности — max 1 уровень)
-- [ ] Создать `client/src/components/AppConditionalGroup.vue` — принимает `condition`, `children`, `hash`; рендерит children через те же обёртки AppRenderer
-- [ ] В `AppRenderer.vue` добавить обработку `ConditionalGroup` — передавать children для рендеринга
-- [ ] Написать тесты для валидации ConditionalGroup (валидный, без condition, пустые children, вложенный ConditionalGroup)
-- [ ] Запустить тесты — должны проходить перед Task 6
+- [x] Добавить `'ConditionalGroup'` в `ALLOWED_UI_COMPONENTS`
+- [x] Расширить тип `UiComponent`: добавить `condition?: string`, `children?: UiComponent[]`
+- [x] В `validateUiComponents()` добавить валидацию для ConditionalGroup: парсинг `condition`, рекурсивная валидация `children` (с ограничением вложенности — max 1 уровень)
+- [x] Создать `client/src/components/AppConditionalGroup.vue` — принимает `condition`, `children`, `hash`; рендерит children через те же обёртки AppRenderer
+- [x] В `AppRenderer.vue` добавить обработку `ConditionalGroup` — передавать children для рендеринга
+- [x] Написать тесты для валидации ConditionalGroup (валидный, без condition, пустые children, вложенный ConditionalGroup)
+- [x] Запустить тесты — должны проходить перед Task 6
 
 ### Task 6: Обновить AI-промпты
 Документировать showIf, styleIf и ConditionalGroup в обоих системных промптах.
