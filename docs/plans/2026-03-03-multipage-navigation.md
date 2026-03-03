@@ -60,14 +60,14 @@
 
 ### Task 3: Обновить AI system prompts
 
-- [ ] обновить `BRAINSTORM_SYSTEM_PROMPT` в `server/src/services/aiService.ts`:
+- [x] обновить `BRAINSTORM_SYSTEM_PROMPT` в `server/src/services/aiService.ts`:
   - добавить секцию о `pages` (когда использовать, структура, ограничения)
   - пример конфига многостраничного приложения
-- [ ] обновить `IN_APP_SYSTEM_PROMPT`:
+- [x] обновить `IN_APP_SYSTEM_PROMPT`:
   - добавить описание `pagesUpdate` как способа изменить многостраничное приложение
   - `uiUpdate` по-прежнему работает для одностраничных приложений
-- [ ] обновить или добавить тесты промптов (проверить наличие ключевых слов pages/pagesUpdate)
-- [ ] запустить тесты — должны проходить
+- [x] обновить или добавить тесты промптов (проверить наличие ключевых слов pages/pagesUpdate)
+- [x] запустить тесты — должны проходить
 
 ### Task 4: Vue Router — маршрут с pageId
 

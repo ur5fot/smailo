@@ -297,6 +297,66 @@ describe('buildSystemPrompt', () => {
     })
   })
 
+  describe('brainstorm prompt includes multi-page documentation', () => {
+    it('documents pages field with MULTI-PAGE APPS section', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('MULTI-PAGE APPS')
+      expect(prompt).toContain('"pages"')
+    })
+
+    it('documents page structure with id, title, icon, uiComponents', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('"id"')
+      expect(prompt).toContain('"title"')
+      expect(prompt).toContain('"icon"')
+    })
+
+    it('documents page constraints (max 10 pages, max 20 components)', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('Max 10 pages')
+      expect(prompt).toContain('max 20 components per page')
+    })
+
+    it('includes pages in app config format', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toMatch(/"pages".*optional/s)
+    })
+
+    it('describes when to use vs when not to use pages', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('When to use pages')
+      expect(prompt).toContain('When NOT to use pages')
+    })
+  })
+
+  describe('chat prompt includes multi-page documentation', () => {
+    it('documents pagesUpdate field in response format', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('pagesUpdate')
+    })
+
+    it('documents pagesUpdate as full replacement of pages array', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('FULL REPLACEMENT of the entire pages array')
+    })
+
+    it('documents MULTI-PAGE APPS section with pages structure', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('MULTI-PAGE APPS')
+      expect(prompt).toContain('"pages"')
+    })
+
+    it('advises not to use uiUpdate when app has pages', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('Do NOT use "uiUpdate" when the app has pages')
+    })
+
+    it('advises not to use pagesUpdate when app has no pages', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('Do NOT use "pagesUpdate" when the app has no pages')
+    })
+  })
+
   describe('non-chat phases ignore app context', () => {
     it('brainstorm phase does not append app context even if provided', () => {
       const context: AppContext = {

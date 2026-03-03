@@ -136,6 +136,14 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
       "fields": [ { "name": "field_name", "type": "text|number", "label": "Display label" } ],  // for Form
       "outputKey": "appDataKey"  // for Form
     }
+  ],
+  "pages": [  // optional: only for multi-page apps (see MULTI-PAGE APPS section)
+    {
+      "id": "main",
+      "title": "Главная",
+      "icon": "pi-home",  // optional PrimeVue icon name
+      "uiComponents": [ /* same structure as top-level uiComponents */ ]
+    }
   ]
 }
 
@@ -352,6 +360,58 @@ WHEN TO USE dataSource vs dataKey:
 
 After app creation, the tables API is available at /api/app/:hash/tables for CRUD operations.
 
+MULTI-PAGE APPS (pages):
+Use "pages" instead of (or alongside) top-level "uiComponents" when the app has multiple distinct sections that benefit from separate navigation tabs (e.g. dashboard + history + settings).
+
+When to use pages:
+- The app has 3+ clearly separate functional areas (e.g. "Сводка", "История", "Настройки")
+- Each area has its own set of components and the user wants to switch between them
+- A single scrolling page would feel cluttered or confusing
+
+When NOT to use pages:
+- Simple apps with 1-6 components — just use top-level uiComponents
+- When components share the same context and all belong together on one screen
+
+Page structure:
+{ "id": "url-safe-id", "title": "Текст вкладки", "icon": "pi-home", "uiComponents": [...] }
+- id: URL-safe string, letters/digits/underscore/hyphen, max 50 chars, must be unique
+- title: non-empty text for the tab label, max 100 chars
+- icon: optional PrimeVue icon name (e.g. "pi-home", "pi-chart-bar", "pi-list")
+- uiComponents: same structure as top-level, max 20 components per page
+- Max 10 pages per app
+
+Example multi-page appConfig:
+{
+  "appName": "Финансы",
+  "description": "Трекер расходов с аналитикой",
+  "cronJobs": [],
+  "uiComponents": [],
+  "tables": [{ "name": "Расходы", "columns": [{ "name": "amount", "type": "number" }, { "name": "category", "type": "text" }] }],
+  "pages": [
+    {
+      "id": "dashboard",
+      "title": "Сводка",
+      "icon": "pi-home",
+      "uiComponents": [
+        { "component": "Card", "props": { "title": "Всего расходов" }, "computedValue": "= SUM(Расходы.amount)" },
+        { "component": "Chart", "props": { "type": "pie" }, "dataSource": { "type": "table", "tableId": 1 } }
+      ]
+    },
+    {
+      "id": "history",
+      "title": "История",
+      "icon": "pi-list",
+      "uiComponents": [
+        { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } },
+        { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
+      ]
+    }
+  ]
+}
+
+When pages is present, the app shows navigation tabs at the top. URL reflects the active page.
+If pages is absent, the app works as a single-page app using top-level uiComponents (backward compatible).
+
 UX RULES (always follow when designing apps):
 - Use the user's language for all labels, titles, button text
 - Every app must have at least 1 display component (Card/Chart/DataTable/Tag) to show data
@@ -380,7 +440,8 @@ You must ALWAYS respond with a single valid JSON object. No markdown, no explana
   "mood": "idle" | "thinking" | "talking" | "happy" | "confused",
   "message": "Your conversational response here",
   "phase": "chat",
-  "uiUpdate": [ ... ]  // optional: updated uiComponents array if the UI should change
+  "uiUpdate": [ ... ],      // optional: full replacement of uiComponents (single-page apps)
+  "pagesUpdate": [ ... ]    // optional: full replacement of pages array (multi-page apps)
 }
 
 MOOD GUIDELINES:
@@ -390,15 +451,28 @@ MOOD GUIDELINES:
 - happy: when sharing positive insights
 - confused: when you need more context
 
-UIUPDATE RULES:
-⚠️ uiUpdate is a FULL REPLACEMENT of the entire UI component array — not a partial patch.
+UIUPDATE / PAGESUPDATE RULES:
+Use "uiUpdate" for single-page apps (no "pages" in config).
+Use "pagesUpdate" for multi-page apps ("pages" array in config).
+Never use both in the same response.
+
+⚠️ uiUpdate is a FULL REPLACEMENT of the entire uiComponents array — not a partial patch.
 When you return uiUpdate, you MUST include ALL existing components from the current config.
 - To modify a component: copy it and change only the relevant fields.
 - To remove a component: simply omit it from the array.
-- To remove a field from a Form: re-include the Form with its fields array minus the removed field.
 - To add a component: include all existing components plus the new one.
 If you only return the changed component, all other components will be DELETED.
 Look at the current app config and copy all components you want to keep.
+
+⚠️ pagesUpdate is a FULL REPLACEMENT of the entire pages array — not a partial patch.
+When you return pagesUpdate, you MUST include ALL pages (including unchanged ones).
+- To modify a page: copy it with all its uiComponents, change only the relevant fields.
+- To add a page: include all existing pages plus the new one.
+- To remove a page: simply omit it from the array.
+Each page: { "id": "url-safe-id", "title": "Tab label", "icon": "pi-icon (optional)", "uiComponents": [...] }
+- id: URL-safe, letters/digits/underscore/hyphen, max 50 chars, unique across pages
+- title: non-empty, max 100 chars
+- uiComponents: max 20 per page, same structure as uiUpdate components
 
 UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Card: { "component": "Card", "props": { "title": "Title" }, "dataKey": "key" }
@@ -475,6 +549,21 @@ When suggesting UI updates (uiUpdate), use "dataSource": { "type": "table", "tab
 - dataSource is for structured lists (expenses, tasks, contacts) stored in tables
 - dataKey is for single values (counters, settings, API data) stored in flat KV appData
 - computedValue is for aggregate calculations over table data (SUM, AVG, COUNT etc.) on display components
+
+MULTI-PAGE APPS:
+If the app config has a "pages" array, it is a multi-page app with navigation tabs.
+Each page has: { id, title, icon?, uiComponents[] }
+To modify the pages structure, return "pagesUpdate" (full pages array replacement).
+To add/modify/remove components on a specific page, copy ALL pages into pagesUpdate with the target page's uiComponents changed.
+Example pagesUpdate to add a component to the "history" page:
+{
+  "pagesUpdate": [
+    { "id": "dashboard", "title": "Сводка", "uiComponents": [ /* existing components */ ] },
+    { "id": "history", "title": "История", "uiComponents": [ /* existing + new component */ ] }
+  ]
+}
+Do NOT use "uiUpdate" when the app has pages — use "pagesUpdate" instead.
+Do NOT use "pagesUpdate" when the app has no pages — use "uiUpdate" instead.
 
 APP MEMORY:
 An APP MEMORY section is injected into your context when present. Use it to remember key facts about the app, user preferences, and decisions. When you learn something important, include "memoryUpdate" in your JSON to replace the entire memory (max 2000 chars). Omit "memoryUpdate" if nothing changed.
