@@ -106,26 +106,26 @@ excluded — it writes to the table, filtering write targets doesn't make sense.
 
 ### Task 3: Client store — filter-aware caching
 
-- [ ] update `FilterCondition` type export to `client/src/stores/app.ts` (import from server types or re-declare)
-- [ ] change `tableData` cache key from `number` to `string`:
+- [x] update `FilterCondition` type export to `client/src/stores/app.ts` (import from server types or re-declare)
+- [x] change `tableData` cache key from `number` to `string`:
   ```ts
   // Before: tableData: Record<number, { schema: TableSchema; rows: TableRow[] }>
   // After:  tableData: Record<string, { schema: TableSchema; rows: TableRow[] }>
   ```
   - cache key: `String(tableId)` for no filter; `${tableId}:${JSON.stringify(normalizedFilter)}` for filtered
   - `normalizedFilter` = array sorted by column name for stable key
-- [ ] update `fetchTableRows(hash, tableId, filter?)`:
+- [x] update `fetchTableRows(hash, tableId, filter?)`:
   - compute cache key
   - pass `filter` as JSON query param when present: `api.get(..., { params: { filter: JSON.stringify(filter) } })`
   - cache under the computed key
-- [ ] update `refreshTable(hash, tableId, filter?)`:
+- [x] update `refreshTable(hash, tableId, filter?)`:
   - invalidate and re-fetch using the correct cache key
-- [ ] write tests in `client/src/stores/app.test.ts` (or existing client tests):
+- [x] write tests in `client/src/stores/app.test.ts` (or existing client tests):
   - cache hit with same tableId + same filter
   - cache miss with same tableId + different filter
   - cache key is stable regardless of filter array ordering
   - refreshTable invalidates correct key
-- [ ] run client tests — must pass before task 4: `npm test --workspace=client`
+- [x] run client tests — must pass before task 4: `npm test --workspace=client`
 
 ### Task 4: Wire filter through AppRenderer → components
 

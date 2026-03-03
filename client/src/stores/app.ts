@@ -31,6 +31,22 @@ export interface TableRow {
   updatedAt: string | null
 }
 
+export type FilterOperator = 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte' | 'contains';
+
+export interface FilterCondition {
+  column: string;
+  operator?: FilterOperator;
+  value: string | number | boolean;
+}
+
+function buildTableCacheKey(tableId: number, filter?: FilterCondition | FilterCondition[]): string {
+  if (!filter) return String(tableId)
+  const normalized = (Array.isArray(filter) ? filter : [filter])
+    .slice()
+    .sort((a, b) => a.column.localeCompare(b.column))
+  return `${tableId}:${JSON.stringify(normalized)}`
+}
+
 export const useAppStore = defineStore('app', () => {
   const appConfig = ref<Record<string, any> | null>(null)
   const appName = ref<string>('')
@@ -39,7 +55,7 @@ export const useAppStore = defineStore('app', () => {
 
   // Table data: schemas from fetchApp(), rows fetched on demand per table
   const tableSchemas = ref<TableSchema[]>([])
-  const tableData = ref<Record<number, { schema: TableSchema; rows: TableRow[] }>>({})
+  const tableData = ref<Record<string, { schema: TableSchema; rows: TableRow[] }>>({})
 
   // Computed values from server-side formula evaluation (keyed by component index)
   const computedValues = ref<Record<number, unknown>>({})
@@ -81,8 +97,16 @@ export const useAppStore = defineStore('app', () => {
     return res.data as { mood: string; message: string; uiUpdate?: any[]; pagesUpdate?: any[] }
   }
 
-  async function fetchTableRows(hash: string, tableId: number): Promise<TableRow[]> {
-    const res = await api.get(`/app/${hash}/tables/${tableId}`)
+  async function fetchTableRows(hash: string, tableId: number, filter?: FilterCondition | FilterCondition[]): Promise<TableRow[]> {
+    const key = buildTableCacheKey(tableId, filter)
+    if (tableData.value[key]) {
+      return tableData.value[key].rows
+    }
+    const params: Record<string, string> = {}
+    if (filter) {
+      params.filter = JSON.stringify(filter)
+    }
+    const res = await api.get(`/app/${hash}/tables/${tableId}`, { params })
     const schema: TableSchema = {
       id: res.data.id,
       name: res.data.name,
@@ -90,13 +114,14 @@ export const useAppStore = defineStore('app', () => {
       createdAt: res.data.createdAt,
     }
     const rows: TableRow[] = res.data.rows || []
-    tableData.value = { ...tableData.value, [tableId]: { schema, rows } }
+    tableData.value = { ...tableData.value, [key]: { schema, rows } }
     return rows
   }
 
-  function getTableData(tableId: number): { schema: TableSchema; rows: TableRow[] } | null {
+  function getTableData(tableId: number, filter?: FilterCondition | FilterCondition[]): { schema: TableSchema; rows: TableRow[] } | null {
+    const key = buildTableCacheKey(tableId, filter)
     // Check cached row data first
-    const cached = tableData.value[tableId]
+    const cached = tableData.value[key]
     if (cached) return cached
     // Fall back to schema-only (no rows loaded yet)
     const schema = tableSchemas.value.find(t => t.id === tableId)
@@ -104,8 +129,12 @@ export const useAppStore = defineStore('app', () => {
     return null
   }
 
-  async function refreshTable(hash: string, tableId: number): Promise<TableRow[]> {
-    return fetchTableRows(hash, tableId)
+  async function refreshTable(hash: string, tableId: number, filter?: FilterCondition | FilterCondition[]): Promise<TableRow[]> {
+    const key = buildTableCacheKey(tableId, filter)
+    const newData = { ...tableData.value }
+    delete newData[key]
+    tableData.value = newData
+    return fetchTableRows(hash, tableId, filter)
   }
 
   function clearTableCache() {
