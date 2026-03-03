@@ -182,6 +182,121 @@ describe('validateUiComponents', () => {
     })
   })
 
+  describe('dataSource filter validation', () => {
+    it('preserves valid single filter with column and value (operator defaults to eq)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 1, filter: { column: 'priority', value: 'high' } } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].dataSource).toEqual({ type: 'table', tableId: 1, filter: { column: 'priority', value: 'high' } })
+    })
+
+    it('preserves valid single filter with explicit operator', () => {
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 2, filter: { column: 'amount', operator: 'gt', value: 100 } } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].dataSource).toEqual({ type: 'table', tableId: 2, filter: { column: 'amount', operator: 'gt', value: 100 } })
+    })
+
+    it('preserves valid array filter (AND logic)', () => {
+      const filter = [
+        { column: 'status', value: 'active' },
+        { column: 'score', operator: 'gte', value: 80 },
+      ]
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 3, filter } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].dataSource).toEqual({ type: 'table', tableId: 3, filter })
+    })
+
+    it('drops filter when operator is unknown', () => {
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 1, filter: { column: 'x', operator: 'like', value: 'foo' } } },
+      ])
+      expect(result).toHaveLength(1)
+      expect((result[0].dataSource as Record<string, unknown>).filter).toBeUndefined()
+    })
+
+    it('drops filter when column is missing', () => {
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 1, filter: { value: 'foo' } } },
+      ])
+      expect(result).toHaveLength(1)
+      expect((result[0].dataSource as Record<string, unknown>).filter).toBeUndefined()
+    })
+
+    it('drops filter when value is an object', () => {
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 1, filter: { column: 'x', value: { nested: true } } } },
+      ])
+      expect(result).toHaveLength(1)
+      expect((result[0].dataSource as Record<string, unknown>).filter).toBeUndefined()
+    })
+
+    it('drops array filter when all conditions are invalid', () => {
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 1, filter: [{ value: 'no column' }, { column: 'x', value: {} }] } },
+      ])
+      expect(result).toHaveLength(1)
+      expect((result[0].dataSource as Record<string, unknown>).filter).toBeUndefined()
+    })
+
+    it('keeps valid conditions in array filter, drops invalid ones', () => {
+      const filter = [
+        { column: 'status', value: 'active' },         // valid
+        { value: 'missing column' },                    // invalid: no column
+      ]
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 1, filter } },
+      ])
+      expect(result).toHaveLength(1)
+      const ds = result[0].dataSource as Record<string, unknown>
+      expect(ds.filter).toEqual([{ column: 'status', value: 'active' }])
+    })
+
+    it('strips filter from Form component even if valid', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Form',
+          props: { submitLabel: 'Save' },
+          dataSource: { type: 'table', tableId: 1, filter: { column: 'status', value: 'active' } },
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].component).toBe('Form')
+      expect((result[0].dataSource as Record<string, unknown>).filter).toBeUndefined()
+    })
+
+    it('backward compat: dataSource without filter still valid', () => {
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 5 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].dataSource).toEqual({ type: 'table', tableId: 5 })
+    })
+
+    it('preserves boolean value in filter', () => {
+      const result = validateUiComponents([
+        { ...baseCard, dataSource: { type: 'table', tableId: 1, filter: { column: 'active', value: true } } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].dataSource).toEqual({ type: 'table', tableId: 1, filter: { column: 'active', value: true } })
+    })
+
+    it('preserves all valid operators', () => {
+      const operators = ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'contains']
+      for (const op of operators) {
+        const result = validateUiComponents([
+          { ...baseCard, dataSource: { type: 'table', tableId: 1, filter: { column: 'x', operator: op, value: 1 } } },
+        ])
+        expect(result).toHaveLength(1)
+        expect((result[0].dataSource as Record<string, unknown>).filter).toEqual({ column: 'x', operator: op, value: 1 })
+      }
+    })
+  })
+
   describe('showIf validation', () => {
     it('preserves valid showIf expression', () => {
       const result = validateUiComponents([

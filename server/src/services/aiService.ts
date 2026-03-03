@@ -22,9 +22,18 @@ export type CronJobConfig = {
   config: Record<string, unknown>;
 };
 
+export type FilterOperator = 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte' | 'contains';
+
+export type FilterCondition = {
+  column: string;
+  operator?: FilterOperator;   // defaults to 'eq'
+  value: string | number | boolean;
+};
+
 export type DataSource = {
   type: 'table';
   tableId: number;
+  filter?: FilterCondition | FilterCondition[];
 };
 
 export type StyleIfCondition = {
@@ -693,6 +702,36 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
         typeof ds.tableId !== 'number' || !Number.isInteger(ds.tableId) || ds.tableId <= 0
       ) {
         item.dataSource = undefined;
+      } else {
+        // Validate and sanitize filter field on dataSource
+        const VALID_FILTER_OPERATORS = new Set(['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'contains']);
+        const isValidFilterCondition = (f: unknown): f is FilterCondition => {
+          if (!f || typeof f !== 'object' || Array.isArray(f)) return false;
+          const fc = f as Record<string, unknown>;
+          if (typeof fc.column !== 'string' || fc.column.length === 0) return false;
+          if (fc.operator !== undefined && !VALID_FILTER_OPERATORS.has(fc.operator as string)) return false;
+          const vt = typeof fc.value;
+          if (vt !== 'string' && vt !== 'number' && vt !== 'boolean') return false;
+          return true;
+        };
+
+        // Form components: strip filter (not applicable for writes)
+        if (item.component === 'Form') {
+          (item.dataSource as Record<string, unknown>).filter = undefined;
+        } else if (ds.filter !== undefined) {
+          if (Array.isArray(ds.filter)) {
+            const validConditions = (ds.filter as unknown[]).filter(isValidFilterCondition);
+            if (validConditions.length === 0) {
+              (item.dataSource as Record<string, unknown>).filter = undefined;
+            } else {
+              (item.dataSource as Record<string, unknown>).filter = validConditions;
+            }
+          } else if (isValidFilterCondition(ds.filter)) {
+            // keep as-is (single condition)
+          } else {
+            (item.dataSource as Record<string, unknown>).filter = undefined;
+          }
+        }
       }
 
       // Validate computedValue: strip "= " prefix and validate formula syntax
