@@ -242,6 +242,61 @@ describe('buildSystemPrompt', () => {
     })
   })
 
+  describe('brainstorm prompt includes conditional rendering documentation', () => {
+    it('documents showIf field on components', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('CONDITIONAL RENDERING')
+      expect(prompt).toContain('showIf')
+      expect(prompt).toContain('hidden when the result is falsy')
+    })
+
+    it('documents styleIf with available classes', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('styleIf')
+      expect(prompt).toContain('warning')
+      expect(prompt).toContain('critical')
+      expect(prompt).toContain('success')
+      expect(prompt).toContain('muted')
+      expect(prompt).toContain('highlight')
+    })
+
+    it('documents ConditionalGroup component', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('ConditionalGroup')
+      expect(prompt).toContain('"condition"')
+      expect(prompt).toContain('"children"')
+      expect(prompt).toContain('max 1 level')
+    })
+
+    it('includes ConditionalGroup in the component type list', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('"ConditionalGroup"')
+    })
+  })
+
+  describe('chat prompt includes conditional rendering documentation', () => {
+    it('documents showIf field', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('CONDITIONAL RENDERING')
+      expect(prompt).toContain('showIf')
+    })
+
+    it('documents styleIf with available classes', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('styleIf')
+      expect(prompt).toContain('warning')
+      expect(prompt).toContain('critical')
+      expect(prompt).toContain('success')
+    })
+
+    it('documents ConditionalGroup in component guide', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('ConditionalGroup')
+      expect(prompt).toContain('"condition"')
+      expect(prompt).toContain('"children"')
+    })
+  })
+
   describe('non-chat phases ignore app context', () => {
     it('brainstorm phase does not append app context even if provided', () => {
       const context: AppContext = {

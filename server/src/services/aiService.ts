@@ -120,7 +120,7 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
   ],
   "uiComponents": [
     {
-      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form" | "Accordion" | "Panel" | "Chip" | "Badge" | "Slider" | "Rating" | "Tabs" | "Image" | "MeterGroup" | "CardList",
+      "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form" | "Accordion" | "Panel" | "Chip" | "Badge" | "Slider" | "Rating" | "Tabs" | "Image" | "MeterGroup" | "CardList" | "ConditionalGroup",
       "props": { /* component-specific props — see component guide below */ },
       "dataKey": "key from appData to bind as value prop",
       "action": { "key": "appDataKey", "value": "optional fixed value" },  // for Button
@@ -191,6 +191,8 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to display rows from a user-defined table as cards with delete support.
   Example (KV): { "component": "CardList", "dataKey": "tasks" }
   Example (table): { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
+- ConditionalGroup: shows/hides a group of child components based on a formula condition. Use "condition" (formula) and "children" (array of components). No nested ConditionalGroup.
+  Example: { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [{ "component": "Card", "props": { "title": "Step 2" }, "dataKey": "step2" }] }
 
 NEVER use any component not listed above.
 
@@ -291,6 +293,37 @@ The value is a formula string starting with "= " that references table columns a
 computedValue is evaluated server-side. Priority: dataSource > computedValue > dataKey.
 Use computedValue when you need real-time aggregates over table data on a display component.
 
+CONDITIONAL RENDERING (showIf, styleIf, ConditionalGroup):
+Any component can have conditional visibility and styling based on appData values.
+
+showIf — hide/show a single component based on a formula:
+- "showIf": formula string — component is hidden when the result is falsy (false, null, 0, "")
+- Missing showIf = always visible
+  Example (show only after submission): { "component": "Card", "props": { "title": "Результат" }, "dataKey": "result", "showIf": "submitted == 1" }
+  Example (hide once done): { "component": "Button", "props": { "label": "Начать" }, "action": { "key": "step", "value": 1 }, "showIf": "step != 1" }
+
+styleIf — apply CSS classes conditionally:
+- "styleIf": array of { "condition": formula, "class": className }
+- Available classes: warning (yellow border), critical (red border), success (green border), muted (gray, dimmed), highlight (accent background)
+- Multiple classes can apply simultaneously
+  Example: { "component": "Card", "props": { "title": "Баланс" }, "dataKey": "balance", "styleIf": [{ "condition": "balance < 0", "class": "critical" }, { "condition": "balance > 1000", "class": "success" }] }
+  Example: { "component": "Card", "props": { "title": "Уровень" }, "dataKey": "level", "styleIf": [{ "condition": "level < 3", "class": "warning" }, { "condition": "level >= 3", "class": "highlight" }] }
+
+ConditionalGroup — show/hide a group of components together:
+{ "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [
+  { "component": "Card", "props": { "title": "Шаг 2: Детали" }, "dataKey": "step2_data" },
+  { "component": "Button", "props": { "label": "Далее" }, "action": { "key": "step", "value": 3 } }
+]}
+- condition: formula — group shows when truthy, hides when falsy
+- children: array of regular components (NO nested ConditionalGroup — max 1 level)
+- Use for wizard/multi-step flows, dynamic dashboards, or any "show only when X" group
+
+CONDITIONAL RENDERING USE CASES:
+- Multi-step wizard: ConditionalGroup with condition "step == 1" for each step
+- Status-based styling: styleIf to color a balance Card red when negative
+- Show result after action: showIf "submitted == 1" on a results Card
+- Progressive disclosure: showIf to reveal advanced options after initial setup
+
 WHEN TO USE WHAT:
 - "formula" columns: per-row calculations within a table (totals, concatenations, conditionals per row)
 - "computedValue": aggregate calculations across table rows displayed on a UI component (SUM, AVG, COUNT)
@@ -388,6 +421,8 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - CardList: DYNAMIC card-per-item list — PREFERRED for any task/log/note list. Use "dataKey" to bind array.
   { "component": "CardList", "dataKey": "tasks" }
   Or with table: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
+- ConditionalGroup: shows/hides a group of children based on a formula condition.
+  { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [{ "component": "Card", "props": { "title": "Шаг 2" }, "dataKey": "step2" }] }
 - NEVER use components not listed above.
 
 COMPUTED VALUES (computedValue on components):
@@ -400,6 +435,20 @@ Examples:
 
 Available functions: IF, ABS, ROUND, FLOOR, CEIL, MIN, MAX, UPPER, LOWER, CONCAT, LEN, TRIM, NOW, SUM, AVG, COUNT.
 computedValue is evaluated server-side. Priority: dataSource > computedValue > dataKey.
+
+CONDITIONAL RENDERING (showIf, styleIf, ConditionalGroup):
+Any component can have:
+- "showIf": formula string — component is hidden when the result is falsy (false, null, 0, "")
+  Example: { "component": "Card", "props": { "title": "Результат" }, "dataKey": "result", "showIf": "submitted == 1" }
+- "styleIf": array of { "condition": formula, "class": className } — applies CSS classes conditionally
+  Available classes: warning (yellow), critical (red), success (green), muted (gray), highlight (accent)
+  Example: { "component": "Card", "dataKey": "balance", "styleIf": [{ "condition": "balance < 0", "class": "critical" }, { "condition": "balance > 1000", "class": "success" }] }
+- ConditionalGroup: shows/hides a group of components together based on a condition
+  { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [
+    { "component": "Card", "props": { "title": "Шаг 2" }, "dataKey": "step2" },
+    { "component": "Button", "props": { "label": "Готово" }, "action": { "key": "step", "value": 3 } }
+  ]}
+  No nested ConditionalGroup (max 1 level). Children are regular components.
 
 DATE/TIME DISPLAY: ISO timestamp strings are automatically formatted by the UI into human-readable dates (e.g. "21 февраля 2026, 17:09"). Always use ISO strings for dates — never format them manually.
 

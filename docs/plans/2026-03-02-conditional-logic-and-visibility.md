@@ -88,10 +88,10 @@
 
 ### Task 6: Обновить AI-промпты
 Документировать showIf, styleIf и ConditionalGroup в обоих системных промптах.
-- [ ] В `BRAINSTORM_SYSTEM_PROMPT` добавить секцию CONDITIONAL RENDERING с примерами showIf, styleIf, ConditionalGroup
-- [ ] В `IN_APP_SYSTEM_PROMPT` добавить документацию showIf/styleIf/ConditionalGroup в UIUPDATE COMPONENT GUIDE
-- [ ] Обновить тесты промптов в `buildSystemPrompt.test.ts` (проверить наличие showIf/styleIf/ConditionalGroup в промптах)
-- [ ] Запустить тесты — должны проходить перед Task 7
+- [x] В `BRAINSTORM_SYSTEM_PROMPT` добавить секцию CONDITIONAL RENDERING с примерами showIf, styleIf, ConditionalGroup
+- [x] В `IN_APP_SYSTEM_PROMPT` добавить документацию showIf/styleIf/ConditionalGroup в UIUPDATE COMPONENT GUIDE
+- [x] Обновить тесты промптов в `buildSystemPrompt.test.ts` (проверить наличие showIf/styleIf/ConditionalGroup в промптах)
+- [x] Запустить тесты — должны проходить перед Task 7
 
 ### Task 7: Verify acceptance criteria
 - [ ] Проверить что все требования из Overview реализованы
