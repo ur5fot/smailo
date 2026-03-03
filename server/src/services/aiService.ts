@@ -967,6 +967,7 @@ async function callDeepSeek(messages: ChatMessage[], systemPrompt: string): Prom
   const response = await getDeepSeekClient().chat.completions.create({
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
     max_tokens: 4096,
+    response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: systemPrompt },
       ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
