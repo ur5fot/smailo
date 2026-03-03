@@ -142,17 +142,17 @@ excluded — it writes to the table, filtering write targets doesn't make sense.
 
 ### Task 5: AI system prompts + CLAUDE.md
 
-- [ ] update `BRAINSTORM_SYSTEM_PROMPT` in `server/src/services/aiService.ts`:
+- [x] update `BRAINSTORM_SYSTEM_PROMPT` in `server/src/services/aiService.ts`:
   - add `filter` field to dataSource documentation block
   - show shorthand example: `{ "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } }`
   - show extended example: array with operators
   - note: `Form` does not support `filter`
-- [ ] update `IN_APP_SYSTEM_PROMPT` same additions
-- [ ] update `CLAUDE.md` App config JSON shape section:
+- [x] update `IN_APP_SYSTEM_PROMPT` same additions
+- [x] update `CLAUDE.md` App config JSON shape section:
   - extend `dataSource` type comment: `filter?: FilterCondition | FilterCondition[]`
   - document `FilterCondition` inline
-- [ ] update tests in `server/src/__tests__/buildSystemPrompt.test.ts` if it checks prompt content for dataSource; add assertion that prompts mention `filter`
-- [ ] run server tests — must pass before task 6: `npm test --workspace=server`
+- [x] update tests in `server/src/__tests__/buildSystemPrompt.test.ts` if it checks prompt content for dataSource; add assertion that prompts mention `filter`
+- [x] run server tests — must pass before task 6: `npm test --workspace=server`
 
 ### Task 6: Verify acceptance criteria
 

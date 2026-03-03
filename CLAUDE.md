@@ -87,7 +87,8 @@ The AI generates and the server stores configs in this shape (cronJobs are store
              | 'CardList' | 'ConditionalGroup'
     props: Record<string, unknown>  // component-specific, no 'on*' props
     dataKey?: string                // key into appData to bind as value/data prop
-    dataSource?: { type: 'table'; tableId: number }  // bind to user-defined table (alternative to dataKey)
+    dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }  // bind to user-defined table; filter limits rows shown (display components only, not Form)
+    // FilterCondition: { column: string; operator?: 'eq'|'ne'|'lt'|'lte'|'gt'|'gte'|'contains'; value: string|number|boolean }
     // Input component fields (top-level, NOT inside props):
     action?: { key: string; value?: unknown }  // Button: fixed value; InputText: value from user input
     fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only; `name` must match /^[a-zA-Z0-9_]{1,100}$/ and 'timestamp' is reserved (auto-injected)

@@ -37,6 +37,17 @@ describe('buildSystemPrompt', () => {
       expect(prompt).toContain('single values')
     })
 
+    it('documents dataSource filter field with operators and examples', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('DATASOURCE FILTERING')
+      expect(prompt).toContain('"filter"')
+      expect(prompt).toContain('"operator"')
+      expect(prompt).toContain('"eq"')
+      expect(prompt).toContain('"contains"')
+      expect(prompt).toContain('"gt"')
+      expect(prompt).toContain('Form does NOT support')
+    })
+
     it('does not mention "coming in a future update" for tables', () => {
       const prompt = buildSystemPrompt('brainstorm')
       expect(prompt).not.toContain('coming in a future update')
@@ -54,6 +65,15 @@ describe('buildSystemPrompt', () => {
       const prompt = buildSystemPrompt('chat')
       expect(prompt).toContain('dataSource')
       expect(prompt).toContain('"type": "table"')
+    })
+
+    it('documents dataSource filter field in in-app prompt', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('DATASOURCE FILTERING')
+      expect(prompt).toContain('"filter"')
+      expect(prompt).toContain('"operator"')
+      expect(prompt).toContain('"contains"')
+      expect(prompt).toContain('Form does NOT support filter')
     })
 
     it('does not mention "coming in a future update" for tables', () => {

@@ -163,10 +163,12 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to bind to a user-defined table — columns are auto-generated from the table schema.
   Example (KV): { "component": "DataTable", "props": { "columns": [{ "field": "date", "header": "Date" }, { "field": "note", "header": "Note" }] }, "dataKey": "entries" }
   Example (table): { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
+  Example (filtered): { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } } }
 - Chart: requires "type" prop ("bar", "line", "pie", "doughnut") and "dataKey" for chart data object.
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to build chart data from table rows (first column = labels, numeric columns = datasets).
   Example (KV): { "component": "Chart", "props": { "type": "line" }, "dataKey": "weightData" }
   Example (table): { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1 } }
+  Example (filtered): { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "status", "value": "active" } } }
 - Knob: use "value" prop (number 0-100). Use "dataKey" to bind numeric data.
   Example: { "component": "Knob", "props": { "min": 0, "max": 10 }, "dataKey": "moodScore" }
 - Tag: use "value" prop (string). Use "dataKey" to bind string data.
@@ -190,6 +192,7 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Add "appendMode": true to ACCUMULATE submissions as an array (for lists, logs, task trackers).
   With appendMode, use CardList (preferred) or DataTable to display. CardList auto-renders all fields per item.
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to write rows to a user-defined table — fields are auto-generated from the table schema. No "outputKey" or "fields" needed.
+  NOTE: Form does NOT support "filter" — filter is for display components only (DataTable, CardList, Chart).
   Example (KV): { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }, { "name": "note", "type": "text", "label": "Заметка" }], "outputKey": "weight_entry" }
   Example list: { "component": "Form", "props": { "submitLabel": "Добавить задачу" }, "fields": [{ "name": "task", "type": "text", "label": "Задача" }], "outputKey": "tasks", "appendMode": true }
   Example (table): { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } }
@@ -217,6 +220,7 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to display rows from a user-defined table as cards with delete support.
   Example (KV): { "component": "CardList", "dataKey": "tasks" }
   Example (table): { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
+  Example (filtered): { "component": "CardList", "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "done", "value": false } } }
 - ConditionalGroup: shows/hides a group of child components based on a formula condition. Use "condition" (formula) and "children" (array of components). No nested ConditionalGroup. Children CANNOT use "computedValue" — use "dataKey" instead.
   Example: { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [{ "component": "Card", "props": { "title": "Step 2" }, "dataKey": "step2" }] }
 
@@ -369,6 +373,17 @@ WHEN TO USE dataSource vs dataKey:
 
 After app creation, the tables API is available at /api/app/:hash/tables for CRUD operations.
 
+DATASOURCE FILTERING (filter field):
+Add "filter" to dataSource on DataTable, CardList, or Chart to show only rows matching a condition.
+- Supported operators: "eq" (default), "ne", "lt", "lte", "gt", "gte", "contains"
+- Single condition: { "column": "priority", "value": "high" }  — operator defaults to "eq"
+- With operator: { "column": "amount", "operator": "gt", "value": 100 }
+- Multiple conditions (AND): [{ "column": "status", "value": "active" }, { "column": "score", "operator": "gte", "value": 80 }]
+- Form does NOT support filter — it is stripped automatically.
+Use filter with multi-page apps to show the same table with different criteria per page:
+  Page "High priority": DataTable with filter { "column": "priority", "value": "high" }
+  Page "All tasks": DataTable with no filter
+
 MULTI-PAGE APPS (pages):
 Use "pages" instead of (or alongside) top-level "uiComponents" when the app has multiple distinct sections that benefit from separate navigation tabs (e.g. dashboard + history + settings).
 
@@ -487,8 +502,10 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Card: { "component": "Card", "props": { "title": "Title" }, "dataKey": "key" }
 - DataTable: { "component": "DataTable", "props": { "columns": [{"field":"f","header":"H"}] }, "dataKey": "key" }
   Or with table: { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
+  Or filtered: { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } } }
 - Chart: { "component": "Chart", "props": { "type": "line" }, "dataKey": "key" }
   Or with table: { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1 } }
+  Or filtered: { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "status", "value": "active" } } }
 - Knob: { "component": "Knob", "props": { "min": 0, "max": 100 }, "dataKey": "key" }
 - Tag: { "component": "Tag", "props": { "value": "Статус" } } or use dataKey
 - ProgressBar: { "component": "ProgressBar", "props": { "value": 0 }, "dataKey": "progress" }
@@ -511,9 +528,11 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry" }
   Add "appendMode": true to accumulate submissions as array. Use CardList to display — auto-renders all fields.
   Or with table: { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } }
+  NOTE: Form does NOT support "filter" on dataSource.
 - CardList: DYNAMIC card-per-item list — PREFERRED for any task/log/note list. Use "dataKey" to bind array.
   { "component": "CardList", "dataKey": "tasks" }
   Or with table: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
+  Or filtered: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "done", "value": false } } }
 - ConditionalGroup: shows/hides a group of children based on a formula condition. Children CANNOT use "computedValue" — use "dataKey" instead.
   { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [{ "component": "Card", "props": { "title": "Шаг 2" }, "dataKey": "step2" }] }
 - NEVER use components not listed above.
@@ -558,6 +577,14 @@ When suggesting UI updates (uiUpdate), use "dataSource": { "type": "table", "tab
 - dataSource is for structured lists (expenses, tasks, contacts) stored in tables
 - dataKey is for single values (counters, settings, API data) stored in flat KV appData
 - computedValue is for aggregate calculations over table data (SUM, AVG, COUNT etc.) on display components
+
+DATASOURCE FILTERING (filter field):
+Add "filter" to dataSource on DataTable, CardList, or Chart to show only matching rows.
+Operators: "eq" (default, ==), "ne" (!=), "lt" (<), "lte" (<=), "gt" (>), "gte" (>=), "contains" (case-insensitive substring).
+Single condition: { "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } }
+With operator: { "type": "table", "tableId": 2, "filter": { "column": "amount", "operator": "gt", "value": 100 } }
+Multiple (AND): { "type": "table", "tableId": 1, "filter": [{ "column": "status", "value": "active" }, { "column": "score", "operator": "gte", "value": 80 }] }
+Form does NOT support filter.
 
 MULTI-PAGE APPS:
 If the app config has a "pages" array, it is a multi-page app with navigation tabs.
