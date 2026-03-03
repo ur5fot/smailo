@@ -359,7 +359,7 @@ async function handleChatSubmit(message: string) {
 
     // If Claude returned a uiUpdate or pagesUpdate, refresh the full app (config + appData).
     // Failures here are non-fatal: the AI response is already shown; data refreshes on next interaction.
-    if (res.uiUpdate || (res as any).pagesUpdate) {
+    if (res.uiUpdate || res.pagesUpdate) {
       try {
         await appStore.fetchApp(hash.value)
         await appStore.fetchData(hash.value)

@@ -78,7 +78,7 @@ export const useAppStore = defineStore('app', () => {
 
   async function chatWithApp(hash: string, message: string) {
     const res = await api.post(`/app/${hash}/chat`, { message })
-    return res.data as { mood: string; message: string; uiUpdate?: any[] }
+    return res.data as { mood: string; message: string; uiUpdate?: any[]; pagesUpdate?: any[] }
   }
 
   async function fetchTableRows(hash: string, tableId: number): Promise<TableRow[]> {

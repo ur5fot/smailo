@@ -4,7 +4,7 @@ import { randomBytes, createHash } from 'crypto';
 import { eq, desc, isNull, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, chatHistory, users } from '../db/schema.js';
-import { chatWithAI, validateUiComponents, validateTableDefs, type CronJobConfig, type TableDef } from '../services/aiService.js';
+import { chatWithAI, validateUiComponents, validatePages, validateTableDefs, type CronJobConfig, type TableDef } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 import { userTables } from '../db/schema.js';
 
@@ -184,6 +184,9 @@ chatRouter.post('/', limiter, async (req, res) => {
         appConfigToStore.uiComponents = validateUiComponents(appConfigToStore.uiComponents);
       } else {
         appConfigToStore.uiComponents = [];
+      }
+      if (Array.isArray(appConfigToStore.pages)) {
+        appConfigToStore.pages = validatePages(appConfigToStore.pages);
       }
 
       validJobs = Array.isArray(claudeResponse.appConfig.cronJobs)
