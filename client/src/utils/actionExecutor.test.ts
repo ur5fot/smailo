@@ -291,7 +291,7 @@ describe('executeActions', () => {
       })
     })
 
-    it('sends empty string when template key not found in appData', async () => {
+    it('skips fetch when template key not found in appData', async () => {
       const actions: ActionStep[] = [
         {
           type: 'fetchUrl',
@@ -302,10 +302,10 @@ describe('executeActions', () => {
       const ctx = makeCtx({ appData: [] })
       await executeActions(actions, ctx)
 
-      expect(mockPost).toHaveBeenCalledWith('/app/abc123/actions/fetch-url', {
-        url: 'https://api.example.com/?key=',
-        outputKey: 'result',
-      })
+      expect(mockPost).not.toHaveBeenCalledWith(
+        '/app/abc123/actions/fetch-url',
+        expect.anything()
+      )
     })
 
     it('omits dataPath when not provided', async () => {
@@ -370,6 +370,69 @@ describe('executeActions', () => {
       const postOrder = mockPost.mock.invocationCallOrder[0]
       const pushOrder = mockPush.mock.invocationCallOrder[0]
       expect(postOrder).toBeLessThan(pushOrder)
+    })
+  })
+
+  // --- local appData propagation within chain ---
+
+  describe('intra-chain data propagation', () => {
+    it('writeData updates local snapshot for subsequent toggleVisibility', async () => {
+      const actions: ActionStep[] = [
+        { type: 'writeData', key: 'flag', value: true },
+        { type: 'toggleVisibility', key: 'flag' },
+      ]
+      const ctx = makeCtx({ appData: [] })
+      await executeActions(actions, ctx)
+
+      const calls = mockPost.mock.calls
+      // Step 1: writes true
+      expect(calls[0][1]).toEqual({ key: 'flag', value: true })
+      // Step 2: reads true from local snapshot, toggles to false
+      expect(calls[1][1]).toEqual({ key: 'flag', value: false })
+    })
+
+    it('writeData updates local snapshot for subsequent runFormula', async () => {
+      const actions: ActionStep[] = [
+        { type: 'writeData', key: 'price', value: 10 },
+        { type: 'runFormula', formula: 'price * 2', outputKey: 'total' },
+      ]
+      const ctx = makeCtx({ appData: [] })
+      await executeActions(actions, ctx)
+
+      const calls = mockPost.mock.calls
+      expect(calls[1][1]).toEqual({ key: 'total', value: 20 })
+    })
+
+    it('double toggle produces correct results', async () => {
+      const actions: ActionStep[] = [
+        { type: 'toggleVisibility', key: 'show' },
+        { type: 'toggleVisibility', key: 'show' },
+      ]
+      const ctx = makeCtx({ appData: [{ key: 'show', value: false }] })
+      await executeActions(actions, ctx)
+
+      const calls = mockPost.mock.calls
+      // First toggle: false -> true
+      expect(calls[0][1]).toEqual({ key: 'show', value: true })
+      // Second toggle: true -> false (reads updated local value)
+      expect(calls[1][1]).toEqual({ key: 'show', value: false })
+    })
+
+    it('fetchUrl skips when template references key with empty string value', async () => {
+      const actions: ActionStep[] = [
+        {
+          type: 'fetchUrl',
+          url: 'https://api.example.com/?key={apiKey}',
+          outputKey: 'result',
+        },
+      ]
+      const ctx = makeCtx({ appData: [{ key: 'apiKey', value: '' }] })
+      await executeActions(actions, ctx)
+
+      expect(mockPost).not.toHaveBeenCalledWith(
+        '/app/abc123/actions/fetch-url',
+        expect.anything()
+      )
     })
   })
 

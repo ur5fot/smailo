@@ -91,10 +91,21 @@ export async function executeActions(
   }
 }
 
+/** Update the local appData snapshot so subsequent steps in the same chain see fresh values. */
+function updateLocalAppData(ctx: ActionContext, key: string, value: unknown): void {
+  const existing = ctx.appData.find(d => d.key === key)
+  if (existing) {
+    existing.value = value
+  } else {
+    ctx.appData.push({ key, value })
+  }
+}
+
 async function execWriteData(action: WriteDataAction, ctx: ActionContext): Promise<void> {
+  const value = action.value ?? ctx.inputValue ?? true
   const payload: Record<string, unknown> = {
     key: action.key,
-    value: action.value ?? ctx.inputValue ?? true,
+    value,
   }
   if (action.mode) {
     payload.mode = action.mode
@@ -103,6 +114,10 @@ async function execWriteData(action: WriteDataAction, ctx: ActionContext): Promi
     payload.index = action.index
   }
   await api.post(`/app/${ctx.hash}/data`, payload)
+  // For simple writes (no mode), update local snapshot for subsequent steps
+  if (!action.mode) {
+    updateLocalAppData(ctx, action.key, value)
+  }
 }
 
 function execNavigateTo(action: NavigateToAction, ctx: ActionContext): void {
@@ -124,10 +139,12 @@ function execNavigateTo(action: NavigateToAction, ctx: ActionContext): void {
 
 async function execToggleVisibility(action: ToggleVisAction, ctx: ActionContext): Promise<void> {
   const current = ctx.appData.find(d => d.key === action.key)?.value ?? false
+  const newValue = !current
   await api.post(`/app/${ctx.hash}/data`, {
     key: action.key,
-    value: !current,
+    value: newValue,
   })
+  updateLocalAppData(ctx, action.key, newValue)
 }
 
 async function execRunFormula(action: RunFormulaAction, ctx: ActionContext): Promise<void> {
@@ -141,13 +158,23 @@ async function execRunFormula(action: RunFormulaAction, ctx: ActionContext): Pro
     key: action.outputKey,
     value: result,
   })
+  updateLocalAppData(ctx, action.outputKey, result)
 }
 
 async function execFetchUrl(action: FetchUrlAction, ctx: ActionContext): Promise<void> {
+  let hasUnresolved = false
   const substitutedUrl = action.url.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
     const val = ctx.appData.find(d => d.key === key)?.value
-    return val != null ? encodeURIComponent(String(val)) : ''
+    if (val == null || val === '') {
+      hasUnresolved = true
+      return ''
+    }
+    return encodeURIComponent(String(val))
   })
+  if (hasUnresolved) {
+    console.warn('fetchUrl: skipping fetch — unresolved placeholder in URL')
+    return
+  }
   await api.post(`/app/${ctx.hash}/actions/fetch-url`, {
     url: substitutedUrl,
     outputKey: action.outputKey,
