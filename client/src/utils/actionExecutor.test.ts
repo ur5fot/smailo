@@ -104,6 +104,20 @@ describe('executeActions', () => {
         mode: 'increment',
       })
     })
+
+    it('posts correct payload with append mode', async () => {
+      const actions: ActionStep[] = [
+        { type: 'writeData', key: 'items', value: 'new item', mode: 'append' },
+      ]
+      const ctx = makeCtx()
+      await executeActions(actions, ctx)
+
+      expect(mockPost).toHaveBeenCalledWith('/app/abc123/data', {
+        key: 'items',
+        value: 'new item',
+        mode: 'append',
+      })
+    })
   })
 
   // --- navigateTo ---
@@ -232,6 +246,25 @@ describe('executeActions', () => {
         value: null,
       })
     })
+
+    it('invalid formula logs error and chain continues', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const actions: ActionStep[] = [
+        { type: 'runFormula', formula: '!!!invalid syntax', outputKey: 'bad' },
+        { type: 'writeData', key: 'after', value: 'ok' },
+      ]
+      const ctx = makeCtx()
+      await executeActions(actions, ctx)
+
+      // Invalid formula threw, logged error, but chain continued
+      expect(consoleSpy).toHaveBeenCalled()
+      // Second step still executed
+      expect(mockPost).toHaveBeenCalledWith('/app/abc123/data', {
+        key: 'after',
+        value: 'ok',
+      })
+      consoleSpy.mockRestore()
+    })
   })
 
   // --- fetchUrl ---
@@ -311,6 +344,32 @@ describe('executeActions', () => {
       expect(calls[0][1]).toEqual({ key: 'step', value: 1 })
       expect(calls[1][1]).toEqual({ key: 'step', value: 2 })
       expect(calls[2][1]).toEqual({ key: 'flag', value: true })
+    })
+
+    it('writeData + navigateTo: writes data then navigates', async () => {
+      const actions: ActionStep[] = [
+        { type: 'writeData', key: 'step', value: 2 },
+        { type: 'navigateTo', pageId: 'step2' },
+      ]
+      const ctx = makeCtx({
+        appStore: {
+          fetchData: vi.fn().mockResolvedValue({}),
+          appConfig: { pages: [{ id: 'step1' }, { id: 'step2' }] },
+        } as any,
+      })
+      await executeActions(actions, ctx)
+
+      // writeData fires first
+      expect(mockPost).toHaveBeenCalledWith('/app/abc123/data', {
+        key: 'step',
+        value: 2,
+      })
+      // then navigateTo fires
+      expect(mockPush).toHaveBeenCalledWith('/user1/abc123/step2')
+      // order: post called before push
+      const postOrder = mockPost.mock.invocationCallOrder[0]
+      const pushOrder = mockPush.mock.invocationCallOrder[0]
+      expect(postOrder).toBeLessThan(pushOrder)
     })
   })
 

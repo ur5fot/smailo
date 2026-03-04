@@ -242,20 +242,20 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
 
 ### Task 6: Verify acceptance criteria
 
-- [ ] Button `writeData` writes correct value; `mode: 'increment'` increments; `mode: 'append'` appends to array
-- [ ] Button chain `writeData` + `navigateTo` — writes then navigates to correct page
-- [ ] `toggleVisibility` toggles appData boolean; component with `showIf: "flag == true"` appears/disappears
-- [ ] `runFormula` evaluates formula, writes result to appData; invalid formula → logs error, chain continues
-- [ ] `fetchUrl` proxies through server (SSRF: private IP rejected); stores result in appData
-- [ ] `fetchUrl` with `{apiKey}` URL template — substitutes value from appData before fetch
-- [ ] InputText with `actions` — user-typed value flows correctly to `writeData`
-- [ ] Form with post-submit `navigateTo` — navigates after successful submit
-- [ ] `navigateTo` on single-page app (no `pages`) → no-op (no crash, no navigation)
-- [ ] legacy `action` field on existing components still works (client fallback)
-- [ ] chain with 5 steps: all execute; server rejects chain with 6+ steps (6th dropped at validation)
-- [ ] 401 error mid-chain → remaining steps skipped; appData refreshed
-- [ ] run full server tests: `npm test --workspace=server`
-- [ ] run full client tests: `npm test --workspace=client`
+- [x] Button `writeData` writes correct value; `mode: 'increment'` increments; `mode: 'append'` appends to array
+- [x] Button chain `writeData` + `navigateTo` — writes then navigates to correct page
+- [x] `toggleVisibility` toggles appData boolean; component with `showIf: "flag == true"` appears/disappears
+- [x] `runFormula` evaluates formula, writes result to appData; invalid formula → logs error, chain continues
+- [x] `fetchUrl` proxies through server (SSRF: private IP rejected); stores result in appData
+- [x] `fetchUrl` with `{apiKey}` URL template — substitutes value from appData before fetch
+- [x] InputText with `actions` — user-typed value flows correctly to `writeData`
+- [x] Form with post-submit `navigateTo` — navigates after successful submit
+- [x] `navigateTo` on single-page app (no `pages`) → no-op (no crash, no navigation)
+- [x] legacy `action` field on existing components still works (client fallback)
+- [x] chain with 5 steps: all execute; server rejects chain with 6+ steps (6th dropped at validation)
+- [x] 401 error mid-chain → remaining steps skipped; appData refreshed
+- [x] run full server tests: `npm test --workspace=server`
+- [x] run full client tests: `npm test --workspace=client`
 
 ### Task 7: [Final] Update documentation
 
