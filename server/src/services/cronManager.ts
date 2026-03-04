@@ -1,12 +1,11 @@
 import { schedule, validate } from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
-import { lookup } from 'dns/promises';
-import https from 'node:https';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
 import type { CronJobConfig } from './aiService.js';
+import { isPrivateHost, fetchSafe, extractDataPath } from '../utils/fetchProxy.js';
 
 type CronJobsInsert = typeof cronJobs.$inferInsert;
 type AppDataInsert = typeof appData.$inferInsert;
@@ -291,46 +290,6 @@ class CronManager {
     await db.insert(appData).values({ appId, key: storageKey, value: entry } satisfies AppDataInsert);
   }
 
-  private isPrivateHost(hostname: string): boolean {
-    if (hostname === 'localhost') return true;
-    const ipv4 = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-    if (ipv4) {
-      const [, a, b] = ipv4.map(Number);
-      if (a === 0) return true;    // 0.0.0.0/8
-      if (a === 127) return true;  // loopback
-      if (a === 10) return true;
-      if (a === 169 && b === 254) return true;
-      if (a === 172 && b >= 16 && b <= 31) return true;
-      if (a === 192 && b === 168) return true;
-      if (a === 100 && b >= 64 && b <= 127) return true;  // CGNAT RFC 6598
-    }
-    const bare = hostname.replace(/^\[|\]$/g, '');
-    if (
-      bare === '::1' ||
-      bare === '::' ||
-      bare.toLowerCase().startsWith('fc') ||
-      bare.toLowerCase().startsWith('fd') ||
-      bare.toLowerCase().startsWith('fe80') || // link-local
-      bare.toLowerCase().startsWith('ff')       // multicast
-    ) return true;
-    // IPv4-mapped IPv6 (::ffff:a.b.c.d or ::ffff:aabb:ccdd)
-    const ipv4MappedHex = bare.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
-    if (ipv4MappedHex) {
-      const hi = parseInt(ipv4MappedHex[1], 16);
-      const a = hi >> 8;
-      const b = hi & 0xff;
-      const lo = parseInt(ipv4MappedHex[2], 16);
-      const c = lo >> 8;
-      const d = lo & 0xff;
-      return this.isPrivateHost(`${a}.${b}.${c}.${d}`);
-    }
-    const ipv4MappedDot = bare.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
-    if (ipv4MappedDot) {
-      return this.isPrivateHost(ipv4MappedDot[1]);
-    }
-    return false;
-  }
-
   private async handleFetchUrl(jobId: number, appId: number, config: ActionConfig): Promise<void> {
     let url = config.url as string;
     if (!url) {
@@ -339,8 +298,6 @@ class CronManager {
     }
 
     // Template substitution: replace {key} placeholders with current appData values.
-    // Allows URLs like https://api.example.com/v1/{api_key}/data where api_key is
-    // stored via an InputText component and saved to appData.
     if (url.includes('{')) {
       const dataMap = await this.getLatestDataMap(appId);
       let hasUnresolved = false;
@@ -356,139 +313,20 @@ class CronManager {
       if (hasUnresolved) return;
     }
 
-    let parsedUrl: URL;
+    let result: { body: string };
     try {
-      parsedUrl = new URL(url);
-    } catch {
-      console.warn(`[CronManager] fetch_url invalid URL: ${url}`);
-      return;
-    }
-    if (parsedUrl.protocol !== 'https:') {
-      console.warn(`[CronManager] fetch_url rejected non-HTTPS URL: ${url}`);
-      return;
-    }
-    if (this.isPrivateHost(parsedUrl.hostname)) {
-      console.warn(`[CronManager] fetch_url rejected private/loopback URL: ${url}`);
+      result = await fetchSafe(url);
+    } catch (err) {
+      console.warn(`[CronManager] fetch_url failed for app ${appId}:`, (err as Error).message);
       return;
     }
 
-    // Resolve DNS before fetching to block DNS rebinding: the cron fires later than when the
-    // hostname was first validated, so an attacker could swap the DNS record to point at an
-    // internal address in the meantime.
-    let resolvedIp: string;
-    try {
-      const result = await lookup(parsedUrl.hostname);
-      resolvedIp = result.address;
-    } catch {
-      console.warn(`[CronManager] fetch_url DNS lookup failed for: ${url}`);
+    const dataPath = config.dataPath as string | undefined;
+    const value = extractDataPath(result.body, dataPath);
+
+    if (dataPath && value === null) {
+      console.warn(`[CronManager] fetch_url dataPath "${dataPath}" not found in response for app ${appId}, skipping storage. Response: ${result.body.slice(0, 300)}`);
       return;
-    }
-    if (this.isPrivateHost(resolvedIp)) {
-      console.warn(`[CronManager] fetch_url DNS resolved to private IP ${resolvedIp}: ${url}`);
-      return;
-    }
-
-    const MAX_BODY_BYTES = 1_048_576; // 1 MB
-
-    // Use https.request with the pre-resolved IP to prevent DNS rebinding TOCTOU:
-    // connecting to the IP directly avoids a second OS-level DNS lookup while
-    // still sending the correct Host header and TLS SNI for certificate validation.
-    const port = parsedUrl.port ? parseInt(parsedUrl.port, 10) : 443;
-    const path = parsedUrl.pathname + parsedUrl.search;
-
-    type FetchResult =
-      | { ok: true; body: Buffer }
-      | { ok: false; reason: 'redirect' | 'too_large' | 'error'; detail?: unknown };
-
-    const fetchResult: FetchResult = await new Promise((resolve) => {
-      let settled = false;
-      const done = (r: FetchResult) => { if (!settled) { settled = true; resolve(r); } };
-
-      const req = https.request(
-        {
-          hostname: resolvedIp,        // Pinned resolved IP — prevents DNS rebinding
-          port,
-          path,
-          method: 'GET',
-          headers: { Host: parsedUrl.hostname },
-          servername: parsedUrl.hostname, // TLS SNI for certificate validation
-          rejectUnauthorized: true,
-        },
-        (res) => {
-          // Block redirects to prevent SSRF via redirect to a private/internal URL
-          if (res.statusCode !== undefined && res.statusCode >= 300 && res.statusCode < 400) {
-            res.destroy();
-            done({ ok: false, reason: 'redirect' });
-            return;
-          }
-          const cl = res.headers['content-length'];
-          if (cl && parseInt(cl as string, 10) > MAX_BODY_BYTES) {
-            res.destroy();
-            done({ ok: false, reason: 'too_large' });
-            return;
-          }
-          const chunks: Buffer[] = [];
-          let totalSize = 0;
-          res.on('data', (chunk: Buffer) => {
-            totalSize += chunk.length;
-            if (totalSize > MAX_BODY_BYTES) {
-              res.destroy();
-              done({ ok: false, reason: 'too_large' });
-            } else {
-              chunks.push(chunk);
-            }
-          });
-          res.on('end', () => done({ ok: true, body: Buffer.concat(chunks) }));
-          res.on('error', (err) => done({ ok: false, reason: 'error', detail: err }));
-        }
-      );
-      req.setTimeout(10_000, () => {
-        req.destroy();
-        done({ ok: false, reason: 'error', detail: new Error('Request timeout') });
-      });
-      req.on('error', (err) => done({ ok: false, reason: 'error', detail: err }));
-      req.end();
-    });
-
-    if (fetchResult.ok === false) {
-      if (fetchResult.reason === 'redirect') {
-        console.warn(`[CronManager] fetch_url rejected redirect response for app ${appId}: ${url}`);
-      } else if (fetchResult.reason === 'too_large') {
-        console.warn(`[CronManager] fetch_url body exceeds 1 MB for app ${appId}, skipping`);
-      } else {
-        console.warn(`[CronManager] fetch_url request failed for app ${appId}:`, fetchResult.detail);
-      }
-      return;
-    }
-
-    const body = fetchResult.body.toString('utf8');
-    let value: unknown = body;
-
-    try {
-      const parsed = JSON.parse(body);
-      value = parsed;
-
-      const dataPath = config.dataPath as string | undefined;
-      if (dataPath) {
-        const BLOCKED_PATH_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-        const parts = dataPath.replace(/^\$\./, '').split('.');
-        let current: unknown = parsed;
-        for (const part of parts) {
-          if (BLOCKED_PATH_KEYS.has(part)) { current = undefined; break; }
-          if (current != null && typeof current === 'object') {
-            current = (current as Record<string, unknown>)[part];
-          }
-        }
-        if (current === undefined) {
-          // Path not found — do not fall back to the full response: a misconfigured
-          // dataPath should not silently store an unintended multi-KB blob.
-          console.warn(`[CronManager] fetch_url dataPath "${dataPath}" not found in response for app ${appId}, skipping storage. Response: ${body.slice(0, 300)}`);
-          return;
-        }
-        value = current;
-      }
-    } catch {
-      // keep raw text as value
     }
 
     // Validate outputKey against the same regex used by the data endpoint.
@@ -504,7 +342,6 @@ class CronManager {
 
     // Also store a fetch timestamp under "{outputKey}_updated_at" so UI components
     // can display "last updated" time without needing a separate cron job.
-    // Limit base key to 89 chars so the "_updated_at" suffix (11 chars) always fits in the 100-char limit.
     const updatedAtKey = `${fetchStorageKey.slice(0, 89)}_updated_at`;
     if (CRON_KEY_REGEX.test(updatedAtKey)) {
       await db.insert(appData).values({ appId, key: updatedAtKey, value: new Date().toISOString() } satisfies AppDataInsert);

@@ -107,17 +107,17 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
 
 ### Task 2: Server proxy endpoint for fetchUrl action
 
-- [ ] create `server/src/utils/fetchProxy.ts` extracting SSRF-safe fetch from `cronManager.ts`:
+- [x] create `server/src/utils/fetchProxy.ts` extracting SSRF-safe fetch from `cronManager.ts`:
   - extract only the safety checks: private IP block (127.x, 10.x, 172.16-31.x, 192.168.x, ::1), DNS rebinding check, redirect blocking, 1 MB body limit, 10s timeout
   - signature: `fetchSafe(url: string): Promise<{ body: string; contentType: string }>`
   - returns raw body + content type; caller handles JSON parsing and dataPath extraction
   - does NOT include template substitution (cron-specific) or outputKey logic
-- [ ] add `extractDataPath(body: string, dataPath?: string): unknown` helper in `fetchProxy.ts`:
+- [x] add `extractDataPath(body: string, dataPath?: string): unknown` helper in `fetchProxy.ts`:
   - parse body as JSON; if invalid → return raw body string
   - if `dataPath` absent → return parsed JSON (or raw string)
   - `dataPath` is dot-notation: split by `.`, traverse object; missing key → return `null`
-- [ ] update `cronManager.ts` to import and use `fetchSafe` + `extractDataPath` (DRY refactor)
-- [ ] add route `POST /api/app/:hash/actions/fetch-url` in `server/src/routes/app.ts`:
+- [x] update `cronManager.ts` to import and use `fetchSafe` + `extractDataPath` (DRY refactor)
+- [x] add route `POST /api/app/:hash/actions/fetch-url` in `server/src/routes/app.ts`:
   - body: `{ url: string, outputKey: string, dataPath?: string }`
   - validate: url starts with `https://`; outputKey non-empty and matches key regex
   - call `fetchSafe(url)` then `extractDataPath(body, dataPath)`
@@ -125,14 +125,14 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
   - return `{ ok: true, value: result }` where `value` is the extracted/stored value
   - protected by `requireAuthIfProtected` middleware
   - rate limit: use existing `chatLimiter` (30 req/min) for consistency with other write ops
-- [ ] write tests in `server/src/__tests__/fetchProxy.test.ts` (new file):
+- [x] write tests in `server/src/__tests__/fetchProxy.test.ts` (new file):
   - `fetchSafe`: private IPs rejected (127.0.0.1, 192.168.1.1, 10.0.0.1, ::1)
   - `fetchSafe`: http:// URL rejected
   - `extractDataPath`: valid JSON + dotted path → correct value
   - `extractDataPath`: valid JSON + missing key → null
   - `extractDataPath`: invalid JSON + no dataPath → raw string
   - `extractDataPath`: no dataPath → full parsed object
-- [ ] run server tests: `npm test --workspace=server`
+- [x] run server tests: `npm test --workspace=server`
 
 ### Task 3: Client action executor utility
 

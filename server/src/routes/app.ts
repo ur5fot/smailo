@@ -14,6 +14,7 @@ import { requireAuthIfProtected, JWT_SECRET, type AuthenticatedRequest } from '.
 import { extractReferencedTableNames, evaluateComputedValues, getGlobalComponents } from '../utils/computedValues.js';
 import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
+import { fetchSafe, extractDataPath } from '../utils/fetchProxy.js';
 
 type AppDataInsert = typeof appData.$inferInsert;
 type ChatHistoryInsert = typeof chatHistory.$inferInsert;
@@ -403,6 +404,49 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected, async (req, r
     return res.json({ ok: true });
   } catch (error) {
     console.error('[POST /api/app/:hash/data] Error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/app/:hash/actions/fetch-url
+appRouter.post('/:hash/actions/fetch-url', chatLimiter, requireAuthIfProtected, async (req, res) => {
+  try {
+    const row = (req as AuthenticatedRequest).app_row!;
+    const { url, outputKey, dataPath } = req.body as { url: unknown; outputKey: unknown; dataPath?: unknown };
+
+    if (!url || typeof url !== 'string' || !url.startsWith('https://')) {
+      return res.status(400).json({ error: 'url must be an HTTPS URL' });
+    }
+    if (!outputKey || typeof outputKey !== 'string' || !KEY_REGEX.test(outputKey)) {
+      return res.status(400).json({ error: 'outputKey must be alphanumeric/underscore, max 100 chars' });
+    }
+    if (dataPath !== undefined && (typeof dataPath !== 'string' || dataPath === '')) {
+      return res.status(400).json({ error: 'dataPath must be a non-empty string if provided' });
+    }
+
+    let result: { body: string };
+    try {
+      result = await fetchSafe(url);
+    } catch (err) {
+      return res.status(502).json({ error: (err as Error).message });
+    }
+
+    const value = extractDataPath(result.body, typeof dataPath === 'string' ? dataPath : undefined);
+
+    const serialized = JSON.stringify(value);
+    if (Buffer.byteLength(serialized, 'utf8') > VALUE_MAX_BYTES) {
+      return res.status(413).json({ error: 'fetched value too large' });
+    }
+
+    await db.insert(appData).values({
+      appId: row.id,
+      key: outputKey,
+      value,
+    } satisfies AppDataInsert);
+
+    return res.json({ ok: true, value });
+  } catch (error) {
+    console.error('[POST /api/app/:hash/actions/fetch-url] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
