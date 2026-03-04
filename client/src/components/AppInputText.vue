@@ -87,6 +87,7 @@ async function handleSave() {
   errorMsg.value = ''
   try {
     if (props.actions?.length) {
+      // executeActions already calls fetchData internally
       await executeActions(props.actions, {
         hash: props.hash,
         userId: userStore.userId,
@@ -101,9 +102,9 @@ async function handleSave() {
         value,
         ...(props.action.mode === 'append' ? { mode: 'append' } : {}),
       })
+      emit('data-written')
     }
     clearInputs()
-    emit('data-written')
   } catch {
     errorMsg.value = 'Не удалось сохранить. Попробуйте ещё раз.'
   } finally {

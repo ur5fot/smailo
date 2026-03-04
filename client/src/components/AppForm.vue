@@ -183,6 +183,7 @@ async function handleSubmit() {
     }
     // Run post-submit action chain if defined
     if (props.actions?.length) {
+      // executeActions already calls fetchData internally
       await executeActions(props.actions, {
         hash: props.hash,
         userId: userStore.userId,
@@ -190,10 +191,11 @@ async function handleSubmit() {
         appData: appStore.appData,
         appStore,
       })
+    } else {
+      emit('data-written')
     }
     // Reset form
     Object.assign(fieldValues, initDefaults(fields))
-    emit('data-written')
   } catch (e: any) {
     const serverError = e?.response?.data?.error
     errorMsg.value = serverError || 'Не удалось сохранить. Попробуйте ещё раз.'

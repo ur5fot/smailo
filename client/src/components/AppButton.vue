@@ -41,6 +41,7 @@ async function handleClick() {
   errorMsg.value = ''
   try {
     if (props.actions?.length) {
+      // executeActions already calls fetchData internally
       await executeActions(props.actions, {
         hash: props.hash,
         userId: userStore.userId,
@@ -57,8 +58,8 @@ async function handleClick() {
         payload.mode = props.action.mode
       }
       await api.post(`/app/${props.hash}/data`, payload)
+      emit('data-written')
     }
-    emit('data-written')
   } catch {
     errorMsg.value = 'Не удалось сохранить. Попробуйте ещё раз.'
   } finally {

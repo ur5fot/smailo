@@ -726,7 +726,7 @@ function validateActions(raw: unknown): ActionStep[] | undefined {
         if (typeof step.url !== 'string' || step.url.length > 2048 || !step.url.startsWith('https://')) continue;
         if (typeof step.outputKey !== 'string' || !UI_KEY_REGEX.test(step.outputKey)) continue;
         const action: FetchUrlAction = { type: 'fetchUrl', url: step.url, outputKey: step.outputKey };
-        if (typeof step.dataPath === 'string' && step.dataPath.length > 0) {
+        if (typeof step.dataPath === 'string' && step.dataPath.length > 0 && step.dataPath.length <= 500) {
           action.dataPath = step.dataPath;
         }
         steps.push(action);

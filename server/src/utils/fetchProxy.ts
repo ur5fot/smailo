@@ -19,14 +19,18 @@ export function isPrivateHost(hostname: string): boolean {
     if (a === 100 && b >= 64 && b <= 127) return true;  // CGNAT RFC 6598
   }
   const bare = hostname.replace(/^\[|\]$/g, '');
-  if (
-    bare === '::1' ||
-    bare === '::' ||
-    bare.toLowerCase().startsWith('fc') ||
-    bare.toLowerCase().startsWith('fd') ||
-    bare.toLowerCase().startsWith('fe80') || // link-local
-    bare.toLowerCase().startsWith('ff')       // multicast
-  ) return true;
+  // Only apply IPv6 prefix checks to actual IPv6 addresses (contain ':')
+  // to avoid false positives on hostnames like fcsomething.com or fdrive.com
+  if (bare.includes(':')) {
+    if (
+      bare === '::1' ||
+      bare === '::' ||
+      bare.toLowerCase().startsWith('fc') ||
+      bare.toLowerCase().startsWith('fd') ||
+      bare.toLowerCase().startsWith('fe80') || // link-local
+      bare.toLowerCase().startsWith('ff')       // multicast
+    ) return true;
+  }
   // IPv4-mapped IPv6 (::ffff:a.b.c.d or ::ffff:aabb:ccdd)
   const ipv4MappedHex = bare.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
   if (ipv4MappedHex) {
