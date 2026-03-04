@@ -90,7 +90,14 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }  // bind to user-defined table; filter limits rows shown (display components only, not Form)
     // FilterCondition: { column: string; operator?: 'eq'|'ne'|'lt'|'lte'|'gt'|'gte'|'contains'; value: string|number|boolean }
     // Input component fields (top-level, NOT inside props):
-    action?: { key: string; value?: unknown }  // Button: fixed value; InputText: value from user input
+    actions?: ActionStep[]             // action chain for Button/InputText/Form (see ActionStep types below)
+    // ActionStep types (executed sequentially, max 5 per chain):
+    //   WriteDataAction:   { type: 'writeData'; key: string; value?: unknown; mode?: 'append' | 'increment' | 'delete-item'; index?: number }
+    //   NavigateToAction:  { type: 'navigateTo'; pageId: string }                    — multi-page apps only
+    //   ToggleVisAction:   { type: 'toggleVisibility'; key: string }                 — toggles boolean, pair with showIf
+    //   RunFormulaAction:  { type: 'runFormula'; formula: string; outputKey: string } — client-side formula eval
+    //   FetchUrlAction:    { type: 'fetchUrl'; url: string; outputKey: string; dataPath?: string } — HTTPS proxy fetch
+    // Legacy `action?: { key; value? }` field still read by client for old apps not yet re-saved
     fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only; `name` must match /^[a-zA-Z0-9_]{1,100}$/ and 'timestamp' is reserved (auto-injected)
     outputKey?: string             // Form only: appData key for the submitted object
     computedValue?: string         // server-evaluated formula: "= SUM(expenses.amount)" — alternative to dataKey for display components
@@ -257,6 +264,7 @@ Auth middleware (`server/src/middleware/auth.ts`) is shared between `app.ts` and
 - `POST /api/app/:hash/verify` and `set-password`: 5 req/min
 - All `/api/users` routes: 30 req/min
 - All `/api/app/:hash/tables` write routes: 30 req/min
+- `POST /api/app/:hash/actions/fetch-url`: 30 req/min (chatLimiter)
 
 ### Client state
 

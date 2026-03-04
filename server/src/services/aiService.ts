@@ -150,7 +150,7 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
       "component": "Card" | "DataTable" | "Chart" | "Timeline" | "Knob" | "Tag" | "ProgressBar" | "Calendar" | "Button" | "InputText" | "Form" | "Accordion" | "Panel" | "Chip" | "Badge" | "Slider" | "Rating" | "Tabs" | "Image" | "MeterGroup" | "CardList" | "ConditionalGroup",
       "props": { /* component-specific props — see component guide below */ },
       "dataKey": "key from appData to bind as value prop",
-      "action": { "key": "appDataKey", "value": "optional fixed value" },  // for Button
+      "actions": [ { "type": "writeData", "key": "key", "value": "optional" } ],  // action chain for Button/InputText (see ACTION CHAINS below)
       "fields": [ { "name": "field_name", "type": "text|number", "label": "Display label" } ],  // for Form
       "outputKey": "appDataKey"  // for Form
     }
@@ -184,18 +184,20 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
 - ProgressBar: use "value" prop (number 0-100). Use "dataKey" for numeric data.
 - Calendar: displays a date picker, no dataKey needed.
 - Timeline: use "dataKey" to bind array of { date, content } objects.
-- Button: use "label" prop and optional "severity" ("success", "danger", "warning", "info"). Use "action" with { key, value } to write a fixed value on click.
-  For COUNTERS, use action.mode "increment" — each click ADDS the value to the current number instead of overwriting.
-  Example fixed: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
-  Example counter: { "component": "Button", "props": { "label": "+1", "severity": "success" }, "action": { "key": "count", "value": 1, "mode": "increment" } }
-- InputText: use "label", "type" ("text", "number", or "date"), "placeholder" props. Use "action" with { key } — value comes from user input.
+- Button: use "label" prop and optional "severity" ("success", "danger", "warning", "info"). Use "actions" array (see ACTION CHAINS below).
+  Example fixed: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "actions": [{ "type": "writeData", "key": "mood", "value": 3 }] }
+  Example counter: { "component": "Button", "props": { "label": "+1", "severity": "success" }, "actions": [{ "type": "writeData", "key": "count", "value": 1, "mode": "increment" }] }
+  Example navigate: { "component": "Button", "props": { "label": "Далее" }, "actions": [{ "type": "navigateTo", "pageId": "step2" }] }
+  Example toggle: { "component": "Button", "props": { "label": "Детали" }, "actions": [{ "type": "toggleVisibility", "key": "showDetails" }] }
+  Example chain: { "component": "Button", "props": { "label": "Сохранить и продолжить" }, "actions": [{ "type": "writeData", "key": "step", "value": 2 }, { "type": "navigateTo", "pageId": "step2" }] }
+- InputText: use "label", "type" ("text", "number", or "date"), "placeholder" props. Use "actions" array — value comes from user input.
   IMPORTANT: InputText already has a built-in save button — do NOT add a separate Button to save its value.
   For date inputs use type "date" — renders a calendar date picker; saves as ISO string.
-  For ACCUMULATING values (lists), use action.mode "append" — each save ADDS to an array instead of overwriting.
+  For ACCUMULATING values (lists), use mode "append" in writeData — each save ADDS to an array instead of overwriting.
   When using InputText with mode "append", each item is stored as { value, timestamp }. Use CardList (preferred) or DataTable to display.
-  Example text: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
-  Example date: { "component": "InputText", "props": { "label": "Дата начала", "type": "date" }, "action": { "key": "start_date" } }
-  Example list: { "component": "InputText", "props": { "label": "Новая задача", "type": "text" }, "action": { "key": "tasks", "mode": "append" } }
+  Example text: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "actions": [{ "type": "writeData", "key": "weight" }] }
+  Example date: { "component": "InputText", "props": { "label": "Дата начала", "type": "date" }, "actions": [{ "type": "writeData", "key": "start_date" }] }
+  Example list: { "component": "InputText", "props": { "label": "Новая задача", "type": "text" }, "actions": [{ "type": "writeData", "key": "tasks", "mode": "append" }] }
   CardList for InputText append list: { "component": "CardList", "dataKey": "tasks" }
 - Form: use "fields" array with { name, type, label } objects and "outputKey" for the appData key. Use "props.submitLabel" to customize button text.
   Add "appendMode": true to ACCUMULATE submissions as an array (for lists, logs, task trackers).
@@ -267,8 +269,8 @@ CRITICAL fetch_url rules:
   Example: url "https://api.example.com/v1/{user_api_key}/rates" will replace {user_api_key} with the value stored under the "user_api_key" appData key.
   Use this when the user needs to enter their own API key via an InputText component.
 - TRIGGER ON BUTTON: add "triggerOnKey": "<key>" to run the job immediately when that appData key is written.
-  Pair with a Button whose action.key matches triggerOnKey so pressing the button fires the job instantly.
-  Example: Button action { "key": "refresh_trigger", "value": 1 } + job config { "triggerOnKey": "refresh_trigger" }
+  Pair with a Button whose writeData key matches triggerOnKey so pressing the button fires the job instantly.
+  Example: Button actions [{ "type": "writeData", "key": "refresh_trigger", "value": 1 }] + job config { "triggerOnKey": "refresh_trigger" }
   This works for fetch_url AND compute — use it to make "Вычислить" buttons that trigger date_diff or other computations.
 
 USER TABLES (structured relational data — use when flat KV is not enough):
@@ -339,7 +341,7 @@ showIf — hide/show a single component based on a formula:
 - "showIf": formula string — component is hidden when the result is falsy (false, null, 0, "")
 - Missing showIf = always visible
   Example (show only after submission): { "component": "Card", "props": { "title": "Результат" }, "dataKey": "result", "showIf": "submitted == 1" }
-  Example (hide once done): { "component": "Button", "props": { "label": "Начать" }, "action": { "key": "step", "value": 1 }, "showIf": "step != 1" }
+  Example (hide once done): { "component": "Button", "props": { "label": "Начать" }, "actions": [{ "type": "writeData", "key": "step", "value": 1 }], "showIf": "step != 1" }
 
 styleIf — apply CSS classes conditionally:
 - "styleIf": array of { "condition": formula, "class": className }
@@ -351,7 +353,7 @@ styleIf — apply CSS classes conditionally:
 ConditionalGroup — show/hide a group of components together:
 { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [
   { "component": "Card", "props": { "title": "Шаг 2: Детали" }, "dataKey": "step2_data" },
-  { "component": "Button", "props": { "label": "Далее" }, "action": { "key": "step", "value": 3 } }
+  { "component": "Button", "props": { "label": "Далее" }, "actions": [{ "type": "writeData", "key": "step", "value": 3 }] }
 ]}
 - condition: formula — group shows when truthy, hides when falsy
 - children: array of regular components (NO nested ConditionalGroup — max 1 level)
@@ -363,6 +365,33 @@ CONDITIONAL RENDERING USE CASES:
 - Status-based styling: styleIf to color a balance Card red when negative
 - Show result after action: showIf "submitted == 1" on a results Card
 - Progressive disclosure: showIf to reveal advanced options after initial setup
+
+ACTION CHAINS (actions on Button/InputText/Form):
+Button and InputText use "actions" — an ordered array of steps executed sequentially on click/save.
+Form can also have "actions" — they run AFTER a successful form submission.
+Max 5 steps per chain. Steps execute in order; if an auth error occurs, remaining steps are skipped.
+
+Action step types:
+1. writeData — write a value to appData: { "type": "writeData", "key": "mood", "value": 3 }
+   Optional "mode": "append" (add to array), "increment" (add to number), "delete-item" (remove from array by index).
+   For InputText, the user-typed value is used automatically when "value" is not specified.
+   For counters: { "type": "writeData", "key": "count", "value": 1, "mode": "increment" }
+2. navigateTo — navigate to another page (multi-page apps only): { "type": "navigateTo", "pageId": "settings" }
+   No-op on single-page apps.
+3. toggleVisibility — toggle a boolean key (pair with showIf): { "type": "toggleVisibility", "key": "showDetails" }
+   Reads current value, writes the negation. Use with showIf on the component to show/hide.
+4. runFormula — evaluate a formula client-side and store result: { "type": "runFormula", "formula": "SUM(expenses.amount)", "outputKey": "total" }
+   Uses same formula engine as computedValue. Max 500 chars.
+5. fetchUrl — fetch an HTTPS URL through the server proxy: { "type": "fetchUrl", "url": "https://api.example.com/rates", "outputKey": "rates", "dataPath": "USD" }
+   URL supports {key} templates from appData (e.g. "https://api.example.com/{apiKey}/data").
+   "dataPath" is dot-notation to extract nested value from response JSON.
+   SSRF-protected: only HTTPS URLs, no private IPs.
+
+Chain example (write + navigate):
+{ "component": "Button", "props": { "label": "Сохранить и продолжить" }, "actions": [
+  { "type": "writeData", "key": "step", "value": 2 },
+  { "type": "navigateTo", "pageId": "step2" }
+]}
 
 WHEN TO USE WHAT:
 - "formula" columns: per-row calculations within a table (totals, concatenations, conditionals per row)
@@ -529,10 +558,13 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Panel: { "component": "Panel", "props": { "header": "Заголовок", "toggleable": true }, "dataKey": "key" }
 - Tabs: { "component": "Tabs", "props": { "tabs": [{ "label": "Вкладка", "dataKey": "key" }] } }
 - Image: { "component": "Image", "props": { "width": "200", "alt": "Изображение" }, "dataKey": "image_url" }
-- Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "action": { "key": "mood", "value": 3 } }
-  For counters use mode "increment": { "component": "Button", "props": { "label": "+1" }, "action": { "key": "count", "value": 1, "mode": "increment" } }
-- InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "action": { "key": "weight" } }
-  Use action.mode "append" to accumulate items: { "action": { "key": "notes", "mode": "append" } }
+- Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "actions": [{ "type": "writeData", "key": "mood", "value": 3 }] }
+  For counters: { "component": "Button", "props": { "label": "+1" }, "actions": [{ "type": "writeData", "key": "count", "value": 1, "mode": "increment" }] }
+  Navigate: { "component": "Button", "props": { "label": "Далее" }, "actions": [{ "type": "navigateTo", "pageId": "step2" }] }
+  Toggle: { "component": "Button", "props": { "label": "Детали" }, "actions": [{ "type": "toggleVisibility", "key": "showDetails" }] }
+  Chain: { "component": "Button", "props": { "label": "Сохранить" }, "actions": [{ "type": "writeData", "key": "step", "value": 2 }, { "type": "navigateTo", "pageId": "step2" }] }
+- InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "actions": [{ "type": "writeData", "key": "weight" }] }
+  Use mode "append" to accumulate items: "actions": [{ "type": "writeData", "key": "notes", "mode": "append" }]
   When InputText uses mode "append", items are stored as { value, timestamp }. Use CardList to display.
 - Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry" }
   Add "appendMode": true to accumulate submissions as array. Use CardList to display — auto-renders all fields.
@@ -567,9 +599,22 @@ Any component can have:
 - ConditionalGroup: shows/hides a group of components together based on a condition
   { "component": "ConditionalGroup", "props": {}, "condition": "step == 2", "children": [
     { "component": "Card", "props": { "title": "Шаг 2" }, "dataKey": "step2" },
-    { "component": "Button", "props": { "label": "Готово" }, "action": { "key": "step", "value": 3 } }
+    { "component": "Button", "props": { "label": "Готово" }, "actions": [{ "type": "writeData", "key": "step", "value": 3 }] }
   ]}
   No nested ConditionalGroup (max 1 level). Children are regular components. Children CANNOT use "computedValue" — use "dataKey" instead.
+
+ACTION CHAINS (actions on Button/InputText/Form):
+Button and InputText use "actions" — an ordered array of steps executed sequentially on click/save.
+Form can also have "actions" — they run AFTER a successful form submission.
+Max 5 steps per chain. Steps execute in order; if an auth error occurs, remaining steps are skipped.
+
+Action step types:
+1. writeData: { "type": "writeData", "key": "mood", "value": 3 } — optional "mode": "append"/"increment"/"delete-item"
+2. navigateTo: { "type": "navigateTo", "pageId": "settings" } — multi-page apps only
+3. toggleVisibility: { "type": "toggleVisibility", "key": "showDetails" } — toggles boolean, pair with showIf
+4. runFormula: { "type": "runFormula", "formula": "SUM(expenses.amount)", "outputKey": "total" }
+5. fetchUrl: { "type": "fetchUrl", "url": "https://api.example.com/rates", "outputKey": "rates", "dataPath": "USD" }
+   URL supports {key} templates from appData. SSRF-protected: only HTTPS, no private IPs.
 
 DATE/TIME DISPLAY: ISO timestamp strings are automatically formatted by the UI into human-readable dates (e.g. "21 февраля 2026, 17:09"). Always use ISO strings for dates — never format them manually.
 

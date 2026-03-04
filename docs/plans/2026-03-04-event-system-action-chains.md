@@ -197,7 +197,7 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
 
 ### Task 5: AI system prompts + CLAUDE.md
 
-- [ ] update `BRAINSTORM_SYSTEM_PROMPT` in `server/src/services/aiService.ts`:
+- [x] update `BRAINSTORM_SYSTEM_PROMPT` in `server/src/services/aiService.ts`:
   - replace old `action` docs with `actions: ActionStep[]` documentation
   - include examples for all 5 types with chain example:
     ```json
@@ -230,15 +230,15 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
       ] }
     ```
   - document: max 5 steps; `navigateTo` only works in multi-page apps; `dataPath` is dot-notation
-- [ ] update `IN_APP_SYSTEM_PROMPT` with same `actions` documentation
-- [ ] update `CLAUDE.md`:
+- [x] update `IN_APP_SYSTEM_PROMPT` with same `actions` documentation
+- [x] update `CLAUDE.md`:
   - in App config JSON shape: replace `action?: { key; value? }` with `actions?: ActionStep[]` + document all 5 step types inline; note `action` field still read for legacy apps
   - in Rate limits section: add `POST /api/app/:hash/actions/fetch-url: 30 req/min (chatLimiter)`
-- [ ] update tests in `server/src/__tests__/buildSystemPrompt.test.ts`:
+- [x] update tests in `server/src/__tests__/buildSystemPrompt.test.ts`:
   - assert both prompts contain `"actions"` and all 5 type names: `writeData`, `navigateTo`, `toggleVisibility`, `runFormula`, `fetchUrl`
   - assert prompts mention `mode` for writeData
   - assert prompts mention `{key}` template syntax for fetchUrl
-- [ ] run server tests: `npm test --workspace=server`
+- [x] run server tests: `npm test --workspace=server`
 
 ### Task 6: Verify acceptance criteria
 
