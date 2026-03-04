@@ -414,21 +414,22 @@ appRouter.post('/:hash/actions/fetch-url', chatLimiter, requireAuthIfProtected, 
     const row = (req as AuthenticatedRequest).app_row!;
     const { url, outputKey, dataPath } = req.body as { url: unknown; outputKey: unknown; dataPath?: unknown };
 
-    if (!url || typeof url !== 'string' || !url.startsWith('https://')) {
-      return res.status(400).json({ error: 'url must be an HTTPS URL' });
+    if (!url || typeof url !== 'string' || url.length > 2048 || !url.startsWith('https://')) {
+      return res.status(400).json({ error: 'url must be an HTTPS URL (max 2048 chars)' });
     }
     if (!outputKey || typeof outputKey !== 'string' || !KEY_REGEX.test(outputKey)) {
       return res.status(400).json({ error: 'outputKey must be alphanumeric/underscore, max 100 chars' });
     }
-    if (dataPath !== undefined && (typeof dataPath !== 'string' || dataPath === '')) {
-      return res.status(400).json({ error: 'dataPath must be a non-empty string if provided' });
+    if (dataPath !== undefined && (typeof dataPath !== 'string' || dataPath === '' || dataPath.length > 500)) {
+      return res.status(400).json({ error: 'dataPath must be a non-empty string if provided (max 500 chars)' });
     }
 
     let result: { body: string };
     try {
       result = await fetchSafe(url);
     } catch (err) {
-      return res.status(502).json({ error: (err as Error).message });
+      console.warn('[POST /api/app/:hash/actions/fetch-url] fetchSafe error:', (err as Error).message);
+      return res.status(502).json({ error: 'Failed to fetch URL' });
     }
 
     const value = extractDataPath(result.body, typeof dataPath === 'string' ? dataPath : undefined);
@@ -443,6 +444,16 @@ appRouter.post('/:hash/actions/fetch-url', chatLimiter, requireAuthIfProtected, 
       key: outputKey,
       value,
     } satisfies AppDataInsert);
+
+    // Store fetch timestamp (consistent with cron fetch_url behavior)
+    const updatedAtKey = `${outputKey.slice(0, 89)}_updated_at`;
+    if (KEY_REGEX.test(updatedAtKey)) {
+      await db.insert(appData).values({
+        appId: row.id,
+        key: updatedAtKey,
+        value: new Date().toISOString(),
+      } satisfies AppDataInsert);
+    }
 
     return res.json({ ok: true, value });
   } catch (error) {

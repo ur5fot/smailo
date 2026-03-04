@@ -5,7 +5,7 @@ import { db } from '../db/index.js';
 import { cronJobs, appData } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
 import type { CronJobConfig } from './aiService.js';
-import { isPrivateHost, fetchSafe, extractDataPath } from '../utils/fetchProxy.js';
+import { fetchSafe, extractDataPath } from '../utils/fetchProxy.js';
 
 type CronJobsInsert = typeof cronJobs.$inferInsert;
 type AppDataInsert = typeof appData.$inferInsert;

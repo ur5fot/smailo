@@ -47,7 +47,7 @@ export interface ActionContext {
   hash: string
   userId: string | null | undefined
   currentPageId: string | undefined
-  appData: Array<{ key: string; value: unknown }>
+  appData: Record<string, any>[]
   appStore: ReturnType<typeof useAppStore>
   inputValue?: unknown
 }
@@ -111,6 +111,10 @@ function execNavigateTo(action: NavigateToAction, ctx: ActionContext): void {
     console.warn('navigateTo: app has no pages')
     return
   }
+  if (!pages.some(p => p.id === action.pageId)) {
+    console.warn(`navigateTo: page "${action.pageId}" does not exist`)
+    return
+  }
   if (ctx.userId) {
     router.push(`/${ctx.userId}/${ctx.hash}/${action.pageId}`)
   } else {
@@ -142,7 +146,7 @@ async function execRunFormula(action: RunFormulaAction, ctx: ActionContext): Pro
 async function execFetchUrl(action: FetchUrlAction, ctx: ActionContext): Promise<void> {
   const substitutedUrl = action.url.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
     const val = ctx.appData.find(d => d.key === key)?.value
-    return val != null ? String(val) : ''
+    return val != null ? encodeURIComponent(String(val)) : ''
   })
   await api.post(`/app/${ctx.hash}/actions/fetch-url`, {
     url: substitutedUrl,

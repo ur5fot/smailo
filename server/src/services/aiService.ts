@@ -702,7 +702,7 @@ function validateActions(raw: unknown): ActionStep[] | undefined {
         break;
       }
       case 'navigateTo': {
-        if (typeof step.pageId !== 'string' || step.pageId.length === 0) continue;
+        if (typeof step.pageId !== 'string' || !/^[a-zA-Z0-9_-]{1,50}$/.test(step.pageId)) continue;
         steps.push({ type: 'navigateTo', pageId: step.pageId });
         break;
       }
@@ -723,7 +723,7 @@ function validateActions(raw: unknown): ActionStep[] | undefined {
         break;
       }
       case 'fetchUrl': {
-        if (typeof step.url !== 'string' || !step.url.startsWith('https://')) continue;
+        if (typeof step.url !== 'string' || step.url.length > 2048 || !step.url.startsWith('https://')) continue;
         if (typeof step.outputKey !== 'string' || !UI_KEY_REGEX.test(step.outputKey)) continue;
         const action: FetchUrlAction = { type: 'fetchUrl', url: step.url, outputKey: step.outputKey };
         if (typeof step.dataPath === 'string' && step.dataPath.length > 0) {

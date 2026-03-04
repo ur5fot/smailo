@@ -167,7 +167,7 @@ Input wrapper components call `POST /api/app/:hash/data` on user interaction and
 
 `CronManager` singleton. Five action types:
 - `log_entry` — inserts a timestamped entry into `appData`
-- `fetch_url` — fetches external HTTPS URL, extracts via `dataPath` (dot notation from `$.`), stores result; has SSRF protection (private IP check + DNS rebinding check + redirect blocking + 1 MB limit + 10-second timeout). If the response body is not valid JSON, raw text is stored and `dataPath` extraction is skipped.
+- `fetch_url` — fetches external HTTPS URL, extracts via `dataPath` (dot notation from `$.`), stores result; SSRF protection via shared `server/src/utils/fetchProxy.ts` (private IP check + DNS rebinding check + redirect blocking + 1 MB limit + 10-second timeout). If the response body is not valid JSON, raw text is stored and `dataPath` extraction is skipped.
 - `send_reminder` — stores `{ text: string, sentAt: ISO8601 }` under `outputKey` (not a raw string)
 - `aggregate_data` — computes avg/sum/count/max/min over a time window; result stored as a plain `number` under `outputKey`
 - `compute` — performs calculated operations (currently supports `date_diff`: computes difference between two dates from `inputKeys`, stores `{ totalDays, years, months, days }` under `outputKey`)
@@ -235,6 +235,22 @@ Input components write to `appData` directly without AI involvement:
 ### App data read (`GET /api/app/:hash/data`)
 
 Returns `{ appData: [...], computedValues?: Record<number, unknown> }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. If the app config has components with `computedValue`, the server evaluates formulas against table data and includes results keyed by component index. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`. Shared query logic lives in `server/src/db/queries.ts`.
+
+### Action chains (`client/src/utils/actionExecutor.ts`)
+
+Button, InputText, and Form support `actions: ActionStep[]` — an ordered list of up to 5 steps executed sequentially on user interaction. Five action types: `writeData`, `navigateTo`, `toggleVisibility`, `runFormula`, `fetchUrl`.
+
+Client-side executor: `executeActions(actions, ctx)` iterates steps sequentially. Auth errors (401/403) abort remaining steps; other errors log and continue. After all steps, `appStore.fetchData()` is always called to refresh UI.
+
+Server-side validation: `validateActions()` in `aiService.ts` validates each step per-type, drops invalid steps silently, enforces max 5 steps per chain. Migration: legacy `action: { key, value }` is converted to `actions: [{ type: 'writeData', key, value }]` at save time; `action` field is removed after migration. Client components still support the legacy `action` prop for configs not yet re-saved.
+
+### Action fetch-url endpoint (`POST /api/app/:hash/actions/fetch-url`)
+
+Server-side proxy for the `fetchUrl` action step. Request body: `{ url: string, outputKey: string, dataPath?: string }`. Validates: `url` must start with `https://` (max 2048 chars), `outputKey` must match `/^[a-zA-Z0-9_]{1,100}$/`, `dataPath` if present must be non-empty string (max 500 chars). Calls `fetchSafe(url)` then `extractDataPath(body, dataPath)`, writes result to `appData` along with `{outputKey}_updated_at` timestamp, returns `{ ok: true, value }`. Protected by `requireAuthIfProtected`. Rate-limited at 30 req/min (chatLimiter). Returns 502 on upstream fetch failure, 413 if fetched value exceeds 10 KB.
+
+### SSRF-safe fetch utility (`server/src/utils/fetchProxy.ts`)
+
+Shared fetch utility used by both cron `fetch_url` and the action `fetchUrl` endpoint. Exports: `isPrivateHost(hostname)` — checks IPv4/IPv6 private ranges; `fetchSafe(url)` — HTTPS-only fetch with SSRF protection (private IP block, DNS rebinding check, redirect blocking, 1 MB body limit, 10s timeout); `extractDataPath(body, dataPath?)` — dot-notation JSON extraction with prototype-pollution protection.
 
 ### User-defined tables (`server/src/routes/tables.ts`)
 

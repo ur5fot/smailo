@@ -77,6 +77,7 @@ const props = defineProps<{
   hash: string
   dataSource?: { type: 'table'; tableId: number }
   actions?: ActionStep[]
+  currentPageId?: string
 }>()
 
 const emit = defineEmits<{
@@ -185,7 +186,7 @@ async function handleSubmit() {
       await executeActions(props.actions, {
         hash: props.hash,
         userId: userStore.userId,
-        currentPageId: undefined,
+        currentPageId: props.currentPageId,
         appData: appStore.appData,
         appStore,
       })

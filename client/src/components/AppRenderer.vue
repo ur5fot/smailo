@@ -51,6 +51,7 @@
         :hash="props.hash"
         :data-source="item.dataSource"
         :actions="item.actions"
+        :current-page-id="currentPageId"
         @data-written="emit('data-written')"
       />
 
