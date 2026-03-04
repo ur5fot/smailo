@@ -37,6 +37,13 @@ export type DataSource = {
   filter?: FilterCondition | FilterCondition[];
 };
 
+export type WriteDataAction = { type: 'writeData'; key: string; value?: unknown; mode?: 'append' | 'increment' | 'delete-item'; index?: number };
+export type NavigateToAction = { type: 'navigateTo'; pageId: string };
+export type ToggleVisAction = { type: 'toggleVisibility'; key: string };
+export type RunFormulaAction = { type: 'runFormula'; formula: string; outputKey: string };
+export type FetchUrlAction = { type: 'fetchUrl'; url: string; outputKey: string; dataPath?: string };
+export type ActionStep = WriteDataAction | NavigateToAction | ToggleVisAction | RunFormulaAction | FetchUrlAction;
+
 export type StyleIfCondition = {
   condition: string;
   class: string;
@@ -48,7 +55,8 @@ export type UiComponent = {
   dataKey?: string;
   dataSource?: DataSource;
   computedValue?: string;
-  action?: { key: string; value?: unknown; mode?: 'append' };
+  action?: { key: string; value?: unknown; mode?: 'append' | 'increment' | 'delete-item'; index?: number };
+  actions?: ActionStep[];
   fields?: Array<{ name: string; type: string; label: string }>;
   outputKey?: string;
   appendMode?: boolean;
@@ -625,6 +633,69 @@ const ALLOWED_UI_COMPONENTS = [
   'ConditionalGroup',
 ];
 
+const VALID_WRITE_MODES = new Set(['append', 'increment', 'delete-item']);
+
+function validateActions(raw: unknown): ActionStep[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+
+  const steps: ActionStep[] = [];
+  for (const step of raw.slice(0, 5)) {
+    if (!step || typeof step !== 'object' || typeof step.type !== 'string') continue;
+
+    switch (step.type) {
+      case 'writeData': {
+        if (typeof step.key !== 'string' || !UI_KEY_REGEX.test(step.key)) continue;
+        const action: WriteDataAction = { type: 'writeData', key: step.key };
+        if (step.value !== undefined) action.value = step.value;
+        if (typeof step.mode === 'string' && VALID_WRITE_MODES.has(step.mode)) {
+          action.mode = step.mode as WriteDataAction['mode'];
+        }
+        if (typeof step.index === 'number' && Number.isInteger(step.index) && step.index >= 0) {
+          action.index = step.index;
+        }
+        steps.push(action);
+        break;
+      }
+      case 'navigateTo': {
+        if (typeof step.pageId !== 'string' || step.pageId.length === 0) continue;
+        steps.push({ type: 'navigateTo', pageId: step.pageId });
+        break;
+      }
+      case 'toggleVisibility': {
+        if (typeof step.key !== 'string' || !UI_KEY_REGEX.test(step.key)) continue;
+        steps.push({ type: 'toggleVisibility', key: step.key });
+        break;
+      }
+      case 'runFormula': {
+        if (typeof step.formula !== 'string' || step.formula.length === 0 || step.formula.length > 500) continue;
+        if (typeof step.outputKey !== 'string' || !UI_KEY_REGEX.test(step.outputKey)) continue;
+        try {
+          parseFormula(step.formula);
+        } catch {
+          continue;
+        }
+        steps.push({ type: 'runFormula', formula: step.formula, outputKey: step.outputKey });
+        break;
+      }
+      case 'fetchUrl': {
+        if (typeof step.url !== 'string' || !step.url.startsWith('https://')) continue;
+        if (typeof step.outputKey !== 'string' || !UI_KEY_REGEX.test(step.outputKey)) continue;
+        const action: FetchUrlAction = { type: 'fetchUrl', url: step.url, outputKey: step.outputKey };
+        if (typeof step.dataPath === 'string' && step.dataPath.length > 0) {
+          action.dataPath = step.dataPath;
+        }
+        steps.push(action);
+        break;
+      }
+      default:
+        // Unknown type — drop silently
+        continue;
+    }
+  }
+
+  return steps.length > 0 ? steps : undefined;
+}
+
 /**
  * Filter an array of AI-generated UI component configs against the allowed whitelist.
  * Shared by the home-chat and in-app-chat routes to avoid duplicating validation logic.
@@ -638,9 +709,12 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
       if (item.props != null && (typeof item.props !== 'object' || Array.isArray(item.props))) return false;
 
       const action = item.action as RawItem | null | undefined;
-      // Button and InputText require action with a valid key
+      const hasValidActions = Array.isArray(item.actions) && (item.actions as unknown[]).length > 0;
+      // Button and InputText require action OR actions
       if (['Button', 'InputText'].includes(item.component)) {
-        if (typeof action?.key !== 'string' || !UI_KEY_REGEX.test(action.key)) return false;
+        if (!hasValidActions) {
+          if (typeof action?.key !== 'string' || !UI_KEY_REGEX.test(action.key)) return false;
+        }
       } else if (action != null && (typeof action.key !== 'string' || !UI_KEY_REGEX.test(action.key))) {
         return false;
       }
@@ -718,6 +792,27 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
           item.styleIf = undefined;
         }
         return item;
+      }
+
+      // Validate and migrate actions: if `actions` present, validate; else migrate `action` → `actions`
+      if (Array.isArray(item.actions) && (item.actions as unknown[]).length > 0) {
+        item.actions = validateActions(item.actions);
+        delete item.action;
+      } else if (item.action && typeof (item.action as RawItem).key === 'string') {
+        const a = item.action as RawItem;
+        const migrated: Record<string, unknown> = { type: 'writeData', key: a.key };
+        if (a.value !== undefined) migrated.value = a.value;
+        if (a.mode !== undefined) migrated.mode = a.mode;
+        if (a.index !== undefined) migrated.index = a.index;
+        item.actions = validateActions([migrated]);
+        delete item.action;
+      } else {
+        delete item.action;
+        item.actions = undefined;
+      }
+      // Button/InputText require valid actions after validation
+      if (['Button', 'InputText'].includes(item.component as string) && !item.actions) {
+        return null;
       }
 
       // Validate dataSource: if present but invalid, drop it (set to undefined)

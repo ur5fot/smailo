@@ -889,4 +889,269 @@ describe('validateUiComponents', () => {
       expect(result[0].children![0].computedValue).toBeUndefined()
     })
   })
+
+  describe('actions (action chains) validation', () => {
+    it('valid chain with all 5 action types', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Go' },
+          actions: [
+            { type: 'writeData', key: 'step', value: 2 },
+            { type: 'navigateTo', pageId: 'page2' },
+            { type: 'toggleVisibility', key: 'showPanel' },
+            { type: 'runFormula', formula: 'x + 1', outputKey: 'result' },
+            { type: 'fetchUrl', url: 'https://api.example.com/data', outputKey: 'apiData' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(5)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'step', value: 2 })
+      expect(result[0].actions![1]).toEqual({ type: 'navigateTo', pageId: 'page2' })
+      expect(result[0].actions![2]).toEqual({ type: 'toggleVisibility', key: 'showPanel' })
+      expect(result[0].actions![3]).toEqual({ type: 'runFormula', formula: 'x + 1', outputKey: 'result' })
+      expect(result[0].actions![4]).toEqual({ type: 'fetchUrl', url: 'https://api.example.com/data', outputKey: 'apiData' })
+      expect(result[0].action).toBeUndefined()
+    })
+
+    it('max 5 steps: chain of 6 drops the 6th', () => {
+      const actions = Array.from({ length: 6 }, (_, i) => ({
+        type: 'writeData',
+        key: `key${i}`,
+        value: i,
+      }))
+      const result = validateUiComponents([
+        { component: 'Button', props: { label: 'Test' }, actions },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(5)
+      expect(result[0].actions![4]).toEqual({ type: 'writeData', key: 'key4', value: 4 })
+    })
+
+    it('invalid step type is dropped silently', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [
+            { type: 'writeData', key: 'ok', value: 1 },
+            { type: 'unknownType', key: 'bad' },
+            { type: 'writeData', key: 'ok2', value: 2 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(2)
+      expect(result[0].actions![0].type).toBe('writeData')
+      expect(result[0].actions![1].type).toBe('writeData')
+    })
+
+    it('writeData with bad key is dropped', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [
+            { type: 'writeData', key: 'valid_key', value: 1 },
+            { type: 'writeData', key: 'has spaces', value: 2 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0].key).toBe('valid_key')
+    })
+
+    it('writeData with delete-item mode and index is valid', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Delete' },
+          actions: [
+            { type: 'writeData', key: 'items', mode: 'delete-item', index: 3 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'items', mode: 'delete-item', index: 3 })
+    })
+
+    it('runFormula with invalid formula is dropped', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [
+            { type: 'runFormula', formula: '>>> invalid <<<', outputKey: 'result' },
+            { type: 'writeData', key: 'fallback', value: 1 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0].type).toBe('writeData')
+    })
+
+    it('fetchUrl with http:// url is dropped', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Fetch' },
+          actions: [
+            { type: 'fetchUrl', url: 'http://example.com', outputKey: 'data' },
+            { type: 'writeData', key: 'ok', value: 1 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0].type).toBe('writeData')
+    })
+
+    it('fetchUrl with missing outputKey is dropped', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Fetch' },
+          actions: [
+            { type: 'fetchUrl', url: 'https://example.com' },
+            { type: 'writeData', key: 'ok', value: 1 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0].type).toBe('writeData')
+    })
+
+    it('old action field is migrated to actions[0] writeData; action removed', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Click' },
+          action: { key: 'mood', value: 3 },
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toEqual([{ type: 'writeData', key: 'mood', value: 3 }])
+      expect(result[0].action).toBeUndefined()
+    })
+
+    it('old action with mode is migrated correctly', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: '+1' },
+          action: { key: 'count', value: 1, mode: 'increment' },
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toEqual([{ type: 'writeData', key: 'count', value: 1, mode: 'increment' }])
+      expect(result[0].action).toBeUndefined()
+    })
+
+    it('both action + actions present: action discarded, actions kept', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          action: { key: 'old', value: 1 },
+          actions: [
+            { type: 'writeData', key: 'new', value: 2 },
+            { type: 'navigateTo', pageId: 'p1' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(2)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'new', value: 2 })
+      expect(result[0].action).toBeUndefined()
+    })
+
+    it('Button with actions and no action is valid', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Navigate' },
+          actions: [{ type: 'navigateTo', pageId: 'settings' }],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].component).toBe('Button')
+      expect(result[0].actions).toEqual([{ type: 'navigateTo', pageId: 'settings' }])
+    })
+
+    it('empty array after filtering invalid steps: actions absent', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Bad' },
+          actions: [
+            { type: 'unknownAction' },
+            { type: 'writeData', key: 'has spaces' },
+          ],
+        },
+      ])
+      // Button without valid action or actions is rejected
+      expect(result).toHaveLength(0)
+    })
+
+    it('InputText with actions uses inputValue flow', () => {
+      const result = validateUiComponents([
+        {
+          component: 'InputText',
+          props: { label: 'Name' },
+          actions: [{ type: 'writeData', key: 'name' }],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].component).toBe('InputText')
+      expect(result[0].actions).toEqual([{ type: 'writeData', key: 'name' }])
+    })
+
+    it('fetchUrl with dataPath is preserved', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Fetch' },
+          actions: [
+            { type: 'fetchUrl', url: 'https://api.example.com/rates', outputKey: 'rate', dataPath: 'USD' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions![0]).toEqual({
+        type: 'fetchUrl',
+        url: 'https://api.example.com/rates',
+        outputKey: 'rate',
+        dataPath: 'USD',
+      })
+    })
+
+    it('writeData with invalid mode is stored without mode', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [{ type: 'writeData', key: 'x', value: 1, mode: 'invalid_mode' }],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'x', value: 1 })
+    })
+
+    it('writeData with negative index ignores index', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [{ type: 'writeData', key: 'items', mode: 'delete-item', index: -1 }],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'items', mode: 'delete-item' })
+    })
+  })
 })

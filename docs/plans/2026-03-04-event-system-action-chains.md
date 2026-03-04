@@ -64,7 +64,7 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
 
 ### Task 1: Define ActionStep types + server validation + migration
 
-- [ ] add types to `server/src/services/aiService.ts` after existing `DataSource` types:
+- [x] add types to `server/src/services/aiService.ts` after existing `DataSource` types:
   ```ts
   export type FilterOperator = ...  // (already exists from Stage 5.5)
   export type WriteDataAction   = { type: 'writeData'; key: string; value?: unknown; mode?: 'append' | 'increment' | 'delete-item'; index?: number };
@@ -77,8 +77,8 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
   Notes:
   - `delete-item` mode requires `index?: number` field (consistent with existing `/data` endpoint)
   - `dataPath` is dot-notation without `$` prefix: `"data.price"`, `"rates.USD"`
-- [ ] add `actions?: ActionStep[]` to `UiComponent` type; keep `action?` field for backward compat reading
-- [ ] add `validateActions(raw: unknown): ActionStep[] | undefined` in `aiService.ts` (inline helper, not exported):
+- [x] add `actions?: ActionStep[]` to `UiComponent` type; keep `action?` field for backward compat reading
+- [x] add `validateActions(raw: unknown): ActionStep[] | undefined` in `aiService.ts` (inline helper, not exported):
   - must be non-empty array; max 5 steps; unknown `type` → step dropped silently
   - `writeData`: `key` matches `/^[a-zA-Z0-9_]{1,100}$/`; `mode` if present must be `'append'|'increment'|'delete-item'`; `index` if present must be non-negative integer
   - `navigateTo`: `pageId` is non-empty string
@@ -86,11 +86,11 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
   - `runFormula`: `formula` is string ≤500 chars validated via `parseFormula()`; `outputKey` matches key regex
   - `fetchUrl`: `url` starts with `https://`; `outputKey` non-empty string matching key regex; `dataPath` if present is non-empty string
   - if all steps invalid → return `undefined` (empty array treated same as missing)
-- [ ] update `validateUiComponents()` migration logic:
+- [x] update `validateUiComponents()` migration logic:
   - if component has `action: { key }` but no `actions` → convert: `actions = [{ type: 'writeData', key: action.key, value: action.value, mode: action.mode, ...(action.index !== undefined ? { index: action.index } : {}) }]`; delete `action`
   - if component has both `action` and `actions` → keep `actions`, discard `action`
   - Button/InputText: valid when `actions` present (even without `action`); update validator to accept `actions` as alternative to `action` for these components
-- [ ] write tests in `server/src/__tests__/validateUiComponents.test.ts`:
+- [x] write tests in `server/src/__tests__/validateUiComponents.test.ts`:
   - valid chain: multiple steps, all 5 types
   - max 5 steps: chain of 6 → 5 stored, 6th dropped
   - invalid step type → step dropped
@@ -103,7 +103,7 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
   - both `action` + `actions` → `action` discarded, `actions` kept
   - Button with `actions` and no `action` → valid component
   - empty array after filtering invalid steps → `actions` absent from component
-- [ ] run server tests: `npm test --workspace=server`
+- [x] run server tests: `npm test --workspace=server`
 
 ### Task 2: Server proxy endpoint for fetchUrl action
 
