@@ -418,6 +418,46 @@ describe('executeActions', () => {
       expect(calls[1][1]).toEqual({ key: 'show', value: false })
     })
 
+    it('increment mode updates local snapshot for subsequent runFormula', async () => {
+      const actions: ActionStep[] = [
+        { type: 'writeData', key: 'counter', value: 1, mode: 'increment' },
+        { type: 'runFormula', formula: 'counter * 10', outputKey: 'display' },
+      ]
+      const ctx = makeCtx({ appData: [{ key: 'counter', value: 5 }] })
+      await executeActions(actions, ctx)
+
+      const calls = mockPost.mock.calls
+      // Step 1: increment counter by 1
+      expect(calls[0][1]).toEqual({ key: 'counter', value: 1, mode: 'increment' })
+      // Step 2: formula reads local counter=6 (5+1), not stale 5
+      expect(calls[1][1]).toEqual({ key: 'display', value: 60 })
+    })
+
+    it('append mode updates local snapshot for subsequent steps', async () => {
+      const actions: ActionStep[] = [
+        { type: 'writeData', key: 'items', value: 'hello', mode: 'append' },
+        { type: 'toggleVisibility', key: 'items' },
+      ]
+      const ctx = makeCtx({ appData: [{ key: 'items', value: [] }] })
+      await executeActions(actions, ctx)
+
+      // After append, local items is now a non-empty array (truthy)
+      // toggleVisibility reads truthy → toggles to false
+      const calls = mockPost.mock.calls
+      expect(calls[1][1]).toEqual({ key: 'items', value: false })
+    })
+
+    it('delete-item mode updates local snapshot', async () => {
+      const actions: ActionStep[] = [
+        { type: 'writeData', key: 'list', mode: 'delete-item', index: 1 },
+      ]
+      const ctx = makeCtx({ appData: [{ key: 'list', value: ['a', 'b', 'c'] }] })
+      await executeActions(actions, ctx)
+
+      // After delete-item at index 1, local list = ['a', 'c']
+      expect(ctx.appData.find(d => d.key === 'list')?.value).toEqual(['a', 'c'])
+    })
+
     it('fetchUrl skips when template references key with empty string value', async () => {
       const actions: ActionStep[] = [
         {
@@ -439,7 +479,7 @@ describe('executeActions', () => {
   // --- error handling ---
 
   describe('error handling', () => {
-    it('401 error on step 2 aborts remaining steps; fetchData still called', async () => {
+    it('401 error on step 2 aborts remaining steps and re-throws', async () => {
       mockPost
         .mockResolvedValueOnce({ data: { ok: true } }) // step 1 succeeds
         .mockRejectedValueOnce({ response: { status: 401 } }) // step 2 fails auth
@@ -451,15 +491,15 @@ describe('executeActions', () => {
         { type: 'writeData', key: 'c', value: 3 },
       ]
       const ctx = makeCtx()
-      await executeActions(actions, ctx)
+      await expect(executeActions(actions, ctx)).rejects.toEqual({ response: { status: 401 } })
 
       // Only steps 1 and 2 attempted, step 3 skipped
       expect(mockPost).toHaveBeenCalledTimes(2)
-      // fetchData still called
-      expect(ctx.appStore.fetchData).toHaveBeenCalledWith('abc123')
+      // fetchData NOT called — auth is broken
+      expect(ctx.appStore.fetchData).not.toHaveBeenCalled()
     })
 
-    it('403 error also aborts chain', async () => {
+    it('403 error also aborts chain and re-throws', async () => {
       mockPost.mockReset()
       mockPost
         .mockRejectedValueOnce({ response: { status: 403 } })
@@ -470,10 +510,10 @@ describe('executeActions', () => {
         { type: 'writeData', key: 'b', value: 2 },
       ]
       const ctx = makeCtx()
-      await executeActions(actions, ctx)
+      await expect(executeActions(actions, ctx)).rejects.toEqual({ response: { status: 403 } })
 
       expect(mockPost).toHaveBeenCalledTimes(1)
-      expect(ctx.appStore.fetchData).toHaveBeenCalled()
+      expect(ctx.appStore.fetchData).not.toHaveBeenCalled()
     })
 
     it('non-auth error on step 2 continues chain', async () => {

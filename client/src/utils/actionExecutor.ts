@@ -78,7 +78,7 @@ export async function executeActions(
     } catch (err: any) {
       if (err?.response?.status === 401 || err?.response?.status === 403) {
         console.error(`Action chain aborted: auth error on ${action.type}`, err)
-        break
+        throw err
       }
       console.error(`Action ${action.type} failed, continuing chain`, err)
     }
@@ -114,9 +114,25 @@ async function execWriteData(action: WriteDataAction, ctx: ActionContext): Promi
     payload.index = action.index
   }
   await api.post(`/app/${ctx.hash}/data`, payload)
-  // For simple writes (no mode), update local snapshot for subsequent steps
+  // Update local snapshot so subsequent steps in the same chain see fresh values
   if (!action.mode) {
     updateLocalAppData(ctx, action.key, value)
+  } else if (action.mode === 'increment') {
+    const current = ctx.appData.find(d => d.key === action.key)?.value
+    const numericCurrent = typeof current === 'number' ? current : 0
+    updateLocalAppData(ctx, action.key, numericCurrent + (value as number))
+  } else if (action.mode === 'append') {
+    const current = ctx.appData.find(d => d.key === action.key)?.value
+    const arr = Array.isArray(current) ? current : []
+    // Server wraps primitives as {value, timestamp} — mirror that locally
+    const item = (typeof value === 'string' || typeof value === 'number')
+      ? { value, timestamp: new Date().toISOString() }
+      : value
+    updateLocalAppData(ctx, action.key, [...arr, item])
+  } else if (action.mode === 'delete-item' && action.index !== undefined) {
+    const current = ctx.appData.find(d => d.key === action.key)?.value
+    const arr = Array.isArray(current) ? current : []
+    updateLocalAppData(ctx, action.key, arr.filter((_: unknown, i: number) => i !== action.index))
   }
 }
 
