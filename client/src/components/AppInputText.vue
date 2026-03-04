@@ -38,18 +38,26 @@ import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import DatePicker from 'primevue/datepicker'
 import api from '../api'
+import { useAppStore } from '../stores/app'
+import { useUserStore } from '../stores/user'
+import { executeActions, type ActionStep } from '../utils/actionExecutor'
 
 const props = defineProps<{
   label?: string
   type?: 'text' | 'number' | 'date'
   placeholder?: string
-  action: { key: string; mode?: 'append' }
+  action?: { key: string; mode?: 'append' }
+  actions?: ActionStep[]
   hash: string
+  currentPageId?: string
 }>()
 
 const emit = defineEmits<{
   'data-written': []
 }>()
+
+const appStore = useAppStore()
+const userStore = useUserStore()
 
 const numericValue = ref<number | null>(null)
 const textValue = ref('')
@@ -57,15 +65,20 @@ const dateValue = ref<Date | null>(null)
 const loading = ref(false)
 const errorMsg = ref('')
 
+function getInputValue(): unknown {
+  if (props.type === 'number') return numericValue.value
+  if (props.type === 'date') return dateValue.value ? (dateValue.value as Date).toISOString() : null
+  return textValue.value
+}
+
+function clearInputs() {
+  numericValue.value = null
+  textValue.value = ''
+  dateValue.value = null
+}
+
 async function handleSave() {
-  let value: unknown
-  if (props.type === 'number') {
-    value = numericValue.value
-  } else if (props.type === 'date') {
-    value = dateValue.value ? (dateValue.value as Date).toISOString() : null
-  } else {
-    value = textValue.value
-  }
+  const value = getInputValue()
   if (value === null || (typeof value === 'string' && value.trim() === '')) {
     errorMsg.value = 'Введите значение.'
     return
@@ -73,14 +86,23 @@ async function handleSave() {
   loading.value = true
   errorMsg.value = ''
   try {
-    await api.post(`/app/${props.hash}/data`, {
-      key: props.action.key,
-      value,
-      ...(props.action.mode === 'append' ? { mode: 'append' } : {}),
-    })
-    numericValue.value = null
-    textValue.value = ''
-    dateValue.value = null
+    if (props.actions?.length) {
+      await executeActions(props.actions, {
+        hash: props.hash,
+        userId: userStore.userId,
+        currentPageId: props.currentPageId,
+        appData: appStore.appData,
+        appStore,
+        inputValue: value,
+      })
+    } else if (props.action) {
+      await api.post(`/app/${props.hash}/data`, {
+        key: props.action.key,
+        value,
+        ...(props.action.mode === 'append' ? { mode: 'append' } : {}),
+      })
+    }
+    clearInputs()
     emit('data-written')
   } catch {
     errorMsg.value = 'Не удалось сохранить. Попробуйте ещё раз.'

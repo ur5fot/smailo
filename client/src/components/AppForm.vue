@@ -58,6 +58,8 @@ import Checkbox from 'primevue/checkbox'
 import Select from 'primevue/select'
 import api from '../api'
 import { useAppStore } from '../stores/app'
+import { useUserStore } from '../stores/user'
+import { executeActions, type ActionStep } from '../utils/actionExecutor'
 
 interface FormField {
   name: string
@@ -74,6 +76,7 @@ const props = defineProps<{
   appendMode?: boolean
   hash: string
   dataSource?: { type: 'table'; tableId: number }
+  actions?: ActionStep[]
 }>()
 
 const emit = defineEmits<{
@@ -81,6 +84,7 @@ const emit = defineEmits<{
 }>()
 
 const appStore = useAppStore()
+const userStore = useUserStore()
 
 const isTableMode = computed(() => props.dataSource?.type === 'table')
 
@@ -174,6 +178,16 @@ async function handleSubmit() {
         key: props.outputKey,
         value: formObject,
         ...(props.appendMode ? { mode: 'append' } : {}),
+      })
+    }
+    // Run post-submit action chain if defined
+    if (props.actions?.length) {
+      await executeActions(props.actions, {
+        hash: props.hash,
+        userId: userStore.userId,
+        currentPageId: undefined,
+        appData: appStore.appData,
+        appStore,
       })
     }
     // Reset form

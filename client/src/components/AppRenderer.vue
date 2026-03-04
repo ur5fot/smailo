@@ -18,22 +18,26 @@
 
       <!-- Button: user-triggered data write -->
       <AppButton
-        v-else-if="item.component === 'Button' && item.action"
+        v-else-if="item.component === 'Button' && (item.actions || item.action)"
         :label="item.props?.label ?? ''"
         :severity="item.props?.severity"
         :action="item.action"
+        :actions="item.actions"
         :hash="props.hash"
+        :current-page-id="currentPageId"
         @data-written="emit('data-written')"
       />
 
       <!-- InputText: user-entered data write -->
       <AppInputText
-        v-else-if="item.component === 'InputText' && item.action"
+        v-else-if="item.component === 'InputText' && (item.actions || item.action)"
         :label="item.props?.label"
         :type="item.props?.type"
         :placeholder="item.props?.placeholder"
         :action="item.action"
+        :actions="item.actions"
         :hash="props.hash"
+        :current-page-id="currentPageId"
         @data-written="emit('data-written')"
       />
 
@@ -46,6 +50,7 @@
         :append-mode="item.appendMode"
         :hash="props.hash"
         :data-source="item.dataSource"
+        :actions="item.actions"
         @data-written="emit('data-written')"
       />
 
@@ -110,6 +115,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Timeline from 'primevue/timeline'
 import Knob from 'primevue/knob'
 import Tag from 'primevue/tag'
@@ -136,6 +142,7 @@ import { resolveDataKey } from '../utils/dataKey'
 import { useAppStore } from '../stores/app'
 import type { FilterCondition } from '../stores/app'
 import { buildFormulaContext } from '../utils/formulaContext'
+import type { ActionStep } from '../utils/actionExecutor'
 import { evaluateShowIf } from '../utils/showIf'
 import type { StyleIfCondition } from '../utils/styleIf'
 import { getConditionalClasses as computeConditionalClasses } from '../utils/conditionalClasses'
@@ -148,6 +155,7 @@ interface UiConfigItem {
   dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }
   computedValue?: string
   action?: { key: string; value?: unknown; mode?: 'append' }
+  actions?: ActionStep[]
   fields?: Array<{ name: string; type: string; label: string }>
   outputKey?: string
   appendMode?: boolean
@@ -169,6 +177,8 @@ const emit = defineEmits<{
 }>()
 
 const appStore = useAppStore()
+const route = useRoute()
+const currentPageId = computed(() => route.params.pageId as string | undefined)
 
 // Build formula context once per appData change, shared across all shouldShow/getConditionalClasses calls
 const formulaContext = computed(() => buildFormulaContext(props.appData))

@@ -175,25 +175,25 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
 
 ### Task 4: Wire actions into Button, InputText, Form + AppRenderer
 
-- [ ] update `AppRenderer.vue`: pass `item.actions` alongside `item.action` to input wrapper components
+- [x] update `AppRenderer.vue`: pass `item.actions` alongside `item.action` to input wrapper components
   - add `:actions="item.actions"` to AppButton, AppInputText, AppForm slots/component bindings
   - also pass `:current-page-id="currentPageId"` — AppRenderer must receive `currentPageId` prop from AppView or derive from `useRoute()`
-- [ ] update `AppButton.vue`:
+- [x] update `AppButton.vue`:
   - add props: `actions?: ActionStep[]`, `currentPageId?: string`
   - add `useRouter()` and `useRoute()` (internal to component)
   - on `@click`: build `ActionContext` (hash from props, userId from appStore, appData from appStore, etc.)
   - if `actions` present → `executeActions(actions, ctx)`; emit `data-written` on completion
   - else fall back to legacy `action` behavior (existing code unchanged)
-- [ ] update `AppInputText.vue`:
+- [x] update `AppInputText.vue`:
   - add props: `actions?: ActionStep[]`, `currentPageId?: string`
   - add `useRouter()` internal to component
   - on save: if `actions` → `executeActions(actions, { ...ctx, inputValue: inputModel.value })`; else legacy
   - emit `data-written` after chain (same as legacy path)
-- [ ] update `AppForm.vue`:
+- [x] update `AppForm.vue`:
   - add prop: `actions?: ActionStep[]`; no legacy fallback needed (Form never had `action`)
   - after successful write (KV or table): if `actions` → run `executeActions(actions, ctx)`
   - emit `data-written` after chain completes
-- [ ] run client tests: `npm test --workspace=client`
+- [x] run client tests: `npm test --workspace=client`
 
 ### Task 5: AI system prompts + CLAUDE.md
 
