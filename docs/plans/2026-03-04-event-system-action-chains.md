@@ -136,7 +136,7 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
 
 ### Task 3: Client action executor utility
 
-- [ ] create `client/src/utils/actionExecutor.ts`:
+- [x] create `client/src/utils/actionExecutor.ts`:
   ```ts
   export interface ActionContext {
     hash: string;
@@ -148,18 +148,18 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
   }
   export async function executeActions(actions: ActionStep[], ctx: ActionContext): Promise<void>
   ```
-- [ ] implement per-type execution:
+- [x] implement per-type execution:
   - `writeData`: `value = action.value ?? ctx.inputValue ?? true`; POST `/api/app/:hash/data` with `{ key, value, mode, index }`
   - `navigateTo`: if no pages in app config → no-op (log warning); else call `router.push` to `/${ctx.userId}/${ctx.hash}/${action.pageId}` or `/app/${ctx.hash}/${action.pageId}` if no userId
   - `toggleVisibility`: `current = ctx.appData.find(d => d.key === action.key)?.value ?? false`; POST `!current` to `/data`
   - `runFormula`: `formulaCtx = buildFormulaContext(ctx.appData)`; evaluate with `evaluateExpression(action.formula, { row: formulaCtx })`; POST result to `action.outputKey`
   - `fetchUrl`: substitute URL templates (`{key}` → `appData[key]` value, same as cron); POST to `/api/app/:hash/actions/fetch-url` with `{ url: substitutedUrl, outputKey, dataPath }`
   - after ALL steps complete: call `ctx.appStore.fetchData(ctx.hash)` once to refresh appData
-- [ ] error handling:
+- [x] error handling:
   - auth errors (401/403) on any step → abort remaining chain, log error
   - other errors (network, formula eval) → log to console, continue chain
   - fetchData() is called even on partial failure (chain error does not prevent refresh)
-- [ ] write tests in `client/src/utils/actionExecutor.test.ts` (new file, mock api calls):
+- [x] write tests in `client/src/utils/actionExecutor.test.ts` (new file, mock api calls):
   - `writeData`: posts correct payload; uses `inputValue` when `value` not explicit
   - `writeData` with `delete-item` + `index`: posts correct payload
   - `navigateTo`: pushes correct route with userId / without userId
@@ -171,7 +171,7 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
   - chain: all steps execute in order
   - 401 error on step 2 → steps 3-N skipped; fetchData still called
   - non-auth error on step 2 → steps 3-N still execute
-- [ ] run client tests: `npm test --workspace=client`
+- [x] run client tests: `npm test --workspace=client`
 
 ### Task 4: Wire actions into Button, InputText, Form + AppRenderer
 
