@@ -259,9 +259,9 @@ Cycle detection: N/A — linear chains have no branching, cycles are structurall
 
 ### Task 7: [Final] Update documentation
 
-- [ ] update `README.md`: add action chains to features list
-- [ ] update `README.ru.md`: same in Russian
-- [ ] update `docs/roadmap-v2.md`: mark Stage 6 as ✅ Реализован
+- [x] update `README.md`: add action chains to features list
+- [x] update `README.ru.md`: same in Russian
+- [x] update `docs/roadmap-v2.md`: mark Stage 6 as ✅ Реализован
 
 *Note: ralphex automatically moves completed plans to `docs/plans/completed/`*
 

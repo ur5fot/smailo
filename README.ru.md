@@ -65,9 +65,9 @@ smailo/
 │       │   ├── AppRenderer.vue   # Динамический рендерер PrimeVue-компонентов
 │       │   ├── AppCard.vue       # Обёртка для Card (использует слоты PrimeVue)
 │       │   ├── AppDataTable.vue  # Обёртка для DataTable (автогенерация колонок)
-│       │   ├── AppButton.vue     # Кнопка, записывающая данные в appData по клику
-│       │   ├── AppInputText.vue  # Текстовое/числовое/датовое поле с кнопкой «Сохранить»
-│       │   ├── AppForm.vue       # Многопольная форма, сохраняющая в appData или строки таблицы
+│       │   ├── AppButton.vue     # Кнопка с цепочками действий (writeData, navigateTo и др.)
+│       │   ├── AppInputText.vue  # Текстовое/числовое/датовое поле с цепочками действий
+│       │   ├── AppForm.vue       # Многопольная форма с пост-отправочными цепочками действий
 │       │   ├── AppCardList.vue   # Список карточек из массива appData или строк таблицы (с удалением)
 │       │   ├── AppAccordion.vue  # Обёртка для сворачиваемых секций Accordion
 │       │   ├── AppPanel.vue      # Обёртка для Panel с заголовком
@@ -88,6 +88,7 @@ smailo/
 │       │   ├── chartData.ts      # Утилита buildChartDataFromTable для конвертации таблицы→Chart.js
 │       │   ├── showIf.ts         # evaluateShowIf — клиентское вычисление видимости компонентов
 │       │   ├── styleIf.ts        # evaluateStyleIf — клиентское вычисление условных CSS-классов
+│       │   ├── actionExecutor.ts # executeActions — последовательный исполнитель цепочек действий для Button/InputText/Form
 │       │   └── formula/          # Клиентская копия парсера формул (токенизатор, парсер, вычислитель)
 │       ├── api/index.ts          # Axios с JWT + X-User-Id интерцептором
 │       └── router/index.ts       # Vue Router с regex-ограничениями параметров
@@ -109,6 +110,7 @@ smailo/
         │   ├── app.ts            # GET/POST /api/app/:hash — доступ, чат, запись данных
         │   └── tables.ts         # CRUD /api/app/:hash/tables — пользовательские таблицы и строки
         ├── utils/
+        │   ├── fetchProxy.ts     # SSRF-безопасный HTTP fetch + извлечение по dataPath (общий для cron + action endpoint)
         │   └── formula/          # Безопасный движок формул (токенизатор, парсер, вычислитель)
         └── index.ts              # Точка входа Express
 ```
@@ -134,6 +136,7 @@ smailo/
 - История чата: восстанавливается при загрузке страницы через `GET /api/chat?sessionId=...&userId=...` / `GET /api/app/:hash/chat`
 - Память AI: после каждого ответа в приложении AI может вернуть `memoryUpdate` — краткие заметки, которые сохраняются в `apps.notes` и передаются AI при следующих разговорах
 - Пользовательские записи: Button/InputText/Form/CardList → `POST /api/app/:hash/data` → appData обновляется, UI перерисовывается
+- Цепочки действий: Button/InputText/Form поддерживают `actions: ActionStep[]` — упорядоченный список шагов, выполняемых последовательно при взаимодействии пользователя; 5 типов: `writeData` (запись в appData), `navigateTo` (навигация по страницам), `toggleVisibility` (переключение boolean для showIf), `runFormula` (вычисление формулы на клиенте), `fetchUrl` (прокси-запрос HTTPS через сервер); макс. 5 шагов в цепочке; legacy-поле `action` по-прежнему поддерживается
 - Режим накопления: InputText/Form поддерживают `mode: "append"` — каждое сохранение добавляет элемент в массив
 - Удаление элемента: кнопка удаления в CardList → `POST /api/app/:hash/data` с `mode: "delete-item"` и `index`
 - Cron-задания: node-cron выполняет запланированные действия (log_entry, fetch_url, send_reminder, aggregate_data, compute) и записывает результаты в appData
@@ -163,7 +166,7 @@ Smailo трансформируется из конструктора дашбо
 4. **Условная логика** — показ/скрытие компонентов и применение условных стилей на основе данных ✅
 5. **Многостраничные приложения** — несколько страниц с общими данными и навигацией ✅
 5.5. **Фильтрация строк** — фильтрация строк таблиц в `dataSource` по значениям колонок с 7 операторами ✅
-6. **Система событий** — цепочки действий, запускаемые взаимодействием пользователя
+6. **Система событий** — цепочки действий, запускаемые взаимодействием пользователя (writeData, navigateTo, toggleVisibility, runFormula, fetchUrl) ✅
 7. **Визуальный редактор** — drag-and-drop конструктор UI рядом с AI-чатом
 8. **Мульти-пользовательский доступ** — роли, права и общие приложения
 

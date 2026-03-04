@@ -65,9 +65,9 @@ smailo/
 │       │   ├── AppRenderer.vue   # Dynamic PrimeVue component renderer
 │       │   ├── AppCard.vue       # Card wrapper (uses PrimeVue slots)
 │       │   ├── AppDataTable.vue  # DataTable wrapper (auto-generates columns)
-│       │   ├── AppButton.vue     # Clickable button that writes to appData
-│       │   ├── AppInputText.vue  # Text/number/date input with Save button
-│       │   ├── AppForm.vue       # Multi-field form that writes to appData or table rows
+│       │   ├── AppButton.vue     # Clickable button with action chains (writeData, navigateTo, etc.)
+│       │   ├── AppInputText.vue  # Text/number/date input with Save button and action chains
+│       │   ├── AppForm.vue       # Multi-field form with post-submit action chains
 │       │   ├── AppCardList.vue   # Card-per-item list from appData array or table rows (with delete)
 │       │   ├── AppAccordion.vue  # Accordion wrapper for collapsible sections
 │       │   ├── AppPanel.vue      # Panel wrapper with header slot
@@ -88,6 +88,7 @@ smailo/
 │       │   ├── chartData.ts      # buildChartDataFromTable utility for table→Chart.js conversion
 │       │   ├── showIf.ts         # evaluateShowIf — client-side formula evaluation for component visibility
 │       │   ├── styleIf.ts        # evaluateStyleIf — client-side conditional CSS class evaluation
+│       │   ├── actionExecutor.ts # executeActions — sequential action chain executor for Button/InputText/Form
 │       │   └── formula/          # Client-side copy of the formula parser (tokenizer, parser, evaluator)
 │       ├── api/index.ts          # Axios instance with JWT + X-User-Id interceptor
 │       └── router/index.ts       # Vue Router with regex-constrained params
@@ -109,6 +110,7 @@ smailo/
         │   ├── app.ts            # GET/POST /api/app/:hash — app access, chat, data writes
         │   └── tables.ts         # CRUD /api/app/:hash/tables — user-defined tables and rows
         ├── utils/
+        │   ├── fetchProxy.ts     # SSRF-safe HTTP fetch + dataPath extraction (shared by cron + action endpoint)
         │   └── formula/          # Safe formula engine (tokenizer, parser, evaluator)
         └── index.ts              # Express entry point
 ```
@@ -134,6 +136,7 @@ smailo/
 - Chat history: restored on page load from `GET /api/chat?sessionId=...&userId=...` / `GET /api/app/:hash/chat`
 - AI memory: each in-app response may include a `memoryUpdate` saved to `apps.notes` and injected into future AI calls
 - User-triggered writes: Button/InputText/Form/CardList → `POST /api/app/:hash/data` → appData updated, UI refreshes
+- Action chains: Button/InputText/Form support `actions: ActionStep[]` — ordered list of steps executed sequentially on user interaction; 5 types: `writeData` (write to appData), `navigateTo` (page navigation), `toggleVisibility` (toggle boolean for showIf), `runFormula` (evaluate formula client-side), `fetchUrl` (proxy HTTPS fetch via server); max 5 steps per chain; legacy `action` field still supported
 - Append mode: InputText/Form support `mode: "append"` — each save adds an item to an array
 - Delete item: CardList delete button → `POST /api/app/:hash/data` with `mode: "delete-item"` + `index`
 - Cron jobs: node-cron runs scheduled actions (log_entry, fetch_url, send_reminder, aggregate_data, compute) and writes results to appData
@@ -163,7 +166,7 @@ Smailo is evolving from a data dashboard builder into a low-code app platform. T
 4. **Conditional logic** — show/hide components and apply conditional styles based on data conditions ✅
 5. **Multi-page apps** — multiple pages with shared data and navigation ✅
 5.5. **Row filtering** — filter table rows in `dataSource` by column values with 7 operators ✅
-6. **Event system** — action chains triggered by user interactions
+6. **Event system** — action chains triggered by user interactions (writeData, navigateTo, toggleVisibility, runFormula, fetchUrl) ✅
 7. **Visual editor** — drag-and-drop UI builder alongside the AI chat
 8. **Multi-user access** — roles, permissions, and shared apps
 
