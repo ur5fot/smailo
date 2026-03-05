@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { userTables, userRows } from '../db/schema.js';
-import { requireAuthIfProtected, type AuthenticatedRequest } from '../middleware/auth.js';
+import { resolveUserAndRole, requireRole, type AuthenticatedRequest } from '../middleware/auth.js';
 import { isValidColumnDef, validateRowData } from '../utils/tableValidation.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
 import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
@@ -25,7 +25,7 @@ const MAX_ROWS_PER_TABLE = 10_000;
 const TABLE_NAME_REGEX = /^[a-zA-Z\u0400-\u04FF][a-zA-Z0-9\u0400-\u04FF_ ]{0,99}$/;
 
 // POST /api/app/:hash/tables — create a new table
-tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.post('/', limiter, resolveUserAndRole, requireRole('owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const { name, columns } = req.body as { name: unknown; columns: unknown };
@@ -84,7 +84,7 @@ tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
 });
 
 // GET /api/app/:hash/tables — list all tables for an app
-tablesRouter.get('/', requireAuthIfProtected, async (req, res) => {
+tablesRouter.get('/', resolveUserAndRole, async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tables = await db.select().from(userTables).where(eq(userTables.appId, row.id));
@@ -104,7 +104,7 @@ tablesRouter.get('/', requireAuthIfProtected, async (req, res) => {
 });
 
 // GET /api/app/:hash/tables/:tableId — get a table with its rows
-tablesRouter.get('/:tableId', requireAuthIfProtected, async (req, res) => {
+tablesRouter.get('/:tableId', resolveUserAndRole, async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -149,7 +149,7 @@ tablesRouter.get('/:tableId', requireAuthIfProtected, async (req, res) => {
 });
 
 // PUT /api/app/:hash/tables/:tableId — update table schema (name and/or columns)
-tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.put('/:tableId', limiter, resolveUserAndRole, requireRole('owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -217,7 +217,7 @@ tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) 
 });
 
 // DELETE /api/app/:hash/tables/:tableId — delete a table and all its rows
-tablesRouter.delete('/:tableId', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.delete('/:tableId', limiter, resolveUserAndRole, requireRole('owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -243,7 +243,7 @@ tablesRouter.delete('/:tableId', limiter, requireAuthIfProtected, async (req, re
 });
 
 // POST /api/app/:hash/tables/:tableId/rows — add a row to a table
-tablesRouter.post('/:tableId/rows', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.post('/:tableId/rows', limiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -284,7 +284,7 @@ tablesRouter.post('/:tableId/rows', limiter, requireAuthIfProtected, async (req,
 });
 
 // PUT /api/app/:hash/tables/:tableId/rows/:rowId — update a row
-tablesRouter.put('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.put('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -327,7 +327,7 @@ tablesRouter.put('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, async
 });
 
 // DELETE /api/app/:hash/tables/:tableId/rows/:rowId — delete a row
-tablesRouter.delete('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.delete('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);

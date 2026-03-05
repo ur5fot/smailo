@@ -10,7 +10,7 @@ import { getLatestAppData } from '../db/queries.js';
 import { chatWithAI, validateUiComponents, validatePages } from '../services/aiService.js';
 import type { UiComponent, AppConfig } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
-import { requireAuthIfProtected, JWT_SECRET, type AuthenticatedRequest } from '../middleware/auth.js';
+import { resolveUserAndRole, requireRole, JWT_SECRET, type AuthenticatedRequest } from '../middleware/auth.js';
 import { extractReferencedTableNames, evaluateComputedValues, getGlobalComponents } from '../utils/computedValues.js';
 import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
@@ -52,7 +52,7 @@ const chatLimiter = rateLimit({
 
 
 // GET /api/app/:hash
-appRouter.get('/:hash', requireAuthIfProtected, async (req, res) => {
+appRouter.get('/:hash', resolveUserAndRole, async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
 
@@ -93,7 +93,7 @@ appRouter.get('/:hash', requireAuthIfProtected, async (req, res) => {
 });
 
 // POST /api/app/:hash/set-password
-appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash: string }>, res) => {
+appRouter.post('/:hash/set-password', verifyLimiter, resolveUserAndRole, requireRole('owner'), async (req: Request<{ hash: string }>, res) => {
   try {
     const { hash } = req.params;
     const { password, creationToken } = req.body as { password: string; creationToken: string };
@@ -116,10 +116,7 @@ appRouter.post('/:hash/set-password', verifyLimiter, async (req: Request<{ hash:
       return res.status(400).json({ error: 'creationToken too long' });
     }
 
-    const [row] = await db.select().from(apps).where(eq(apps.hash, hash));
-    if (!row) {
-      return res.status(404).json({ error: 'App not found' });
-    }
+    const row = (req as unknown as AuthenticatedRequest).app_row!;
 
     if (row.passwordHash) {
       return res.status(400).json({ error: 'This app already has a password set' });
@@ -194,7 +191,7 @@ appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: strin
 });
 
 // GET /api/app/:hash/data
-appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
+appRouter.get('/:hash/data', resolveUserAndRole, async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
 
@@ -266,7 +263,7 @@ appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
 });
 
 // PUT /api/app/:hash/config
-appRouter.put('/:hash/config', chatLimiter, requireAuthIfProtected, async (req, res) => {
+appRouter.put('/:hash/config', chatLimiter, resolveUserAndRole, requireRole('owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const body = req.body as Record<string, unknown>;
@@ -320,7 +317,7 @@ appRouter.put('/:hash/config', chatLimiter, requireAuthIfProtected, async (req, 
 });
 
 // GET /api/app/:hash/chat
-appRouter.get('/:hash/chat', requireAuthIfProtected, async (req, res) => {
+appRouter.get('/:hash/chat', resolveUserAndRole, async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const rows = await db
@@ -342,7 +339,7 @@ appRouter.get('/:hash/chat', requireAuthIfProtected, async (req, res) => {
 const KEY_REGEX = /^[a-zA-Z0-9_]{1,100}$/;
 const VALUE_MAX_BYTES = 10_000;
 
-appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected, async (req, res) => {
+appRouter.post('/:hash/data', chatLimiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const { key, value, mode, index } = req.body as { key: unknown; value: unknown; mode?: unknown; index?: unknown };
@@ -468,7 +465,7 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected, async (req, r
 });
 
 // POST /api/app/:hash/actions/fetch-url
-appRouter.post('/:hash/actions/fetch-url', chatLimiter, requireAuthIfProtected, async (req, res) => {
+appRouter.post('/:hash/actions/fetch-url', chatLimiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const { url, outputKey, dataPath } = req.body as { url: unknown; outputKey: unknown; dataPath?: unknown };
@@ -526,7 +523,7 @@ appRouter.post('/:hash/actions/fetch-url', chatLimiter, requireAuthIfProtected, 
 });
 
 // POST /api/app/:hash/chat
-appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, res) => {
+appRouter.post('/:hash/chat', chatLimiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const { message } = req.body as { message: string };
@@ -610,10 +607,12 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
 
     // If the AI returned an updated UI layout or pages, validate and persist.
     // uiUpdate and pagesUpdate are mutually exclusive: if both are present, uiUpdate takes priority.
+    // Editors cannot change config — strip uiUpdate/pagesUpdate for non-owner roles.
+    const isOwner = (req as AuthenticatedRequest).userRole === 'owner';
     let validUiItems: ReturnType<typeof validateUiComponents> | undefined;
     let validPages: ReturnType<typeof validatePages> | undefined;
     let revertedToSinglePage = false;
-    if (claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
+    if (isOwner && claudeResponse.uiUpdate && Array.isArray(claudeResponse.uiUpdate)) {
       validUiItems = validateUiComponents(claudeResponse.uiUpdate);
       if (validUiItems.length > 0) {
         const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: validUiItems };
@@ -621,7 +620,7 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       } else {
         console.warn(`[POST /api/app/:hash/chat] uiUpdate had no valid components for app ${row.id}`);
       }
-    } else if (claudeResponse.pagesUpdate && Array.isArray(claudeResponse.pagesUpdate)) {
+    } else if (isOwner && claudeResponse.pagesUpdate && Array.isArray(claudeResponse.pagesUpdate)) {
       // pagesUpdate replaces the entire config.pages array.
       // Empty array means "revert to single-page mode" (remove pages from config).
       if (claudeResponse.pagesUpdate.length === 0) {
@@ -639,8 +638,8 @@ appRouter.post('/:hash/chat', chatLimiter, requireAuthIfProtected, async (req, r
       }
     }
 
-    // Save memory update if the AI provided one
-    if (claudeResponse.memoryUpdate !== undefined) {
+    // Save memory update if the AI provided one (owner only)
+    if (isOwner && claudeResponse.memoryUpdate !== undefined) {
       await db.update(apps)
         .set({ notes: claudeResponse.memoryUpdate })
         .where(eq(apps.id, row.id));

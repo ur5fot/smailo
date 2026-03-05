@@ -92,15 +92,15 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3b: Применить новый auth ко всем routes
-- [ ] Обновить все routes в `app.ts`: заменить `requireAuthIfProtected` на `resolveUserAndRole` + `requireRole(...)`:
+- [x] Обновить все routes в `app.ts`: заменить `requireAuthIfProtected` на `resolveUserAndRole` + `requireRole(...)`:
   - GET /:hash, GET /:hash/data, GET /:hash/chat → viewer+ (anonymous OK для unprotected)
   - POST /:hash/data, POST /:hash/actions/fetch-url → `requireRole('editor', 'owner')`
   - POST /:hash/chat → `requireRole('editor', 'owner')` (⚠️ editor НЕ может менять конфиг — если AI возвращает uiUpdate/pagesUpdate, отклонять для editor)
   - PUT /:hash/config → `requireRole('owner')`
   - POST /:hash/set-password → `requireRole('owner')` (⚠️ требует JWT, не доступен без аутентификации)
-- [ ] Обновить routes в `tables.ts`: GET → viewer+, POST/PUT/DELETE rows → editor+, POST/PUT/DELETE tables → owner
-- [ ] Обновить существующие тесты в `app.ts` и `tables.ts` под новый middleware
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Обновить routes в `tables.ts`: GET → viewer+, POST/PUT/DELETE rows → editor+, POST/PUT/DELETE tables → owner
+- [x] Обновить существующие тесты в `app.ts` и `tables.ts` под новый middleware
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3c: computedValue + RLS guard
 - [ ] ⚠️ Серверные computedValue формулы (`evaluateComputedValues`) обходят RLS — формула может прочитать данные из таблиц, к которым viewer не имеет доступа
