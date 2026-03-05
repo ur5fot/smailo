@@ -69,12 +69,12 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 4: Editor store — состояние редактора
-- [ ] Создать `client/src/stores/editor.ts` — Pinia store
-- [ ] State: `isEditMode: boolean`, `selectedComponentIndex: number | null`, `editableConfig: UiComponent[]` (рабочая копия), `isDirty: boolean`, `activePage: string | null` (для multi-page)
-- [ ] Actions: `enterEditMode(config)` — копирует конфиг, `exitEditMode()` — сбрасывает, `selectComponent(index)`, `updateComponent(index, partial)`, `removeComponent(index)`, `addComponent(component, index?)`, `moveComponent(fromIndex, toIndex)`, `updateLayout(index, layout)`, `saveConfig(hash)` — вызывает PUT API
-- [ ] Getters: `selectedComponent`, `currentPageComponents` (для multi-page)
-- [ ] Написать тесты для всех actions и getters
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Создать `client/src/stores/editor.ts` — Pinia store
+- [x] State: `isEditMode: boolean`, `selectedComponentIndex: number | null`, `editableConfig: UiComponent[]` (рабочая копия), `isDirty: boolean`, `activePage: string | null` (для multi-page)
+- [x] Actions: `enterEditMode(config)` — копирует конфиг, `exitEditMode()` — сбрасывает, `selectComponent(index)`, `updateComponent(index, partial)`, `removeComponent(index)`, `addComponent(component, index?)`, `moveComponent(fromIndex, toIndex)`, `updateLayout(index, layout)`, `saveConfig(hash)` — вызывает PUT API
+- [x] Getters: `selectedComponent`, `currentPageComponents` (для multi-page)
+- [x] Написать тесты для всех actions и getters
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5: Переключение режимов в AppView
 - [ ] Добавить кнопку-переключатель в header AppView (иконка pi-pencil / pi-comments)
