@@ -189,6 +189,80 @@ describe('useAppStore — pages getter', () => {
   })
 })
 
+describe('useAppStore — myRole and members', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('fetchApp saves myRole from response', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        config: {},
+        appName: 'Test',
+        appData: [],
+        tables: [],
+        myRole: 'editor',
+      },
+    })
+    const store = useAppStore()
+    await store.fetchApp('test-hash')
+    expect(store.myRole).toBe('editor')
+  })
+
+  it('fetchApp saves members for owner', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        config: {},
+        appName: 'Test',
+        appData: [],
+        tables: [],
+        myRole: 'owner',
+        members: [
+          { userId: 'u1', role: 'owner' },
+          { userId: 'u2', role: 'editor' },
+        ],
+      },
+    })
+    const store = useAppStore()
+    await store.fetchApp('test-hash')
+    expect(store.myRole).toBe('owner')
+    expect(store.members).toHaveLength(2)
+    expect(store.members[0]).toEqual({ userId: 'u1', role: 'owner' })
+  })
+
+  it('fetchApp sets myRole to null when not provided', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        config: {},
+        appName: 'Test',
+        appData: [],
+        tables: [],
+      },
+    })
+    const store = useAppStore()
+    await store.fetchApp('test-hash')
+    expect(store.myRole).toBe(null)
+    expect(store.members).toEqual([])
+  })
+
+  it('fetchApp sets empty members for non-owner', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        config: {},
+        appName: 'Test',
+        appData: [],
+        tables: [],
+        myRole: 'viewer',
+      },
+    })
+    const store = useAppStore()
+    await store.fetchApp('test-hash')
+    expect(store.myRole).toBe('viewer')
+    expect(store.members).toEqual([])
+  })
+})
+
 describe('localComputedValues offset logic', () => {
   it('computes local index offset correctly', () => {
     // Simulate the logic from AppView's localComputedValues computed

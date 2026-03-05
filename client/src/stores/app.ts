@@ -51,11 +51,20 @@ export function buildTableCacheKey(tableId: number, filter?: FilterCondition | F
   return `${tableId}:${JSON.stringify(normalized)}`
 }
 
+export type UserRole = 'owner' | 'editor' | 'viewer' | null
+
+export interface MemberInfo {
+  userId: string
+  role: string
+}
+
 export const useAppStore = defineStore('app', () => {
   const appConfig = ref<Record<string, any> | null>(null)
   const appName = ref<string>('')
   const appData = ref<Record<string, any>[]>([])
   const isAuthenticated = ref(false)
+  const myRole = ref<UserRole>(null)
+  const members = ref<MemberInfo[]>([])
 
   // Table data: schemas from fetchApp(), rows fetched on demand per table
   const tableSchemas = ref<TableSchema[]>([])
@@ -70,6 +79,8 @@ export const useAppStore = defineStore('app', () => {
     appName.value = res.data.appName || ''
     appData.value = res.data.appData || []
     isAuthenticated.value = true
+    myRole.value = res.data.myRole ?? null
+    members.value = res.data.members ?? []
 
     // Populate table schemas and clear cached row/computed data
     tableSchemas.value = res.data.tables || []
@@ -164,6 +175,7 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     appConfig, appName, appData, isAuthenticated,
+    myRole, members,
     tableSchemas, tableData, computedValues, pages,
     fetchApp, verifyPassword, fetchData, chatWithApp,
     fetchTableRows, getTableData, refreshTable, invalidateTableCache, clearTableCache,

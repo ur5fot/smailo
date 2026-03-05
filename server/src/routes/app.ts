@@ -76,6 +76,20 @@ appRouter.get('/:hash', resolveUserAndRole, async (req, res) => {
     // Return app config + appData; strip server-side-only cronJobs from the config
     // to avoid exposing fetch_url targets and automation configs to the browser.
     const { cronJobs: _cronJobs, ...clientConfig } = (row.config as Record<string, unknown>) ?? {};
+
+    const authReq = req as AuthenticatedRequest;
+    const myRole = authReq.userRole === 'anonymous' ? null : authReq.userRole;
+
+    // Only owner sees the members list
+    let members: Array<{ userId: string; role: string }> | undefined;
+    if (authReq.userRole === 'owner') {
+      const memberRows = await db.select({
+        userId: appMembers.userId,
+        role: appMembers.role,
+      }).from(appMembers).where(eq(appMembers.appId, row.id));
+      members = memberRows;
+    }
+
     return res.json({
       hash: row.hash,
       userId: row.userId ?? null,
@@ -85,6 +99,8 @@ appRouter.get('/:hash', resolveUserAndRole, async (req, res) => {
       createdAt: row.createdAt,
       appData: data,
       tables,
+      myRole,
+      ...(members ? { members } : {}),
     });
   } catch (error) {
     console.error('[GET /api/app/:hash] Error:', error);

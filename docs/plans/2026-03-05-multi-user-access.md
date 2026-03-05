@@ -159,11 +159,11 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 8: GET /api/app/:hash — вернуть роль пользователя
-- [ ] Обновить ответ `GET /api/app/:hash`: добавить поле `myRole: 'owner'|'editor'|'viewer'|null` на основе `req.userRole`
-- [ ] Обновить ответ `GET /api/app/:hash`: добавить `members: [{ userId, role }]` (только для owner)
-- [ ] Обновить `appStore.fetchApp()`: сохранять `myRole` в store
-- [ ] Написать тесты для myRole в ответе (owner, editor, viewer, anonymous)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Обновить ответ `GET /api/app/:hash`: добавить поле `myRole: 'owner'|'editor'|'viewer'|null` на основе `req.userRole`
+- [x] Обновить ответ `GET /api/app/:hash`: добавить `members: [{ userId, role }]` (только для owner)
+- [x] Обновить `appStore.fetchApp()`: сохранять `myRole` в store
+- [x] Написать тесты для myRole в ответе (owner, editor, viewer, anonymous)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 9: Client — UserView и список shared apps
 - [ ] Обновить `GET /api/users/:userId/apps` — возвращать также приложения где пользователь = member (не только owner). Добавить поле `role` в ответе
