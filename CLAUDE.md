@@ -107,6 +107,8 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     // ConditionalGroup fields (only when component == 'ConditionalGroup'):
     condition?: string             // formula evaluated on client; group shown when truthy
     children?: UiComponent[]       // nested components shown/hidden together (max 1 level deep)
+    // Layout fields (CSS Grid placement):
+    layout?: { col: number; colSpan: number; row?: number; rowSpan?: number }  // col 1-12, colSpan 1-12, col+colSpan ≤ 13; without layout → full-width (grid-column: 1 / -1)
   }>
   pages?: Array<{                  // optional multi-page mode; if present, uiComponents is ignored for rendering
     id: string                     // URL-safe: /^[a-zA-Z0-9_-]{1,50}$/, unique across pages
@@ -123,7 +125,7 @@ AI response may include `pagesUpdate?: Page[]` (replaces entire `config.pages`).
 
 ### Dynamic UI rendering (`client/src/components/AppRenderer.vue`)
 
-Iterates `uiConfig` array and renders each component dynamically. Eleven components use dedicated wrappers:
+Uses CSS Grid (12 columns, 1rem gap) to render components. Each component's position is determined by `item.layout` (`grid-column: col / span colSpan`); components without layout default to `grid-column: 1 / -1` (full-width). On mobile (<=767px) all components are forced full-width. Iterates `uiConfig` array and renders each component dynamically. Eleven components use dedicated wrappers:
 - `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue`, `CardList` → `AppCardList.vue`, `Chart` → `AppChart.vue` (data display)
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
 - `Accordion` → `AppAccordion.vue`, `Panel` → `AppPanel.vue`, `Tabs` → `AppTabs.vue` (slot-based layout)
@@ -248,6 +250,26 @@ Server-side validation: `validateActions()` in `aiService.ts` validates each ste
 
 Server-side proxy for the `fetchUrl` action step. Request body: `{ url: string, outputKey: string, dataPath?: string }`. Validates: `url` must start with `https://` (max 2048 chars), `outputKey` must match `/^[a-zA-Z0-9_]{1,100}$/`, `dataPath` if present must be non-empty string (max 500 chars). Calls `fetchSafe(url)` then `extractDataPath(body, dataPath)`, writes result to `appData` along with `{outputKey}_updated_at` timestamp, returns `{ ok: true, value }`. Protected by `requireAuthIfProtected`. Rate-limited at 30 req/min (chatLimiter). Returns 502 on upstream fetch failure, 413 if fetched value exceeds 10 KB.
 
+### Visual editor (`client/src/components/editor/`)
+
+Alternative to AI chat for editing app UI. Toggle between chat and editor mode via button in AppView header.
+
+Editor components:
+- `AppEditor.vue` — main canvas: 12-column CSS Grid mirroring AppRenderer, but with draggable component cards; supports multi-page editing via tabs
+- `EditorComponentCard.vue` — card representing a component: shows type icon, label, dataKey info; click to select, drag handle for reordering, delete button
+- `ComponentPalette.vue` — component palette grouped by category (Display, Input, Layout); drag from palette to canvas to add components
+- `PropertyEditor.vue` — panel for editing selected component properties: General (type, delete), Props (dynamic form), Data (dataKey, dataSource, computedValue), Actions (chain builder), Conditional (showIf, styleIf), Layout (col, colSpan, row, rowSpan)
+
+Editor state: `client/src/stores/editor.ts` — Pinia store with `isEditMode`, `selectedComponentIndex`, `editableConfig` (working copy), `isDirty`, `activePage`. Actions: `enterEditMode`, `exitEditMode`, `selectComponent`, `updateComponent`, `removeComponent`, `addComponent`, `moveComponent`, `updateLayout`, `saveConfig(hash)` (calls `PUT /api/app/:hash/config`).
+
+Drag-and-drop: `vue-draggable-plus` (SortableJS wrapper for Vue 3). Supports reordering on canvas, cross-container drag from palette, and resize handles for changing `colSpan`.
+
+Save flow: Save button (or Ctrl+S) → `PUT /api/app/:hash/config` → updates `appStore.appConfig` → `isDirty = false`. Discard button resets to last saved config.
+
+### Config save endpoint (`PUT /api/app/:hash/config`)
+
+Direct config save without AI involvement. Body: `{ uiComponents?: UiComponent[] }` or `{ pages?: Page[] }` (one of two). Validates via existing `validateUiComponents()` / `validatePages()`. Protected by `requireAuthIfProtected`. Rate-limited at 30 req/min (chatLimiter). Returns `{ ok: true, config: {...} }`.
+
 ### SSRF-safe fetch utility (`server/src/utils/fetchProxy.ts`)
 
 Shared fetch utility used by both cron `fetch_url` and the action `fetchUrl` endpoint. Exports: `isPrivateHost(hostname)` — checks IPv4/IPv6 private ranges; `fetchSafe(url)` — HTTPS-only fetch with SSRF protection (private IP block, DNS rebinding check, redirect blocking, 1 MB body limit, 10s timeout); `extractDataPath(body, dataPath?)` — dot-notation JSON extraction with prototype-pollution protection.
@@ -281,18 +303,20 @@ Auth middleware (`server/src/middleware/auth.ts`) is shared between `app.ts` and
 - All `/api/users` routes: 30 req/min
 - All `/api/app/:hash/tables` write routes: 30 req/min
 - `POST /api/app/:hash/actions/fetch-url`: 30 req/min (chatLimiter)
+- `PUT /api/app/:hash/config`: 30 req/min (chatLimiter)
 
 ### Client state
 
-Three Pinia stores:
+Four Pinia stores:
 - `user.ts` — user identity: `userId`, list of user's apps; methods: `createUser()`, `fetchApps(userId)`
 - `chat.ts` — creation chat state: messages array, current phase, appHash after creation
 - `app.ts` — per-app state: app config, appData map, tableData cache (table rows keyed by tableId), computedValues (formula results keyed by component index), auth token, in-app chat messages
+- `editor.ts` — visual editor state: edit mode toggle, selected component, editable config copy, dirty tracking, active page; save via `PUT /api/app/:hash/config`
 
 Three views:
 - `HomeView.vue` — minimal landing: create new userId or enter existing one; no chat
 - `UserView.vue` — two-column: left = list of user's apps, right = Smailo + AI chat for creating apps
-- `AppView.vue` — two-column: left = AppRenderer + app data, right = Smailo + in-app chat
+- `AppView.vue` — two-column: left = AppRenderer (view mode) or AppEditor (edit mode), right = Smailo + in-app chat (view mode) or ComponentPalette + PropertyEditor (edit mode)
 
 `InputBar.vue` — chat input with two extra controls: (1) quick number buttons (1–N, up to 5) shown when the last assistant message contains a numbered list; (2) a microphone button for browser-native speech recognition (Web Speech API), hidden when unsupported. Number buttons auto-submit the digit immediately.
 

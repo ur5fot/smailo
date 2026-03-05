@@ -11,7 +11,7 @@ A personal AI applications builder. Chat with Smailo — an expressive AI assist
 3. Smailo walks you through a brainstorm → confirm → created flow
 4. Once created, your app gets a unique URL at `/:userId/:hash` you can bookmark
 5. Optionally set a password to protect your app
-6. Inside your app, chat with Smailo in the right panel to update the UI or add automations
+6. Inside your app, chat with Smailo in the right panel to update the UI or add automations — or switch to the visual editor to drag-and-drop components on a 12-column grid, resize them, and edit properties directly
 7. Chat history is persisted across sessions — both in the home creation chat and inside each app
 8. Smailo builds a per-app memory of important context and uses it in future conversations
 9. All your apps are listed on your personal page `/:userId`
@@ -72,7 +72,12 @@ smailo/
 │       │   ├── AppAccordion.vue  # Accordion wrapper for collapsible sections
 │       │   ├── AppPanel.vue      # Panel wrapper with header slot
 │       │   ├── AppTabs.vue       # Tabs wrapper showing data per tab
-│       │   └── AppConditionalGroup.vue  # Container that shows/hides children based on a condition
+│       │   ├── AppConditionalGroup.vue  # Container that shows/hides children based on a condition
+│       │   └── editor/
+│       │       ├── AppEditor.vue          # Visual drag-and-drop editor canvas (CSS Grid)
+│       │       ├── EditorComponentCard.vue # Component card in editor with drag handle and controls
+│       │       ├── ComponentPalette.vue    # Draggable component palette (Display, Input, Layout groups)
+│       │       └── PropertyEditor.vue     # Property editor panel (props, data, actions, layout)
 │       ├── views/
 │       │   ├── HomeView.vue      # Landing: create/enter user ID
 │       │   ├── UserView.vue      # User page: app list (left) + AI chat with example prompts (right)
@@ -80,7 +85,8 @@ smailo/
 │       ├── stores/
 │       │   ├── user.ts           # Pinia store for user identity and app list
 │       │   ├── chat.ts           # Pinia store for app creation chat state
-│       │   └── app.ts            # Pinia store for app data and auth
+│       │   ├── app.ts            # Pinia store for app data and auth
+│       │   └── editor.ts         # Pinia store for visual editor state (edit mode, selection, dirty tracking)
 │       ├── utils/
 │       │   ├── format.ts         # Shared formatIfDate utility (ISO → localized RU date)
 │       │   ├── markdown.ts       # Shared renderMd (marked + DOMPurify)
@@ -144,6 +150,8 @@ smailo/
 - Table data binding: components with `dataSource: { type: "table", tableId }` bind directly to table data — DataTable/CardList display rows, Form writes rows, Chart builds graphs from table data
 - Row filtering: `dataSource` supports an optional `filter` field — single condition `{ column, operator?, value }` or array (AND logic); operators: `eq` (default), `ne`, `lt`, `lte`, `gt`, `gte`, `contains`; server filters rows in memory; enables multi-page apps with per-page views of the same table (e.g., tasks filtered by priority)
 - Multi-page apps: app config may include a `pages` array (max 10 pages, each with its own `uiComponents`); AppView renders PrimeVue tab navigation and reflects the active page in the URL as `/:userId/:hash/:pageId`; AI uses `pagesUpdate` response field to replace the pages array
+- Visual editor: toggle between chat and editor mode in AppView; editor shows components on a 12-column CSS Grid with drag-and-drop reordering, resize handles, a component palette, and a property editor panel; changes are saved via `PUT /api/app/:hash/config`
+- Layout metadata: each component may have `layout: { col, colSpan, row?, rowSpan? }` for CSS Grid placement; components without layout default to full-width; responsive breakpoint at 767px forces all components to full-width
 
 ### Security
 
@@ -167,7 +175,7 @@ Smailo is evolving from a data dashboard builder into a low-code app platform. T
 5. **Multi-page apps** — multiple pages with shared data and navigation ✅
 5.5. **Row filtering** — filter table rows in `dataSource` by column values with 7 operators ✅
 6. **Event system** — action chains triggered by user interactions (writeData, navigateTo, toggleVisibility, runFormula, fetchUrl) ✅
-7. **Visual editor** — drag-and-drop UI builder alongside the AI chat
+7. **Visual editor** — drag-and-drop UI builder alongside the AI chat ✅
 8. **Multi-user access** — roles, permissions, and shared apps
 
 See [docs/roadmap-v2.md](docs/roadmap-v2.md) for the full plan.
