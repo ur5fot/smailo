@@ -87,15 +87,15 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 6: AppEditor canvas — карточки компонентов на grid
-- [ ] Создать `client/src/components/editor/AppEditor.vue`
-- [ ] CSS Grid 12 колонок — зеркально AppRenderer но с edit-карточками
-- [ ] Каждый компонент — карточка `EditorComponentCard.vue`: иконка типа, название/label, dataKey/dataSource инфо, drag handle, кнопка удаления
-- [ ] Клик по карточке → `editorStore.selectComponent(index)` → синяя рамка
-- [ ] Пустой grid: показать placeholder "Перетащите компоненты из палитры"
-- [ ] Визуальная сетка (тонкие линии) для ориентирования при размещении
-- [ ] Multi-page: табы сверху (как в AppView), редактирование per-page
-- [ ] Написать тесты для EditorComponentCard
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Создать `client/src/components/editor/AppEditor.vue`
+- [x] CSS Grid 12 колонок — зеркально AppRenderer но с edit-карточками
+- [x] Каждый компонент — карточка `EditorComponentCard.vue`: иконка типа, название/label, dataKey/dataSource инфо, drag handle, кнопка удаления
+- [x] Клик по карточке → `editorStore.selectComponent(index)` → синяя рамка
+- [x] Пустой grid: показать placeholder "Перетащите компоненты из палитры"
+- [x] Визуальная сетка (тонкие линии) для ориентирования при размещении
+- [x] Multi-page: табы сверху (как в AppView), редактирование per-page
+- [x] Написать тесты для EditorComponentCard
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7: Drag-and-drop — библиотека и интеграция
 - [ ] Установить `vue-draggable-plus` (обёртка sortablejs для Vue 3)
