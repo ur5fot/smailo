@@ -59,14 +59,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3: AppRenderer — рендеринг CSS Grid
-- [ ] Изменить `.app-renderer` с `flex-direction: column` на `display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem`
-- [ ] Каждый компонент получает `grid-column: col / span colSpan` из `item.layout`
-- [ ] Fallback (нет layout): `grid-column: 1 / -1` (full-width) — обратная совместимость
-- [ ] Если указан `row`/`rowSpan`: `grid-row: row / span rowSpan`
-- [ ] Responsive: на мобильных (≤767px) все компоненты full-width (`grid-column: 1 / -1`)
-- [ ] Проверить что ConditionalGroup и multi-page рендерятся корректно с grid
-- [ ] Написать тесты (если есть клиентские тесты для AppRenderer) или ручная проверка
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Изменить `.app-renderer` с `flex-direction: column` на `display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem`
+- [x] Каждый компонент получает `grid-column: col / span colSpan` из `item.layout`
+- [x] Fallback (нет layout): `grid-column: 1 / -1` (full-width) — обратная совместимость
+- [x] Если указан `row`/`rowSpan`: `grid-row: row / span rowSpan`
+- [x] Responsive: на мобильных (≤767px) все компоненты full-width (`grid-column: 1 / -1`)
+- [x] Проверить что ConditionalGroup и multi-page рендерятся корректно с grid
+- [x] Написать тесты (если есть клиентские тесты для AppRenderer) или ручная проверка
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 4: Editor store — состояние редактора
 - [ ] Создать `client/src/stores/editor.ts` — Pinia store

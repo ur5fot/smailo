@@ -1,7 +1,7 @@
 <template>
   <div class="app-renderer">
     <template v-for="(item, index) in uiConfig" :key="index">
-      <div v-if="shouldShow(item, index)" :class="getConditionalClasses(item, index)">
+      <div v-if="shouldShow(item, index)" :class="getConditionalClasses(item, index)" :style="gridItemStyle(item)">
       <!-- Card: PrimeVue Card uses slots, not props — use wrapper -->
       <AppCard
         v-if="item.component === 'Card'"
@@ -147,6 +147,7 @@ import type { ActionStep } from '../utils/actionExecutor'
 import { evaluateShowIf } from '../utils/showIf'
 import type { StyleIfCondition } from '../utils/styleIf'
 import { getConditionalClasses as computeConditionalClasses } from '../utils/conditionalClasses'
+import { gridItemStyle as computeGridItemStyle } from '../utils/gridLayout'
 import '../assets/conditional-styles.css'
 
 interface UiConfigItem {
@@ -164,6 +165,12 @@ interface UiConfigItem {
   styleIf?: StyleIfCondition[]
   condition?: string
   children?: UiConfigItem[]
+  layout?: {
+    col: number
+    colSpan: number
+    row?: number
+    rowSpan?: number
+  }
 }
 
 const props = defineProps<{
@@ -195,6 +202,10 @@ function shouldShow(item: UiConfigItem, _index: number): boolean {
 
 function getConditionalClasses(item: UiConfigItem, _index: number): string[] {
   return computeConditionalClasses(item.styleIf, props.appData)
+}
+
+function gridItemStyle(item: UiConfigItem): Record<string, string> {
+  return computeGridItemStyle(item.layout)
 }
 
 const componentMap: Record<string, any> = {
@@ -257,8 +268,19 @@ function resolvedProps(item: UiConfigItem, index: number): Record<string, any> {
 
 <style scoped>
 .app-renderer {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
   gap: 1rem;
+}
+
+.app-renderer > div {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .app-renderer > div {
+    grid-column: 1 / -1 !important;
+  }
 }
 </style>
