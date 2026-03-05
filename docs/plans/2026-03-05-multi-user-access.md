@@ -67,13 +67,13 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 2: Глобальный JWT — выдача при создании пользователя
-- [ ] Обновить `POST /api/users` в `users.ts`: после создания userId, генерировать JWT `{ userId }` (долгоживущий, 30 дней), вернуть `{ userId, token }`
-- [ ] ⚠️ НЕ создавать `GET /api/users/:userId/token` — это auth bypass (любой зная userId получит JWT). Восстановление: пользователь создаёт нового userId
-- [ ] Обновить клиентский `user.ts` store: после `createUser()` сохранять JWT в localStorage как `smailo_token`
-- [ ] Обновить клиентский `api/index.ts` interceptor: отправлять глобальный JWT из `smailo_token` (заменяет X-User-Id); для password-protected apps дополнительно отправлять per-app JWT из `smailo_token_<hash>`
-- [ ] Явно прекратить отправку `X-User-Id` header из interceptor — удалить полностью
-- [ ] Написать тесты для JWT генерации, валидации, interceptor логики
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Обновить `POST /api/users` в `users.ts`: после создания userId, генерировать JWT `{ userId }` (долгоживущий, 30 дней), вернуть `{ userId, token }`
+- [x] ⚠️ НЕ создавать `GET /api/users/:userId/token` — это auth bypass (любой зная userId получит JWT). Восстановление: пользователь создаёт нового userId
+- [x] Обновить клиентский `user.ts` store: после `createUser()` сохранять JWT в localStorage как `smailo_token`
+- [x] Обновить клиентский `api/index.ts` interceptor: отправлять глобальный JWT из `smailo_token` (заменяет X-User-Id); для password-protected apps дополнительно отправлять per-app JWT из `smailo_token_<hash>`
+- [x] Явно прекратить отправку `X-User-Id` header из interceptor — удалить полностью
+- [x] Написать тесты для JWT генерации, валидации, interceptor логики
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3a: Auth middleware — resolveUserAndRole + requireRole
 - [ ] Создать новый middleware `resolveUserAndRole` в `server/src/middleware/auth.ts`:

@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { users, apps } from '../db/schema.js';
+import { JWT_SECRET } from '../middleware/auth.js';
 
 export const usersRouter = Router();
 
@@ -40,7 +42,8 @@ usersRouter.post('/', async (req, res) => {
     }
 
     await db.insert(users).values({ userId });
-    res.json({ userId });
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ userId, token });
   } catch (err) {
     console.error('[users] POST /api/users error:', err);
     res.status(500).json({ error: 'Failed to create user' });

@@ -30,6 +30,9 @@ export const useUserStore = defineStore('user', () => {
     const res = await api.post('/users')
     userId.value = res.data.userId
     localStorage.setItem('smailo_user_id', res.data.userId)
+    if (res.data.token) {
+      localStorage.setItem('smailo_token', res.data.token)
+    }
     return res.data.userId as string
   }
 
