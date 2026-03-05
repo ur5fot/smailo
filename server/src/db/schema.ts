@@ -19,6 +19,7 @@ export const apps = sqliteTable('apps', {
   description: text('description'),
   config: text('config', { mode: 'json' }),
   notes: text('notes'),
+  passwordVersion: integer('password_version').default(0),
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
   lastVisit: text('last_visit'),
 });

@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { apps, appData, chatHistory, userTables, userRows } from '../db/schema.js';
+import { apps, appData, appMembers, chatHistory, userTables, userRows } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
 import { chatWithAI, validateUiComponents, validatePages } from '../services/aiService.js';
 import type { UiComponent, AppConfig } from '../services/aiService.js';
@@ -140,7 +140,7 @@ appRouter.post('/:hash/set-password', verifyLimiter, resolveUserAndRole, require
     // This prevents a TOCTOU race where two concurrent requests both pass the
     // passwordHash IS NULL check above but only one should set the password.
     const updated = await db.update(apps)
-      .set({ passwordHash: hashed, creationToken: null })
+      .set({ passwordHash: hashed, creationToken: null, passwordVersion: 1 })
       .where(and(eq(apps.hash, hash), isNull(apps.passwordHash)))
       .returning({ id: apps.id });
 
@@ -182,7 +182,40 @@ appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: strin
       return res.status(401).json({ error: 'Invalid password' });
     }
 
-    const token = jwt.sign({ hash }, JWT_SECRET, { expiresIn: '7d' });
+    // Extract userId from global JWT (if present) and auto-add as viewer
+    let verifyUserId: string | undefined;
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as jwt.JwtPayload;
+        if (payload.userId && typeof payload.userId === 'string') {
+          verifyUserId = payload.userId;
+        }
+      } catch {
+        // Invalid global JWT — proceed without userId
+      }
+    }
+
+    // Auto-add verified user as viewer (idempotent — skip if already a member)
+    if (verifyUserId) {
+      const [existing] = await db.select({ id: appMembers.id }).from(appMembers)
+        .where(and(eq(appMembers.appId, row.id), eq(appMembers.userId, verifyUserId)));
+      if (!existing) {
+        await db.insert(appMembers).values({
+          appId: row.id,
+          userId: verifyUserId,
+          role: 'viewer',
+          joinedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Per-app JWT includes userId and passwordVersion for revocation support
+    const token = jwt.sign(
+      { hash, userId: verifyUserId ?? null, pv: row.passwordVersion ?? 0 },
+      JWT_SECRET,
+      { expiresIn: '7d' },
+    );
     return res.json({ token });
   } catch (error) {
     console.error('[POST /api/app/:hash/verify] Error:', error);

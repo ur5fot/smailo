@@ -109,13 +109,13 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 4: Password-protected apps — интеграция с ролями
-- [ ] Обновить `POST /:hash/verify` — при успешной верификации пароля: если пользователь (из JWT) не имеет роли в app_members, добавить как `viewer` (идемпотентно — повторный verify не дублирует)
-- [ ] Обновить per-app JWT payload: `{ hash, userId }` — теперь содержит userId
-- [ ] Обновить middleware: для password-protected apps, если есть per-app JWT с userId → искать роль в app_members
-- [ ] Пользователи с ролью в app_members не требуют пароль (доступ по глобальному JWT)
-- [ ] ⚠️ Смена пароля (`set-password`): ревокировать все per-app JWT — увеличить `passwordVersion` counter, проверять в middleware
-- [ ] Написать тесты для verify + auto-add viewer, per-app JWT с userId, member bypass password, password change revocation
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Обновить `POST /:hash/verify` — при успешной верификации пароля: если пользователь (из JWT) не имеет роли в app_members, добавить как `viewer` (идемпотентно — повторный verify не дублирует)
+- [x] Обновить per-app JWT payload: `{ hash, userId }` — теперь содержит userId
+- [x] Обновить middleware: для password-protected apps, если есть per-app JWT с userId → искать роль в app_members
+- [x] Пользователи с ролью в app_members не требуют пароль (доступ по глобальному JWT)
+- [x] ⚠️ Смена пароля (`set-password`): ревокировать все per-app JWT — увеличить `passwordVersion` counter, проверять в middleware
+- [x] Написать тесты для verify + auto-add viewer, per-app JWT с userId, member bypass password, password change revocation
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5: Auto-migration — создание owner записей
 - [ ] При старте сервера: для всех apps с `userId IS NOT NULL` и без owner в app_members — создать owner запись

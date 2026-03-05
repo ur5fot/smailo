@@ -153,9 +153,47 @@ export async function resolveUserAndRole(
       }
     }
 
-    // No role found — user is anonymous
+    // No role found via global JWT — for password-protected apps, try per-app JWT
     if (row.passwordHash) {
-      // Password-protected app: anonymous users must authenticate
+      const appToken = req.headers['x-app-token'] as string | undefined;
+      if (appToken) {
+        try {
+          const payload = jwt.verify(appToken, JWT_SECRET) as jwt.JwtPayload;
+          if (payload.hash === row.hash) {
+            // Check passwordVersion for revocation
+            const currentPv = row.passwordVersion ?? 0;
+            const tokenPv = payload.pv ?? 0;
+            if (tokenPv !== currentPv) {
+              res.status(401).json({ error: 'Token revoked — password was changed' });
+              return;
+            }
+
+            // Extract userId from per-app JWT and look up role
+            if (payload.userId && typeof payload.userId === 'string') {
+              authReq.userId = payload.userId;
+              const [member] = await db
+                .select()
+                .from(appMembers)
+                .where(and(eq(appMembers.appId, row.id), eq(appMembers.userId, payload.userId)));
+              if (member) {
+                authReq.userRole = member.role as UserRole;
+                next();
+                return;
+              }
+            }
+
+            // Valid per-app JWT but no role in app_members — treat as viewer
+            // (legacy per-app JWTs without userId still grant access)
+            authReq.userRole = 'viewer';
+            next();
+            return;
+          }
+        } catch {
+          // Invalid per-app JWT — fall through to 401
+        }
+      }
+
+      // Password-protected app: no valid token — must authenticate
       res.status(401).json({ error: 'Authentication required' });
       return;
     }

@@ -45,6 +45,7 @@ function createTestDb() {
       description TEXT,
       config TEXT,
       notes TEXT,
+      password_version INTEGER DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
       last_visit TEXT
     );
