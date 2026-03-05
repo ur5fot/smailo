@@ -50,18 +50,43 @@
             <p class="user-view__empty-hint">Создайте первое с помощью ассистента!</p>
           </div>
 
-          <!-- App cards -->
-          <div v-else class="user-view__apps-list">
-            <router-link
-              v-for="app in userStore.apps"
-              :key="app.hash"
-              :to="`/${userId}/${app.hash}`"
-              class="user-view__app-card"
-            >
-              <div class="user-view__app-name">{{ app.appName }}</div>
-              <div class="user-view__app-desc">{{ app.description }}</div>
-            </router-link>
-          </div>
+          <!-- My app cards -->
+          <template v-else>
+            <div v-if="userStore.myApps.length > 0" class="user-view__apps-list">
+              <router-link
+                v-for="app in userStore.myApps"
+                :key="app.hash"
+                :to="`/${userId}/${app.hash}`"
+                class="user-view__app-card"
+              >
+                <div class="user-view__app-name">{{ app.appName }}</div>
+                <div class="user-view__app-desc">{{ app.description }}</div>
+              </router-link>
+            </div>
+
+            <!-- Shared apps section -->
+            <template v-if="userStore.sharedApps.length > 0">
+              <div class="user-view__apps-header" style="margin-top: 0.5rem;">
+                <h2 class="user-view__apps-title">Общие со мной</h2>
+              </div>
+              <div class="user-view__apps-list">
+                <router-link
+                  v-for="app in userStore.sharedApps"
+                  :key="app.hash"
+                  :to="`/${userId}/${app.hash}`"
+                  class="user-view__app-card"
+                >
+                  <div class="user-view__app-card-header">
+                    <div class="user-view__app-name">{{ app.appName }}</div>
+                    <span class="user-view__role-badge" :class="`user-view__role-badge--${app.role}`">
+                      {{ app.role === 'editor' ? 'редактор' : 'просмотр' }}
+                    </span>
+                  </div>
+                  <div class="user-view__app-desc">{{ app.description }}</div>
+                </router-link>
+              </div>
+            </template>
+          </template>
         </div>
 
         <!-- Right column: AI chat -->
@@ -409,6 +434,32 @@ watch(
   font-size: 0.95rem;
   color: #111827;
   margin-bottom: 0.25rem;
+}
+
+.user-view__app-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.user-view__role-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.4rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.user-view__role-badge--editor {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.user-view__role-badge--viewer {
+  background: #f3f4f6;
+  color: #6b7280;
 }
 
 .user-view__app-desc {

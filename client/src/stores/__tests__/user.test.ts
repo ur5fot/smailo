@@ -24,6 +24,7 @@ import api from '../../api'
 import { useUserStore } from '../user'
 
 const mockPost = api.post as ReturnType<typeof vi.fn>
+const mockGet = api.get as ReturnType<typeof vi.fn>
 
 describe('useUserStore — createUser with JWT', () => {
   beforeEach(() => {
@@ -56,5 +57,70 @@ describe('useUserStore — createUser with JWT', () => {
 
     expect(localStorageMock.getItem('smailo_user_id')).toBe('testUser02')
     expect(localStorageMock.getItem('smailo_token')).toBeNull()
+  })
+})
+
+describe('useUserStore — fetchApps with shared apps', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    localStorageMock.clear()
+  })
+
+  it('parses new format with myApps and sharedApps', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        myApps: [
+          { hash: 'h1', appName: 'My App', description: 'desc1', createdAt: '2026-01-01', lastVisit: null, role: 'owner' },
+        ],
+        sharedApps: [
+          { hash: 'h2', appName: 'Shared App', description: 'desc2', createdAt: '2026-01-02', lastVisit: null, role: 'editor' },
+          { hash: 'h3', appName: 'View App', description: 'desc3', createdAt: '2026-01-03', lastVisit: null, role: 'viewer' },
+        ],
+      },
+    })
+
+    const store = useUserStore()
+    await store.fetchApps('user1')
+
+    expect(store.myApps).toHaveLength(1)
+    expect(store.myApps[0].hash).toBe('h1')
+    expect(store.myApps[0].role).toBe('owner')
+
+    expect(store.sharedApps).toHaveLength(2)
+    expect(store.sharedApps[0].role).toBe('editor')
+    expect(store.sharedApps[1].role).toBe('viewer')
+
+    // Combined apps list
+    expect(store.apps).toHaveLength(3)
+  })
+
+  it('handles legacy array format', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: [
+        { hash: 'h1', appName: 'App 1', description: 'd1', createdAt: '2026-01-01', lastVisit: null },
+      ],
+    })
+
+    const store = useUserStore()
+    await store.fetchApps('user1')
+
+    expect(store.myApps).toHaveLength(1)
+    expect(store.myApps[0].role).toBe('owner')
+    expect(store.sharedApps).toHaveLength(0)
+    expect(store.apps).toHaveLength(1)
+  })
+
+  it('handles empty result', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { myApps: [], sharedApps: [] },
+    })
+
+    const store = useUserStore()
+    await store.fetchApps('user1')
+
+    expect(store.myApps).toHaveLength(0)
+    expect(store.sharedApps).toHaveLength(0)
+    expect(store.apps).toHaveLength(0)
   })
 })

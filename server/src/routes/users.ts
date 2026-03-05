@@ -2,9 +2,9 @@ import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, ne } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { users, apps } from '../db/schema.js';
+import { users, apps, appMembers } from '../db/schema.js';
 import { JWT_SECRET } from '../middleware/auth.js';
 
 export const usersRouter = Router();
@@ -84,7 +84,8 @@ usersRouter.get('/:userId/apps', async (req, res) => {
       return;
     }
 
-    const userApps = await db
+    // Own apps (owner)
+    const ownApps = await db
       .select({
         hash: apps.hash,
         appName: apps.appName,
@@ -96,7 +97,28 @@ usersRouter.get('/:userId/apps', async (req, res) => {
       .where(eq(apps.userId, userId))
       .orderBy(desc(apps.createdAt));
 
-    res.json(userApps);
+    // Shared apps (editor/viewer via app_members, excluding owner)
+    const sharedApps = await db
+      .select({
+        hash: apps.hash,
+        appName: apps.appName,
+        description: apps.description,
+        createdAt: apps.createdAt,
+        lastVisit: apps.lastVisit,
+        role: appMembers.role,
+      })
+      .from(appMembers)
+      .innerJoin(apps, eq(appMembers.appId, apps.id))
+      .where(and(
+        eq(appMembers.userId, userId),
+        ne(appMembers.role, 'owner'),
+      ))
+      .orderBy(desc(apps.createdAt));
+
+    res.json({
+      myApps: ownApps.map(a => ({ ...a, role: 'owner' as const })),
+      sharedApps,
+    });
   } catch (err) {
     console.error('[users] GET /api/users/:userId/apps error:', err);
     res.status(500).json({ error: 'Failed to get user apps' });

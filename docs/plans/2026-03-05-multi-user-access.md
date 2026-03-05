@@ -166,12 +166,12 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 9: Client — UserView и список shared apps
-- [ ] Обновить `GET /api/users/:userId/apps` — возвращать также приложения где пользователь = member (не только owner). Добавить поле `role` в ответе
-- [ ] Обновить `user.ts` store: разделить на `myApps` (owner) и `sharedApps` (editor/viewer)
-- [ ] Обновить `UserView.vue`: показать две секции — "Мои приложения" и "Общие со мной"
-- [ ] Для shared apps: показать роль бейджем (editor/viewer)
-- [ ] Написать тесты для store и endpoint
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Обновить `GET /api/users/:userId/apps` — возвращать также приложения где пользователь = member (не только owner). Добавить поле `role` в ответе
+- [x] Обновить `user.ts` store: разделить на `myApps` (owner) и `sharedApps` (editor/viewer)
+- [x] Обновить `UserView.vue`: показать две секции — "Мои приложения" и "Общие со мной"
+- [x] Для shared apps: показать роль бейджем (editor/viewer)
+- [x] Написать тесты для store и endpoint
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 10: Client — AppView role-aware UI
 - [ ] Скрыть кнопку редактора (pi-pencil) для viewer (нет доступа к config)
