@@ -309,7 +309,8 @@ appRouter.put('/:hash/config', chatLimiter, requireAuthIfProtected, async (req, 
     if (validated.length === 0 && body.pages.length > 0) {
       return res.status(400).json({ error: 'No valid pages found' });
     }
-    const updatedConfig = { ...currentConfig, pages: validated };
+    const { uiComponents: _removedUi, ...configWithoutComponents } = currentConfig;
+    const updatedConfig = { ...configWithoutComponents, pages: validated };
     await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
     return res.json({ ok: true, config: updatedConfig });
   } catch (error) {

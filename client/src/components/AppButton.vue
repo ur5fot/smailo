@@ -41,6 +41,7 @@ async function handleClick() {
   errorMsg.value = ''
   try {
     if (props.actions?.length) {
+      // executeActions already calls fetchData internally — no need to emit 'data-written'
       await executeActions(props.actions, {
         hash: props.hash,
         userId: userStore.userId,
@@ -48,7 +49,6 @@ async function handleClick() {
         appData: appStore.appData,
         appStore,
       })
-      emit('data-written')
     } else if (props.action) {
       const payload: Record<string, unknown> = {
         key: props.action.key,
