@@ -76,7 +76,7 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3a: Auth middleware — resolveUserAndRole + requireRole
-- [ ] Создать новый middleware `resolveUserAndRole` в `server/src/middleware/auth.ts`:
+- [x] Создать новый middleware `resolveUserAndRole` в `server/src/middleware/auth.ts`:
   - Извлекает userId из глобального JWT (header `Authorization: Bearer <token>`)
   - Находит app row по hash
   - Ищет роль в `app_members` для данного userId+appId
@@ -85,11 +85,11 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
   - Для unprotected apps: anonymous → viewer-level read (GET только)
   - Аттачит на req: `app_row`, `userId`, `userRole` ('owner'|'editor'|'viewer'|'anonymous')
   - ⚠️ Игнорировать X-User-Id header полностью — только JWT
-- [ ] Создать middleware `requireRole(...roles)` — проверяет `req.userRole`, возвращает 403 если роль недостаточна
-- [ ] Обратная совместимость: если app не имеет ни одного app_members row, fallback → `apps.userId === req.userId` значит owner, остальные anonymous
-- [ ] Написать тесты для resolveUserAndRole (all role combinations, anonymous, password-protected, legacy apps)
-- [ ] Написать тесты для requireRole (allowed, denied, missing role)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Создать middleware `requireRole(...roles)` — проверяет `req.userRole`, возвращает 403 если роль недостаточна
+- [x] Обратная совместимость: если app не имеет ни одного app_members row, fallback → `apps.userId === req.userId` значит owner, остальные anonymous
+- [x] Написать тесты для resolveUserAndRole (all role combinations, anonymous, password-protected, legacy apps)
+- [x] Написать тесты для requireRole (allowed, denied, missing role)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3b: Применить новый auth ко всем routes
 - [ ] Обновить все routes в `app.ts`: заменить `requireAuthIfProtected` на `resolveUserAndRole` + `requireRole(...)`:
