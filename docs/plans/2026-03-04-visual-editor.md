@@ -77,14 +77,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5: Переключение режимов в AppView
-- [ ] Добавить кнопку-переключатель в header AppView (иконка pi-pencil / pi-comments)
-- [ ] При переключении в edit mode: правая панель показывает editor UI вместо чата
-- [ ] При переключении в view mode: правая панель показывает чат (как сейчас)
-- [ ] Левая панель: в edit mode показывает `AppEditor`, в view mode — `AppRenderer`
-- [ ] Инициализация: `editorStore.enterEditMode(appConfig)` при входе в edit mode
-- [ ] Unsaved changes warning: при переключении обратно в view mode спрашивать, если `isDirty`
-- [ ] Написать тесты для переключения режимов
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Добавить кнопку-переключатель в header AppView (иконка pi-pencil / pi-comments)
+- [x] При переключении в edit mode: правая панель показывает editor UI вместо чата
+- [x] При переключении в view mode: правая панель показывает чат (как сейчас)
+- [x] Левая панель: в edit mode показывает `AppEditor`, в view mode — `AppRenderer`
+- [x] Инициализация: `editorStore.enterEditMode(appConfig)` при входе в edit mode
+- [x] Unsaved changes warning: при переключении обратно в view mode спрашивать, если `isDirty`
+- [x] Написать тесты для переключения режимов
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 6: AppEditor canvas — карточки компонентов на grid
 - [ ] Создать `client/src/components/editor/AppEditor.vue`
