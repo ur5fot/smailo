@@ -114,7 +114,7 @@
       <!-- Component cards -->
       <EditorComponentCard
         v-for="(item, index) in components"
-        :key="item._editorId || index"
+        :key="(item._editorId as string) || index"
         :component="item"
         :index="index"
         :selected="editorStore.selectedComponentIndex === index"

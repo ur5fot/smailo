@@ -157,14 +157,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 13: Verify acceptance criteria
-- [ ] Verify: можно создать приложение через чат, переключиться в редактор, изменить layout/props, сохранить
-- [ ] Verify: drag-and-drop работает (reorder, resize, add from palette)
-- [ ] Verify: property editor корректно отображает и сохраняет все типы props
-- [ ] Verify: CSS Grid layout рендерится в view mode
-- [ ] Verify: обратная совместимость — старые приложения без layout работают
-- [ ] Verify: multi-page приложения редактируются корректно
-- [ ] Run full test suite (unit tests)
-- [ ] Run linter — all issues must be fixed
+- [x] Verify: можно создать приложение через чат, переключиться в редактор, изменить layout/props, сохранить
+- [x] Verify: drag-and-drop работает (reorder, resize, add from palette)
+- [x] Verify: property editor корректно отображает и сохраняет все типы props
+- [x] Verify: CSS Grid layout рендерится в view mode
+- [x] Verify: обратная совместимость — старые приложения без layout работают
+- [x] Verify: multi-page приложения редактируются корректно
+- [x] Run full test suite (unit tests)
+- [x] Run linter — all issues must be fixed
 
 ### Task 14: [Final] Update documentation
 - [ ] Обновить `README.md` — описание визуального редактора
