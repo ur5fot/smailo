@@ -6,14 +6,14 @@
         v-if="type === 'number'"
         v-model="numericValue"
         :placeholder="placeholder"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
         class="app-input-text__input"
       />
       <DatePicker
         v-else-if="type === 'date'"
         v-model="dateValue"
         :placeholder="placeholder"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
         dateFormat="dd.mm.yy"
         class="app-input-text__input"
       />
@@ -21,13 +21,13 @@
         v-else
         v-model="textValue"
         :placeholder="placeholder"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
         class="app-input-text__input"
       />
       <Button
         label="Сохранить"
         :loading="loading"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
         @click="handleSave"
       />
     </div>
@@ -62,7 +62,7 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 const userStore = useUserStore()
-const isViewer = computed(() => appStore.myRole === 'viewer')
+const isReadOnly = computed(() => appStore.myRole === 'viewer' || appStore.myRole === 'anonymous' || appStore.myRole === null)
 
 const numericValue = ref<number | null>(null)
 const textValue = ref('')

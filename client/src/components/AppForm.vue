@@ -12,13 +12,13 @@
       <InputNumber
         v-if="field.type === 'number'"
         v-model="fieldValues[field.name] as number | null"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
         class="app-form__input"
       />
       <DatePicker
         v-else-if="field.type === 'date'"
         v-model="(fieldValues[field.name] as Date)"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
         class="app-form__input"
         dateFormat="yy-mm-dd"
         showIcon
@@ -27,27 +27,27 @@
         v-else-if="field.type === 'boolean'"
         v-model="fieldValues[field.name] as boolean"
         :binary="true"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
       />
       <Select
         v-else-if="field.type === 'select'"
         v-model="fieldValues[field.name] as string | null"
         :options="field.options"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
         class="app-form__input"
         placeholder="Выберите..."
       />
       <InputText
         v-else
         v-model="fieldValues[field.name] as string"
-        :disabled="isViewer"
+        :disabled="isReadOnly"
         class="app-form__input"
       />
     </div>
     <Button
       :label="submitLabel || 'Сохранить'"
       :loading="loading"
-      :disabled="isViewer"
+      :disabled="isReadOnly"
       @click="handleSubmit"
     />
     <span v-if="errorMsg" class="app-form__error">{{ errorMsg }}</span>
@@ -92,7 +92,7 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 const userStore = useUserStore()
-const isViewer = computed(() => appStore.myRole === 'viewer')
+const isReadOnly = computed(() => appStore.myRole === 'viewer' || appStore.myRole === 'anonymous' || appStore.myRole === null)
 
 const isTableMode = computed(() => props.dataSource?.type === 'table')
 

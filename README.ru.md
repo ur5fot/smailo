@@ -106,6 +106,7 @@ smailo/
         ├── db/
         │   ├── schema.ts         # Drizzle-схема: users, apps, appMembers, appInvites, cronJobs, appData, chatHistory, userTables, userRows
         │   ├── queries.ts        # Общие DB-запросы (getLatestAppData)
+        │   ├── migrateOwners.ts  # Авто-создание owner записей в app_members для legacy-приложений при старте
         │   └── index.ts          # Подключение SQLite + Drizzle
         ├── middleware/
         │   └── auth.ts           # resolveUserAndRole + requireRole мидлвар (ролевой контроль доступа)

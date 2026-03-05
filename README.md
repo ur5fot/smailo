@@ -106,6 +106,7 @@ smailo/
         ├── db/
         │   ├── schema.ts         # Drizzle schema: users, apps, appMembers, appInvites, cronJobs, appData, chatHistory, userTables, userRows
         │   ├── queries.ts        # Shared DB queries (getLatestAppData)
+        │   ├── migrateOwners.ts  # Auto-create owner records in app_members for legacy apps on startup
         │   └── index.ts          # SQLite + Drizzle connection
         ├── middleware/
         │   └── auth.ts           # resolveUserAndRole + requireRole middleware (role-based access control)

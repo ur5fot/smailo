@@ -184,7 +184,7 @@
 
             <!-- Input bar -->
             <div class="app-view__input-wrapper">
-              <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading || appStore.myRole === 'viewer'" @submit="handleChatSubmit" />
+              <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading || !appStore.myRole || appStore.myRole === 'viewer' || appStore.myRole === 'anonymous'" @submit="handleChatSubmit" />
             </div>
           </template>
         </div>

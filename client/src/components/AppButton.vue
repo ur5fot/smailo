@@ -4,7 +4,7 @@
       :label="label"
       :severity="severity"
       :loading="loading"
-      :disabled="isViewer"
+      :disabled="isReadOnly"
       @click="handleClick"
     />
     <span v-if="errorMsg" class="app-button__error">{{ errorMsg }}</span>
@@ -34,7 +34,7 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 const userStore = useUserStore()
-const isViewer = computed(() => appStore.myRole === 'viewer')
+const isReadOnly = computed(() => appStore.myRole === 'viewer' || appStore.myRole === 'anonymous' || appStore.myRole === null)
 const loading = ref(false)
 const errorMsg = ref('')
 

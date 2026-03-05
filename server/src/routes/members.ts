@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto';
 import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appMembers, appInvites } from '../db/schema.js';
-import { resolveUserAndRole, requireRole, type AuthenticatedRequest } from '../middleware/auth.js';
+import { resolveUserAndRole, requireRole, extractUserIdFromJwt, type AuthenticatedRequest } from '../middleware/auth.js';
 
 export const membersRouter = Router({ mergeParams: true });
 
@@ -179,7 +179,7 @@ membersRouter.delete(
   }
 );
 
-// POST /api/app/:hash/members/invite — create invite (owner only)
+// POST /api/app/:hash/members/invite/:token/accept — accept invite (authenticated user)
 membersRouter.post(
   '/invite/:token/accept',
   membersLimiter,
@@ -189,25 +189,9 @@ membersRouter.post(
       const token = req.params['token'] as string;
 
       // Extract userId from global JWT — must be authenticated
-      const authHeader = req.headers['authorization'];
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      const userId = extractUserIdFromJwt(req);
+      if (!userId) {
         res.status(401).json({ error: 'Authentication required' });
-        return;
-      }
-
-      // Use resolveUserAndRole-style JWT extraction
-      const jwt = await import('jsonwebtoken');
-      const { JWT_SECRET } = await import('../middleware/auth.js');
-      let userId: string;
-      try {
-        const payload = jwt.default.verify(authHeader.slice(7), JWT_SECRET) as { userId?: string };
-        if (!payload.userId || typeof payload.userId !== 'string') {
-          res.status(401).json({ error: 'Invalid token' });
-          return;
-        }
-        userId = payload.userId;
-      } catch {
-        res.status(401).json({ error: 'Invalid or expired token' });
         return;
       }
 
@@ -248,6 +232,11 @@ membersRouter.post(
         .where(and(eq(appMembers.appId, appRow.id), eq(appMembers.userId, userId)));
 
       if (existingMember) {
+        // Consume the invite even if user is already a member (single-use token)
+        await db
+          .update(appInvites)
+          .set({ acceptedByUserId: userId })
+          .where(eq(appInvites.id, invite.id));
         res.json({ appHash: appRow.hash, role: existingMember.role, alreadyMember: true });
         return;
       }
