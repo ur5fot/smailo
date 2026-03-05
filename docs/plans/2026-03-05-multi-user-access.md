@@ -103,10 +103,10 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3c: computedValue + RLS guard
-- [ ] ⚠️ Серверные computedValue формулы (`evaluateComputedValues`) обходят RLS — формула может прочитать данные из таблиц, к которым viewer не имеет доступа
-- [ ] Решение: передавать `userRole` и `userId` в `evaluateComputedValues`; для viewer с RLS-таблицей — фильтровать rows перед вычислением формул
-- [ ] Написать тесты: viewer с computedValue на RLS-таблице видит только агрегат своих строк
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] ⚠️ Серверные computedValue формулы (`evaluateComputedValues`) обходят RLS — формула может прочитать данные из таблиц, к которым viewer не имеет доступа
+- [x] Решение: передавать `userRole` и `userId` в `evaluateComputedValues`; для viewer с RLS-таблицей — фильтровать rows перед вычислением формул
+- [x] Написать тесты: viewer с computedValue на RLS-таблице видит только агрегат своих строк
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 4: Password-protected apps — интеграция с ролями
 - [ ] Обновить `POST /:hash/verify` — при успешной верификации пароля: если пользователь (из JWT) не имеет роли в app_members, добавить как `viewer` (идемпотентно — повторный verify не дублирует)

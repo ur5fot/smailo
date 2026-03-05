@@ -214,19 +214,28 @@ appRouter.get('/:hash/data', resolveUserAndRole, async (req, res) => {
             id: userTables.id,
             name: userTables.name,
             columns: userTables.columns,
+            rlsEnabled: userTables.rlsEnabled,
           }).from(userTables).where(eq(userTables.appId, row.id));
 
           // Build tables context: map table name -> { columns, rows }
+          // For viewers on RLS-enabled tables, filter rows to only those created by the viewer
+          const authReq = req as AuthenticatedRequest;
           const tablesContext: Record<string, { columns: Array<{ name: string; type: string }>; rows: Array<Record<string, unknown>> }> = {};
           for (const table of appTables) {
             if (tableNames.has(table.name)) {
               const columns = table.columns as ColumnDef[];
+              const isRlsRestricted = (authReq.userRole === 'viewer' || authReq.userRole === 'anonymous') && table.rlsEnabled === 1;
+              const rowFilter = isRlsRestricted
+                ? (authReq.userId
+                  ? and(eq(userRows.tableId, table.id), eq(userRows.createdByUserId, authReq.userId))
+                  : and(eq(userRows.tableId, table.id), sql`0`))  // anonymous: no rows
+                : eq(userRows.tableId, table.id);
               const dbRows = await db.select({
                 id: userRows.id,
                 data: userRows.data,
                 createdAt: userRows.createdAt,
                 updatedAt: userRows.updatedAt,
-              }).from(userRows).where(eq(userRows.tableId, table.id));
+              }).from(userRows).where(rowFilter);
               const mappedRows = dbRows.map(r => ({
                 id: r.id,
                 data: r.data as Record<string, unknown>,
