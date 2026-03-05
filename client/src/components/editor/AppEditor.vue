@@ -25,6 +25,8 @@
       :animation="200"
       ghost-class="app-editor__ghost"
       @update="onDragUpdate"
+      @dragover.prevent="onGridDragOver"
+      @drop.prevent="onGridDrop"
     >
       <!-- Visual grid lines (non-draggable) -->
       <div class="app-editor__grid-lines" data-no-drag>
@@ -45,8 +47,13 @@
       />
     </VueDraggable>
 
-    <!-- Empty placeholder -->
-    <div v-else class="app-editor__placeholder">
+    <!-- Empty placeholder (also a drop target) -->
+    <div
+      v-else
+      class="app-editor__placeholder"
+      @dragover.prevent="onGridDragOver"
+      @drop.prevent="onGridDrop"
+    >
       <i class="pi pi-pencil" style="font-size: 2rem; color: #9ca3af" />
       <p>Перетащите компоненты из палитры</p>
       <p class="app-editor__subtitle">или добавьте их через чат</p>
@@ -60,6 +67,7 @@ import { VueDraggable } from 'vue-draggable-plus'
 import { useEditorStore } from '../../stores/editor'
 import { gridItemStyle } from '../../utils/gridLayout'
 import { snapToGrid } from '../../utils/editorDrag'
+import { getDefaultComponent } from '../../utils/componentDefaults'
 import EditorComponentCard from './EditorComponentCard.vue'
 import type { UiComponent } from '../../stores/editor'
 
@@ -85,6 +93,19 @@ function onDragUpdate(evt: { oldIndex: number; newIndex: number }) {
       editorStore.selectComponent(sel + 1)
     }
   }
+}
+
+function onGridDragOver(event: DragEvent) {
+  if (event.dataTransfer?.types.includes('application/x-editor-component')) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+function onGridDrop(event: DragEvent) {
+  const componentType = event.dataTransfer?.getData('application/x-editor-component')
+  if (!componentType) return
+  const component = getDefaultComponent(componentType)
+  editorStore.addComponent(component)
 }
 
 function onResize(index: number, newColSpan: number) {

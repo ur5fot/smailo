@@ -104,10 +104,16 @@
           <!-- Editor mode: right panel -->
           <template v-if="editorStore.isEditMode">
             <div class="app-view__editor-panel">
-              <div class="app-view__editor-panel-placeholder">
-                <i class="pi pi-sliders-h" style="font-size: 1.5rem; color: #9ca3af" />
-                <p>Палитра и свойства компонентов</p>
-                <p class="app-view__editor-panel-subtitle">Будут доступны в следующем обновлении</p>
+              <div class="app-view__editor-panel-section">
+                <div class="app-view__editor-panel-header">Компоненты</div>
+                <ComponentPalette />
+              </div>
+              <div class="app-view__editor-panel-section app-view__editor-panel-section--props">
+                <div class="app-view__editor-panel-placeholder">
+                  <i class="pi pi-sliders-h" style="font-size: 1.5rem; color: #9ca3af" />
+                  <p>Свойства компонента</p>
+                  <p class="app-view__editor-panel-subtitle">Выберите компонент на canvas</p>
+                </div>
               </div>
             </div>
           </template>
@@ -182,6 +188,7 @@ import Smailo from '../components/Smailo.vue'
 import InputBar from '../components/InputBar.vue'
 import AppRenderer from '../components/AppRenderer.vue'
 import AppEditor from '../components/editor/AppEditor.vue'
+import ComponentPalette from '../components/editor/ComponentPalette.vue'
 import { useAppStore } from '../stores/app'
 import { useEditorStore } from '../stores/editor'
 import type { ChatMessage } from '../stores/chat'
@@ -742,9 +749,29 @@ onMounted(() => {
 .app-view__editor-panel {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.app-view__editor-panel-section {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.app-view__editor-panel-section--props {
+  flex: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  border-bottom: none;
+}
+
+.app-view__editor-panel-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 0.75rem 0;
 }
 
 .app-view__editor-panel-placeholder {
@@ -754,6 +781,7 @@ onMounted(() => {
   gap: 0.5rem;
   color: #6b7280;
   text-align: center;
+  padding: 1rem;
 }
 
 .app-view__editor-panel-placeholder p {

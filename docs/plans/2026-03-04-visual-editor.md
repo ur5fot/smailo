@@ -108,14 +108,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 8: Палитра компонентов
-- [ ] Создать `client/src/components/editor/ComponentPalette.vue`
-- [ ] Размещение: верхняя часть правой панели (над property editor)
-- [ ] Группировка по категориям: Display (Card, DataTable, Chart, Timeline, Knob, Tag, ProgressBar, Calendar, CardList, Image, MeterGroup, Badge, Chip, Slider, Rating), Input (Button, InputText, Form), Layout (Accordion, Panel, Tabs, ConditionalGroup)
-- [ ] Каждый элемент: иконка + название, draggable в canvas
-- [ ] При drop: создаёт компонент с default props для типа (определить defaults)
-- [ ] Компактный вид: горизонтальные чипы или иконки с tooltip
-- [ ] Написать тесты для default props генерации
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Создать `client/src/components/editor/ComponentPalette.vue`
+- [x] Размещение: верхняя часть правой панели (над property editor)
+- [x] Группировка по категориям: Display (Card, DataTable, Chart, Timeline, Knob, Tag, ProgressBar, Calendar, CardList, Image, MeterGroup, Badge, Chip, Slider, Rating), Input (Button, InputText, Form), Layout (Accordion, Panel, Tabs, ConditionalGroup)
+- [x] Каждый элемент: иконка + название, draggable в canvas
+- [x] При drop: создаёт компонент с default props для типа (определить defaults)
+- [x] Компактный вид: горизонтальные чипы или иконки с tooltip
+- [x] Написать тесты для default props генерации
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 9: Property editor panel
 - [ ] Создать `client/src/components/editor/PropertyEditor.vue`
