@@ -15,23 +15,35 @@
     </div>
 
     <!-- Grid canvas -->
-    <div v-if="components.length > 0" class="app-editor__grid">
-      <!-- Visual grid lines -->
-      <div class="app-editor__grid-lines">
-        <div v-for="i in 12" :key="i" class="app-editor__grid-line" />
+    <VueDraggable
+      v-if="components.length > 0"
+      v-model="components"
+      tag="div"
+      class="app-editor__grid"
+      handle=".editor-card__drag-handle"
+      :group="{ name: 'editor-components', pull: true, put: true }"
+      :animation="200"
+      ghost-class="app-editor__ghost"
+      @update="onDragUpdate"
+    >
+      <!-- Visual grid lines (non-draggable) -->
+      <div class="app-editor__grid-lines" data-no-drag>
+        <div v-for="i in 12" :key="'line-' + i" class="app-editor__grid-line" />
       </div>
 
       <!-- Component cards -->
       <EditorComponentCard
         v-for="(item, index) in components"
-        :key="index"
+        :key="item._editorId || index"
         :component="item"
+        :index="index"
         :selected="editorStore.selectedComponentIndex === index"
         :style="gridItemStyle(item.layout)"
         @select="editorStore.selectComponent(index)"
         @delete="editorStore.removeComponent(index)"
+        @resize="onResize(index, $event)"
       />
-    </div>
+    </VueDraggable>
 
     <!-- Empty placeholder -->
     <div v-else class="app-editor__placeholder">
@@ -44,13 +56,46 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { VueDraggable } from 'vue-draggable-plus'
 import { useEditorStore } from '../../stores/editor'
 import { gridItemStyle } from '../../utils/gridLayout'
+import { snapToGrid } from '../../utils/editorDrag'
 import EditorComponentCard from './EditorComponentCard.vue'
+import type { UiComponent } from '../../stores/editor'
 
 const editorStore = useEditorStore()
 
-const components = computed(() => editorStore.currentPageComponents)
+const components = computed({
+  get: () => editorStore.currentPageComponents,
+  set: (val: UiComponent[]) => {
+    editorStore.replaceCurrentComponents(val)
+  }
+})
+
+function onDragUpdate(evt: { oldIndex: number; newIndex: number }) {
+  // VueDraggable already mutated the array via v-model.
+  // Update selection to follow the moved item if needed.
+  if (editorStore.selectedComponentIndex === evt.oldIndex) {
+    editorStore.selectComponent(evt.newIndex)
+  } else if (editorStore.selectedComponentIndex !== null) {
+    const sel = editorStore.selectedComponentIndex
+    if (evt.oldIndex < sel && evt.newIndex >= sel) {
+      editorStore.selectComponent(sel - 1)
+    } else if (evt.oldIndex > sel && evt.newIndex <= sel) {
+      editorStore.selectComponent(sel + 1)
+    }
+  }
+}
+
+function onResize(index: number, newColSpan: number) {
+  const comp = editorStore.currentPageComponents[index]
+  const currentLayout = comp?.layout || { col: 1, colSpan: 12 }
+  const snapped = snapToGrid(currentLayout.col, newColSpan)
+  editorStore.updateLayout(index, {
+    ...currentLayout,
+    colSpan: snapped.colSpan,
+  })
+}
 </script>
 
 <style scoped>
@@ -113,6 +158,13 @@ const components = computed(() => editorStore.currentPageComponents)
 
 .app-editor__grid > .editor-card {
   min-width: 0;
+}
+
+/* ── Drag ghost ─────────────────────────────── */
+.app-editor__ghost {
+  opacity: 0.4;
+  border: 2px dashed #6366f1 !important;
+  background: #eef2ff !important;
 }
 
 /* ── Visual grid lines ───────────────────────── */

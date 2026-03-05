@@ -98,14 +98,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7: Drag-and-drop — библиотека и интеграция
-- [ ] Установить `vue-draggable-plus` (обёртка sortablejs для Vue 3)
-- [ ] Реорганизация компонентов на canvas (drag handle на карточке)
-- [ ] Grid snapping: при перетаскивании компонент привязывается к колонкам сетки
-- [ ] Drag из палитры на canvas (cross-container drag)
-- [ ] Resize handles: изменение `colSpan` перетаскиванием правого края карточки
-- [ ] Обновление `editorStore` при drag-end и resize-end
-- [ ] Написать тесты для drag-and-drop логики (events → store updates)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Установить `vue-draggable-plus` (обёртка sortablejs для Vue 3)
+- [x] Реорганизация компонентов на canvas (drag handle на карточке)
+- [x] Grid snapping: при перетаскивании компонент привязывается к колонкам сетки
+- [x] Drag из палитры на canvas (cross-container drag)
+- [x] Resize handles: изменение `colSpan` перетаскиванием правого края карточки
+- [x] Обновление `editorStore` при drag-end и resize-end
+- [x] Написать тесты для drag-and-drop логики (events → store updates)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 8: Палитра компонентов
 - [ ] Создать `client/src/components/editor/ComponentPalette.vue`

@@ -1,7 +1,7 @@
 <template>
   <div
     class="editor-card"
-    :class="{ 'editor-card--selected': selected }"
+    :class="{ 'editor-card--selected': selected, 'editor-card--resizing': isResizing }"
     @click="$emit('select')"
   >
     <div class="editor-card__header">
@@ -17,22 +17,34 @@
       <span v-if="dataInfo" class="editor-card__data-info">{{ dataInfo }}</span>
       <span v-if="!label && !dataInfo" class="editor-card__empty">No data binding</span>
     </div>
+    <!-- Resize handle -->
+    <div
+      class="editor-card__resize-handle"
+      @mousedown.stop.prevent="onResizeStart"
+    >
+      <i class="pi pi-arrows-h" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { UiComponent } from '../../stores/editor'
+import { calculateResizeColSpan, measureGridColumnWidth } from '../../utils/editorDrag'
 
 const props = defineProps<{
   component: UiComponent
+  index: number
   selected: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   select: []
   delete: []
+  resize: [newColSpan: number]
 }>()
+
+const isResizing = ref(false)
 
 const COMPONENT_ICONS: Record<string, string> = {
   Card: 'pi pi-id-card',
@@ -83,6 +95,39 @@ const dataInfo = computed(() => {
   }
   return ''
 })
+
+function onResizeStart(e: MouseEvent) {
+  const startX = e.clientX
+  const initialColSpan = props.component.layout?.colSpan ?? 12
+  const col = props.component.layout?.col ?? 1
+
+  // Find the parent grid element
+  const cardEl = (e.target as HTMLElement).closest('.editor-card')
+  const gridEl = cardEl?.parentElement
+  if (!gridEl) return
+
+  const gridColumnWidth = measureGridColumnWidth(gridEl)
+  isResizing.value = true
+
+  let lastEmittedColSpan = initialColSpan
+
+  function onMouseMove(moveEvt: MouseEvent) {
+    const newColSpan = calculateResizeColSpan(startX, moveEvt.clientX, gridColumnWidth, initialColSpan, col)
+    if (newColSpan !== lastEmittedColSpan) {
+      lastEmittedColSpan = newColSpan
+      emit('resize', newColSpan)
+    }
+  }
+
+  function onMouseUp() {
+    isResizing.value = false
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+  }
+
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+}
 </script>
 
 <style scoped>
@@ -93,6 +138,7 @@ const dataInfo = computed(() => {
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
   overflow: hidden;
+  position: relative;
 }
 
 .editor-card:hover {
@@ -102,6 +148,10 @@ const dataInfo = computed(() => {
 .editor-card--selected {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.editor-card--resizing {
+  user-select: none;
 }
 
 .editor-card__header {
@@ -118,6 +168,10 @@ const dataInfo = computed(() => {
   cursor: grab;
   color: #9ca3af;
   font-size: 0.75rem;
+}
+
+.editor-card__drag-handle:active {
+  cursor: grabbing;
 }
 
 .editor-card__type-icon {
@@ -182,5 +236,35 @@ const dataInfo = computed(() => {
   font-size: 0.7rem;
   color: #d1d5db;
   font-style: italic;
+}
+
+/* ── Resize handle ──────────────────────────── */
+.editor-card__resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.editor-card:hover .editor-card__resize-handle,
+.editor-card--resizing .editor-card__resize-handle {
+  opacity: 1;
+}
+
+.editor-card__resize-handle:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.editor-card__resize-handle i {
+  font-size: 0.6rem;
+  color: #6366f1;
 }
 </style>

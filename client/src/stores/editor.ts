@@ -159,6 +159,18 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  function replaceCurrentComponents(newComponents: UiComponent[]) {
+    if (editablePages.value && activePage.value) {
+      const page = editablePages.value.find(p => p.id === activePage.value)
+      if (page) {
+        page.uiComponents = newComponents
+      }
+    } else {
+      editableConfig.value = newComponents
+    }
+    isDirty.value = true
+  }
+
   function discardChanges(config: Record<string, unknown>) {
     enterEditMode(config)
   }
@@ -195,6 +207,7 @@ export const useEditorStore = defineStore('editor', () => {
     updateLayout,
     saveConfig,
     setActivePage,
+    replaceCurrentComponents,
     discardChanges,
   }
 })

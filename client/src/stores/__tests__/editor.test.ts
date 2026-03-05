@@ -413,6 +413,34 @@ describe('useEditorStore', () => {
     })
   })
 
+  describe('replaceCurrentComponents', () => {
+    it('replaces components in single-page mode', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeSinglePageConfig())
+      const newComponents = [makeComponent({ component: 'Badge' }), makeComponent({ component: 'Chart' })]
+      store.replaceCurrentComponents(newComponents)
+
+      expect(store.editableConfig).toHaveLength(2)
+      expect(store.editableConfig[0].component).toBe('Badge')
+      expect(store.editableConfig[1].component).toBe('Chart')
+      expect(store.isDirty).toBe(true)
+    })
+
+    it('replaces components in multi-page mode (active page only)', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      const newComponents = [makeComponent({ component: 'Image' })]
+      store.replaceCurrentComponents(newComponents)
+
+      // Active page (main) should be replaced
+      expect(store.editablePages![0].uiComponents).toHaveLength(1)
+      expect(store.editablePages![0].uiComponents[0].component).toBe('Image')
+      // Other page unchanged
+      expect(store.editablePages![1].uiComponents).toHaveLength(1)
+      expect(store.isDirty).toBe(true)
+    })
+  })
+
   describe('discardChanges', () => {
     it('resets to original config', () => {
       const config = makeSinglePageConfig()
