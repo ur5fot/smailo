@@ -1333,4 +1333,89 @@ describe('validateUiComponents', () => {
       expect(result).toHaveLength(0)
     })
   })
+
+  describe('AI-generated layout patterns', () => {
+    it('validates a typical AI dashboard config with layout', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Всего' }, dataKey: 'total', layout: { col: 1, colSpan: 6 } },
+        { component: 'Card', props: { title: 'Среднее' }, dataKey: 'avg', layout: { col: 7, colSpan: 6 } },
+        { component: 'Chart', props: { type: 'line' }, dataKey: 'trend', layout: { col: 1, colSpan: 12 } },
+        { component: 'DataTable', props: { columns: [{ field: 'date', header: 'Дата' }] }, dataKey: 'log', layout: { col: 1, colSpan: 12 } },
+      ])
+      expect(result).toHaveLength(4)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+      expect(result[1].layout).toEqual({ col: 7, colSpan: 6 })
+      expect(result[2].layout).toEqual({ col: 1, colSpan: 12 })
+      expect(result[3].layout).toEqual({ col: 1, colSpan: 12 })
+    })
+
+    it('validates AI config with buttons in a row', () => {
+      const result = validateUiComponents([
+        { component: 'Button', props: { label: 'Хорошо', severity: 'success' }, actions: [{ type: 'writeData', key: 'mood', value: 3 }], layout: { col: 1, colSpan: 4 } },
+        { component: 'Button', props: { label: 'Нормально' }, actions: [{ type: 'writeData', key: 'mood', value: 2 }], layout: { col: 5, colSpan: 4 } },
+        { component: 'Button', props: { label: 'Плохо', severity: 'danger' }, actions: [{ type: 'writeData', key: 'mood', value: 1 }], layout: { col: 9, colSpan: 4 } },
+      ])
+      expect(result).toHaveLength(3)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 4 })
+      expect(result[1].layout).toEqual({ col: 5, colSpan: 4 })
+      expect(result[2].layout).toEqual({ col: 9, colSpan: 4 })
+    })
+
+    it('validates AI config with form and card side by side', () => {
+      const result = validateUiComponents([
+        { component: 'Form', props: { submitLabel: 'Сохранить' }, fields: [{ name: 'weight', type: 'number', label: 'Вес' }], outputKey: 'entry', layout: { col: 1, colSpan: 8 } },
+        { component: 'Card', props: { title: 'Последнее' }, dataKey: 'entry', layout: { col: 9, colSpan: 4 } },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 8 })
+      expect(result[1].layout).toEqual({ col: 9, colSpan: 4 })
+    })
+
+    it('validates AI config with InputText half-width', () => {
+      const result = validateUiComponents([
+        { component: 'InputText', props: { label: 'Город', type: 'text' }, actions: [{ type: 'writeData', key: 'city' }], layout: { col: 1, colSpan: 6 } },
+        { component: 'Card', props: { title: 'Погода' }, dataKey: 'weather', layout: { col: 7, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+      expect(result[1].layout).toEqual({ col: 7, colSpan: 6 })
+    })
+
+    it('validates AI multi-page config with layout in page components', () => {
+      const page1Components = validateUiComponents([
+        { component: 'Card', props: { title: 'Сводка' }, computedValue: '= SUM(data.amount)', layout: { col: 1, colSpan: 6 } },
+        { component: 'Chart', props: { type: 'pie' }, dataSource: { type: 'table', tableId: 1 }, layout: { col: 1, colSpan: 12 } },
+      ])
+      const page2Components = validateUiComponents([
+        { component: 'Form', props: { submitLabel: 'Добавить' }, dataSource: { type: 'table', tableId: 1 }, layout: { col: 1, colSpan: 8 } },
+        { component: 'DataTable', props: {}, dataSource: { type: 'table', tableId: 1 }, layout: { col: 1, colSpan: 12 } },
+      ])
+      expect(page1Components).toHaveLength(2)
+      expect(page2Components).toHaveLength(2)
+      expect(page1Components[0].layout).toEqual({ col: 1, colSpan: 6 })
+      expect(page1Components[1].layout).toEqual({ col: 1, colSpan: 12 })
+      expect(page2Components[0].layout).toEqual({ col: 1, colSpan: 8 })
+      expect(page2Components[1].layout).toEqual({ col: 1, colSpan: 12 })
+    })
+
+    it('strips invalid AI layout but keeps valid component', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Test' }, dataKey: 'val', layout: { col: 1, colSpan: 13 } },
+        { component: 'Card', props: { title: 'Test2' }, dataKey: 'val2', layout: { col: 1, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result[0].layout).toBeUndefined() // invalid colSpan 13 → stripped
+      expect(result[1].layout).toEqual({ col: 1, colSpan: 6 }) // valid → kept
+    })
+
+    it('accepts AI config mixing components with and without layout', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'With Layout' }, dataKey: 'a', layout: { col: 1, colSpan: 6 } },
+        { component: 'Card', props: { title: 'Without Layout' }, dataKey: 'b' },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+      expect(result[1].layout).toBeUndefined()
+    })
+  })
 })

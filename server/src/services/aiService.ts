@@ -160,7 +160,8 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
       "dataKey": "key from appData to bind as value prop",
       "actions": [ { "type": "writeData", "key": "key", "value": "optional" } ],  // action chain for Button/InputText (see ACTION CHAINS below)
       "fields": [ { "name": "field_name", "type": "text|number", "label": "Display label" } ],  // for Form
-      "outputKey": "appDataKey"  // for Form
+      "outputKey": "appDataKey",  // for Form
+      "layout": { "col": 1, "colSpan": 12 }  // optional grid positioning (see LAYOUT section)
     }
   ],
   "pages": [  // optional: only for multi-page apps (see MULTI-PAGE APPS section)
@@ -175,15 +176,15 @@ APP CONFIG FORMAT (required for "confirm" and "created" phases):
 
 COMPONENT GUIDE (always follow this — wrong props render blank):
 - Card: use "title" prop for the heading. Use "dataKey" to bind the data as "value". No "content" prop.
-  Example: { "component": "Card", "props": { "title": "My Notes" }, "dataKey": "notes" }
+  Example: { "component": "Card", "props": { "title": "My Notes" }, "dataKey": "notes", "layout": { "col": 1, "colSpan": 6 } }
 - DataTable: use "dataKey" to bind an array as "value". Use "columns" prop for column definitions.
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to bind to a user-defined table — columns are auto-generated from the table schema.
-  Example (KV): { "component": "DataTable", "props": { "columns": [{ "field": "date", "header": "Date" }, { "field": "note", "header": "Note" }] }, "dataKey": "entries" }
-  Example (table): { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
+  Example (KV): { "component": "DataTable", "props": { "columns": [{ "field": "date", "header": "Date" }, { "field": "note", "header": "Note" }] }, "dataKey": "entries", "layout": { "col": 1, "colSpan": 12 } }
+  Example (table): { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 }, "layout": { "col": 1, "colSpan": 12 } }
   Example (filtered): { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } } }
 - Chart: requires "type" prop ("bar", "line", "pie", "doughnut") and "dataKey" for chart data object.
   Alternatively, use "dataSource": { "type": "table", "tableId": N } to build chart data from table rows (first column = labels, numeric columns = datasets).
-  Example (KV): { "component": "Chart", "props": { "type": "line" }, "dataKey": "weightData" }
+  Example (KV): { "component": "Chart", "props": { "type": "line" }, "dataKey": "weightData", "layout": { "col": 1, "colSpan": 12 } }
   Example (table): { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1 } }
   Example (filtered): { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "status", "value": "active" } } }
 - Knob: use "value" prop (number 0-100). Use "dataKey" to bind numeric data.
@@ -193,8 +194,8 @@ COMPONENT GUIDE (always follow this — wrong props render blank):
 - Calendar: displays a date picker, no dataKey needed.
 - Timeline: use "dataKey" to bind array of { date, content } objects.
 - Button: use "label" prop and optional "severity" ("success", "danger", "warning", "info"). Use "actions" array (see ACTION CHAINS below).
-  Example fixed: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "actions": [{ "type": "writeData", "key": "mood", "value": 3 }] }
-  Example counter: { "component": "Button", "props": { "label": "+1", "severity": "success" }, "actions": [{ "type": "writeData", "key": "count", "value": 1, "mode": "increment" }] }
+  Example fixed: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "actions": [{ "type": "writeData", "key": "mood", "value": 3 }], "layout": { "col": 1, "colSpan": 4 } }
+  Example counter: { "component": "Button", "props": { "label": "+1", "severity": "success" }, "actions": [{ "type": "writeData", "key": "count", "value": 1, "mode": "increment" }], "layout": { "col": 5, "colSpan": 4 } }
   Example navigate: { "component": "Button", "props": { "label": "Далее" }, "actions": [{ "type": "navigateTo", "pageId": "step2" }] }
   Example toggle: { "component": "Button", "props": { "label": "Детали" }, "actions": [{ "type": "toggleVisibility", "key": "showDetails" }] }
   Example chain: { "component": "Button", "props": { "label": "Сохранить и продолжить" }, "actions": [{ "type": "writeData", "key": "step", "value": 2 }, { "type": "navigateTo", "pageId": "step2" }] }
@@ -463,8 +464,8 @@ Example multi-page appConfig:
       "title": "Сводка",
       "icon": "pi pi-home",
       "uiComponents": [
-        { "component": "Card", "props": { "title": "Всего расходов" }, "computedValue": "= SUM(Расходы.amount)" },
-        { "component": "Chart", "props": { "type": "pie" }, "dataSource": { "type": "table", "tableId": 1 } }
+        { "component": "Card", "props": { "title": "Всего расходов" }, "computedValue": "= SUM(Расходы.amount)", "layout": { "col": 1, "colSpan": 6 } },
+        { "component": "Chart", "props": { "type": "pie" }, "dataSource": { "type": "table", "tableId": 1 }, "layout": { "col": 1, "colSpan": 12 } }
       ]
     },
     {
@@ -472,8 +473,8 @@ Example multi-page appConfig:
       "title": "История",
       "icon": "pi pi-list",
       "uiComponents": [
-        { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } },
-        { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
+        { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 }, "layout": { "col": 1, "colSpan": 8 } },
+        { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 }, "layout": { "col": 1, "colSpan": 12 } }
       ]
     }
   ]
@@ -481,6 +482,31 @@ Example multi-page appConfig:
 
 When pages is present, the app shows navigation tabs at the top. URL reflects the active page.
 If pages is absent, the app works as a single-page app using top-level uiComponents (backward compatible).
+
+LAYOUT (CSS Grid positioning):
+Each component can have an optional "layout" field to control its position on a 12-column CSS grid.
+Without layout, components stack vertically at full width (backward compatible).
+
+Layout field: { "col": 1-12, "colSpan": 1-12, "row": optional, "rowSpan": optional }
+- col: start column (1-12)
+- colSpan: width in columns (1-12), col + colSpan must be <= 13
+- row: optional row number (auto-placed if omitted)
+- rowSpan: optional height in rows (default 1)
+
+LAYOUT DEFAULTS (use these for new apps):
+- Card, Tag, Badge, Chip, Knob, Rating: { "col": 1, "colSpan": 6 } — half-width, place two side-by-side
+- DataTable, Chart, Timeline, CardList, MeterGroup: { "col": 1, "colSpan": 12 } — full-width
+- Form: { "col": 1, "colSpan": 8 } — 2/3 width
+- Button: { "col": 1, "colSpan": 4 } — 1/3 width, multiple buttons in a row
+- InputText: { "col": 1, "colSpan": 6 } — half-width
+- ProgressBar, Slider: { "col": 1, "colSpan": 6 } — half-width
+- Accordion, Panel, Tabs: { "col": 1, "colSpan": 12 } — full-width
+- Image: { "col": 1, "colSpan": 6 } — half-width
+- ConditionalGroup: { "col": 1, "colSpan": 12 } — full-width
+
+Always include "layout" for new apps. Adjust col values so components sit side-by-side when it makes sense:
+  Two Cards in a row: first { "col": 1, "colSpan": 6 }, second { "col": 7, "colSpan": 6 }
+  Three buttons in a row: { "col": 1, "colSpan": 4 }, { "col": 5, "colSpan": 4 }, { "col": 9, "colSpan": 4 }
 
 UX RULES (always follow when designing apps):
 - Use the user's language for all labels, titles, button text
@@ -545,11 +571,15 @@ Each page: { "id": "url-safe-id", "title": "Tab label", "icon": "pi pi-home (opt
 - uiComponents: max 20 per page, same structure as uiUpdate components
 
 UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
-- Card: { "component": "Card", "props": { "title": "Title" }, "dataKey": "key" }
-- DataTable: { "component": "DataTable", "props": { "columns": [{"field":"f","header":"H"}] }, "dataKey": "key" }
+Each component can have an optional "layout" field for CSS Grid positioning: { "col": 1-12, "colSpan": 1-12, "row": optional, "rowSpan": optional }
+When returning uiUpdate/pagesUpdate, PRESERVE existing layout values on components. Add layout to new components.
+Layout defaults: Card/Tag/Badge/Chip/Knob/Rating → colSpan 6, DataTable/Chart/Timeline/CardList → colSpan 12, Button → colSpan 4, Form → colSpan 8, InputText → colSpan 6.
+
+- Card: { "component": "Card", "props": { "title": "Title" }, "dataKey": "key", "layout": { "col": 1, "colSpan": 6 } }
+- DataTable: { "component": "DataTable", "props": { "columns": [{"field":"f","header":"H"}] }, "dataKey": "key", "layout": { "col": 1, "colSpan": 12 } }
   Or with table: { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1 } }
   Or filtered: { "component": "DataTable", "props": {}, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "priority", "value": "high" } } }
-- Chart: { "component": "Chart", "props": { "type": "line" }, "dataKey": "key" }
+- Chart: { "component": "Chart", "props": { "type": "line" }, "dataKey": "key", "layout": { "col": 1, "colSpan": 12 } }
   Or with table: { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1 } }
   Or filtered: { "component": "Chart", "props": { "type": "bar" }, "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "status", "value": "active" } } }
 - Knob: { "component": "Knob", "props": { "min": 0, "max": 100 }, "dataKey": "key" }
@@ -566,20 +596,20 @@ UIUPDATE COMPONENT GUIDE (if you include uiUpdate, follow these rules):
 - Panel: { "component": "Panel", "props": { "header": "Заголовок", "toggleable": true }, "dataKey": "key" }
 - Tabs: { "component": "Tabs", "props": { "tabs": [{ "label": "Вкладка", "dataKey": "key" }] } }
 - Image: { "component": "Image", "props": { "width": "200", "alt": "Изображение" }, "dataKey": "image_url" }
-- Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "actions": [{ "type": "writeData", "key": "mood", "value": 3 }] }
+- Button: { "component": "Button", "props": { "label": "Хорошо", "severity": "success" }, "actions": [{ "type": "writeData", "key": "mood", "value": 3 }], "layout": { "col": 1, "colSpan": 4 } }
   For counters: { "component": "Button", "props": { "label": "+1" }, "actions": [{ "type": "writeData", "key": "count", "value": 1, "mode": "increment" }] }
   Navigate: { "component": "Button", "props": { "label": "Далее" }, "actions": [{ "type": "navigateTo", "pageId": "step2" }] }
   Toggle: { "component": "Button", "props": { "label": "Детали" }, "actions": [{ "type": "toggleVisibility", "key": "showDetails" }] }
   Chain: { "component": "Button", "props": { "label": "Сохранить" }, "actions": [{ "type": "writeData", "key": "step", "value": 2 }, { "type": "navigateTo", "pageId": "step2" }] }
-- InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "actions": [{ "type": "writeData", "key": "weight" }] }
+- InputText: { "component": "InputText", "props": { "label": "Вес (кг)", "type": "number", "placeholder": "70" }, "actions": [{ "type": "writeData", "key": "weight" }], "layout": { "col": 1, "colSpan": 6 } }
   Use mode "append" to accumulate items: "actions": [{ "type": "writeData", "key": "notes", "mode": "append" }]
   When InputText uses mode "append", items are stored as { value, timestamp }. Use CardList to display.
-- Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry" }
+- Form: { "component": "Form", "props": { "submitLabel": "Сохранить" }, "fields": [{ "name": "weight", "type": "number", "label": "Вес (кг)" }], "outputKey": "weight_entry", "layout": { "col": 1, "colSpan": 8 } }
   Add "appendMode": true to accumulate submissions as array. Use CardList to display — auto-renders all fields.
   Or with table: { "component": "Form", "props": { "submitLabel": "Добавить" }, "dataSource": { "type": "table", "tableId": 1 } }
   NOTE: Form does NOT support "filter" on dataSource.
 - CardList: DYNAMIC card-per-item list — PREFERRED for any task/log/note list. Use "dataKey" to bind array.
-  { "component": "CardList", "dataKey": "tasks" }
+  { "component": "CardList", "dataKey": "tasks", "layout": { "col": 1, "colSpan": 12 } }
   Or with table: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1 } }
   Or filtered: { "component": "CardList", "dataSource": { "type": "table", "tableId": 1, "filter": { "column": "done", "value": false } } }
 - ConditionalGroup: shows/hides a group of children based on a formula condition. Children CANNOT use "computedValue" — use "dataKey" instead.
