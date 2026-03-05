@@ -102,6 +102,8 @@
       :group="{ name: 'editor-components', pull: true, put: true }"
       :animation="200"
       ghost-class="app-editor__ghost"
+      filter=".app-editor__grid-lines"
+      :prevent-on-filter="false"
       @update="onDragUpdate"
       @dragover.prevent="onGridDragOver"
       @drop.prevent="onGridDrop"

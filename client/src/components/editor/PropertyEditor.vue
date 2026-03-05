@@ -498,6 +498,14 @@ function updateLayoutField(field: string, value: number | undefined) {
   if (selectedIndex.value === null || !component.value) return
   const currentLayout = component.value.layout || { col: 1, colSpan: 12 }
   const newLayout = { ...currentLayout, [field]: value }
+  // Clamp col and colSpan so col + colSpan <= 13
+  if (newLayout.col !== undefined && newLayout.colSpan !== undefined) {
+    newLayout.col = Math.max(1, Math.min(12, newLayout.col))
+    newLayout.colSpan = Math.max(1, Math.min(12, newLayout.colSpan))
+    if (newLayout.col + newLayout.colSpan > 13) {
+      newLayout.colSpan = 13 - newLayout.col
+    }
+  }
   // Remove undefined fields
   if (newLayout.row === undefined) delete newLayout.row
   if (newLayout.rowSpan === undefined) delete newLayout.rowSpan

@@ -133,7 +133,7 @@ export function getDefaultComponent(type: string): UiComponent {
       return {
         ...base,
         props: { label: 'Button' },
-        actions: [{ type: 'writeData', key: 'click_count', value: 0, mode: 'increment' }],
+        actions: [{ type: 'writeData', key: 'click_count', value: 1, mode: 'increment' }],
         layout: { col: 1, colSpan: 3 },
       }
 
