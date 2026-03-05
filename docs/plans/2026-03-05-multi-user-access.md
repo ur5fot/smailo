@@ -125,17 +125,17 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 6: Invite system — отдельная таблица app_invites
-- [ ] Создать таблицу `app_invites` в schema.ts: `id`, `appId` (FK), `role` ('editor'|'viewer'), `token` (32-char hex, unique), `createdAt`, `expiresAt` (7 дней), `acceptedByUserId` (nullable — заполняется при принятии)
-- [ ] ⚠️ НЕ хранить invite на `app_members` — userId неизвестен при создании приглашения
-- [ ] `POST /api/app/:hash/members/invite` (owner only): создать запись в `app_invites`, вернуть `{ token, inviteUrl }`
-- [ ] `POST /api/app/:hash/members/invite/:token/accept` — принять приглашение (⚠️ POST не GET — state-mutating):
+- [x] Создать таблицу `app_invites` в schema.ts: `id`, `appId` (FK), `role` ('editor'|'viewer'), `token` (32-char hex, unique), `createdAt`, `expiresAt` (7 дней), `acceptedByUserId` (nullable — заполняется при принятии)
+- [x] ⚠️ НЕ хранить invite на `app_members` — userId неизвестен при создании приглашения
+- [x] `POST /api/app/:hash/members/invite` (owner only): создать запись в `app_invites`, вернуть `{ token, inviteUrl }`
+- [x] `POST /api/app/:hash/members/invite/:token/accept` — принять приглашение (⚠️ POST не GET — state-mutating):
   - Проверить: токен существует, не истёк (`expiresAt > now`), не использован (`acceptedByUserId IS NULL`)
   - Записать `acceptedByUserId = req.userId`
   - Создать запись в `app_members` (или skip если userId уже member)
   - Вернуть `{ appHash, role }`
-- [ ] Invite токен single-use: после accept, другие пользователи не могут использовать тот же токен
-- [ ] Написать тесты: create invite, accept, expired token, reused token, already member
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Invite токен single-use: после accept, другие пользователи не могут использовать тот же токен
+- [x] Написать тесты: create invite, accept, expired token, reused token, already member
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7a: Member management API (CRUD)
 - [ ] Создать `server/src/routes/members.ts` — маршруты под `/api/app/:hash/members`

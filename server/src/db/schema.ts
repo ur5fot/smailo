@@ -34,6 +34,16 @@ export const appMembers = sqliteTable('app_members', {
   uniqueMember: unique().on(table.appId, table.userId),
 }));
 
+export const appInvites = sqliteTable('app_invites', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  appId: integer('app_id').notNull().references(() => apps.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),              // 'editor' | 'viewer'
+  token: text('token').notNull().unique(),   // 32-char random hex
+  createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+  expiresAt: text('expires_at').notNull(),   // +7 days from creation
+  acceptedByUserId: text('accepted_by_user_id'),  // null until accepted, then single-use
+});
+
 export const cronJobs = sqliteTable('cron_jobs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   appId: integer('app_id').notNull().references(() => apps.id),

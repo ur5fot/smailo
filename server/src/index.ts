@@ -5,6 +5,7 @@ import { chatRouter } from './routes/chat.js';
 import { appRouter, pruneOldAppData } from './routes/app.js';
 import { tablesRouter } from './routes/tables.js';
 import { usersRouter } from './routes/users.js';
+import { membersRouter } from './routes/members.js';
 import { cronManager } from './services/cronManager.js';
 import { migrateOwnerRecords } from './db/migrateOwners.js';
 
@@ -32,6 +33,7 @@ app.use('/api/chat', chatRouter);
 app.use('/api/app', appRouter);
 app.use('/api/app/:hash/tables', tablesRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/app/:hash/members', membersRouter);
 
 // Migrate existing apps: ensure every app with userId has an owner in app_members
 try {
