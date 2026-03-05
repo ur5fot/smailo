@@ -138,13 +138,13 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7a: Member management API (CRUD)
-- [ ] Создать `server/src/routes/members.ts` — маршруты под `/api/app/:hash/members`
-- [ ] `GET /api/app/:hash/members` — список участников (owner only), возвращает `[{ userId, role, joinedAt }]`
-- [ ] `PUT /api/app/:hash/members/:userId` — изменить роль (owner only): `{ role }`. Нельзя изменить свою роль. Нельзя сделать другого owner
-- [ ] `DELETE /api/app/:hash/members/:userId` — удалить участника (owner only). Нельзя удалить себя (owner)
-- [ ] Rate limit: 30 req/min (chatLimiter)
-- [ ] Написать тесты для каждого endpoint (success, auth, validation, edge cases)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Создать `server/src/routes/members.ts` — маршруты под `/api/app/:hash/members`
+- [x] `GET /api/app/:hash/members` — список участников (owner only), возвращает `[{ userId, role, joinedAt }]`
+- [x] `PUT /api/app/:hash/members/:userId` — изменить роль (owner only): `{ role }`. Нельзя изменить свою роль. Нельзя сделать другого owner
+- [x] `DELETE /api/app/:hash/members/:userId` — удалить участника (owner only). Нельзя удалить себя (owner)
+- [x] Rate limit: 30 req/min (chatLimiter)
+- [x] Написать тесты для каждого endpoint (success, auth, validation, edge cases)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7b: Row-level security — серверная фильтрация
 - [ ] При создании строки (`POST /:tableId/rows`): записывать `createdByUserId` из `req.userId`

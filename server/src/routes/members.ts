@@ -56,7 +56,130 @@ membersRouter.post(
   }
 );
 
-// POST /api/app/:hash/members/invite/:token/accept — accept invite
+// GET /api/app/:hash/members — list members (owner only)
+membersRouter.get(
+  '/',
+  membersLimiter,
+  resolveUserAndRole,
+  requireRole('owner'),
+  async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const appRow = authReq.app_row!;
+
+      const members = await db
+        .select({
+          userId: appMembers.userId,
+          role: appMembers.role,
+          joinedAt: appMembers.joinedAt,
+        })
+        .from(appMembers)
+        .where(eq(appMembers.appId, appRow.id));
+
+      res.json(members);
+    } catch (error) {
+      console.error('[members/list] Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// PUT /api/app/:hash/members/:userId — change role (owner only)
+membersRouter.put(
+  '/:userId',
+  membersLimiter,
+  resolveUserAndRole,
+  requireRole('owner'),
+  async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const appRow = authReq.app_row!;
+      const targetUserId = req.params['userId'] as string;
+
+      // Cannot change own role
+      if (targetUserId === authReq.userId) {
+        res.status(400).json({ error: 'Cannot change your own role' });
+        return;
+      }
+
+      const { role } = req.body;
+      if (!role || !['editor', 'viewer'].includes(role)) {
+        res.status(400).json({ error: 'Role must be "editor" or "viewer"' });
+        return;
+      }
+
+      // Find the member
+      const [member] = await db
+        .select()
+        .from(appMembers)
+        .where(and(eq(appMembers.appId, appRow.id), eq(appMembers.userId, targetUserId)));
+
+      if (!member) {
+        res.status(404).json({ error: 'Member not found' });
+        return;
+      }
+
+      // Cannot change another owner's role
+      if (member.role === 'owner') {
+        res.status(400).json({ error: 'Cannot change owner role' });
+        return;
+      }
+
+      await db
+        .update(appMembers)
+        .set({ role })
+        .where(and(eq(appMembers.appId, appRow.id), eq(appMembers.userId, targetUserId)));
+
+      res.json({ ok: true, userId: targetUserId, role });
+    } catch (error) {
+      console.error('[members/changeRole] Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// DELETE /api/app/:hash/members/:userId — remove member (owner only)
+membersRouter.delete(
+  '/:userId',
+  membersLimiter,
+  resolveUserAndRole,
+  requireRole('owner'),
+  async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const appRow = authReq.app_row!;
+      const targetUserId = req.params['userId'] as string;
+
+      // Cannot remove yourself (owner)
+      if (targetUserId === authReq.userId) {
+        res.status(400).json({ error: 'Cannot remove yourself' });
+        return;
+      }
+
+      // Find the member
+      const [member] = await db
+        .select()
+        .from(appMembers)
+        .where(and(eq(appMembers.appId, appRow.id), eq(appMembers.userId, targetUserId)));
+
+      if (!member) {
+        res.status(404).json({ error: 'Member not found' });
+        return;
+      }
+
+      await db
+        .delete(appMembers)
+        .where(and(eq(appMembers.appId, appRow.id), eq(appMembers.userId, targetUserId)));
+
+      res.json({ ok: true });
+    } catch (error) {
+      console.error('[members/remove] Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// POST /api/app/:hash/members/invite — create invite (owner only)
 membersRouter.post(
   '/invite/:token/accept',
   membersLimiter,
