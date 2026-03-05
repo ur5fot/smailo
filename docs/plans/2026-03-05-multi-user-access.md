@@ -118,11 +118,11 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5: Auto-migration — создание owner записей
-- [ ] При старте сервера: для всех apps с `userId IS NOT NULL` и без owner в app_members — создать owner запись
-- [ ] При создании нового приложения (POST /api/chat, фаза created): автоматически добавлять owner запись в app_members
-- [ ] Идемпотентность: повторный запуск миграции не создаёт дубликаты (INSERT OR IGNORE)
-- [ ] Написать тесты для миграции (создание, идемпотентность, пропуск legacy apps без userId)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] При старте сервера: для всех apps с `userId IS NOT NULL` и без owner в app_members — создать owner запись
+- [x] При создании нового приложения (POST /api/chat, фаза created): автоматически добавлять owner запись в app_members
+- [x] Идемпотентность: повторный запуск миграции не создаёт дубликаты (INSERT OR IGNORE)
+- [x] Написать тесты для миграции (создание, идемпотентность, пропуск legacy apps без userId)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 6: Invite system — отдельная таблица app_invites
 - [ ] Создать таблицу `app_invites` в schema.ts: `id`, `appId` (FK), `role` ('editor'|'viewer'), `token` (32-char hex, unique), `createdAt`, `expiresAt` (7 дней), `acceptedByUserId` (nullable — заполняется при принятии)

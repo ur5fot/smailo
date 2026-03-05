@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { randomBytes, createHash } from 'crypto';
 import { eq, desc, isNull, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { apps, chatHistory, users } from '../db/schema.js';
+import { apps, appMembers, chatHistory, users } from '../db/schema.js';
 import { chatWithAI, validateUiComponents, validatePages, validateTableDefs, type CronJobConfig, type TableDef } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 import { userTables } from '../db/schema.js';
@@ -245,7 +245,18 @@ chatRouter.post('/', limiter, async (req, res) => {
           } satisfies AppsInsert)
           .returning({ id: apps.id })
           .get();
-        if (inserted) insertedAppId = inserted.id;
+        if (inserted) {
+          insertedAppId = inserted.id;
+          // Auto-create owner record in app_members
+          if (userId) {
+            tx.insert(appMembers).values({
+              appId: inserted.id,
+              userId,
+              role: 'owner',
+              joinedAt: new Date().toISOString(),
+            }).run();
+          }
+        }
       }
 
       tx.insert(chatHistory).values({

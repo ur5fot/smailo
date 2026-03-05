@@ -6,6 +6,7 @@ import { appRouter, pruneOldAppData } from './routes/app.js';
 import { tablesRouter } from './routes/tables.js';
 import { usersRouter } from './routes/users.js';
 import { cronManager } from './services/cronManager.js';
+import { migrateOwnerRecords } from './db/migrateOwners.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -31,6 +32,16 @@ app.use('/api/chat', chatRouter);
 app.use('/api/app', appRouter);
 app.use('/api/app/:hash/tables', tablesRouter);
 app.use('/api/users', usersRouter);
+
+// Migrate existing apps: ensure every app with userId has an owner in app_members
+try {
+  const migrated = migrateOwnerRecords();
+  if (migrated > 0) {
+    console.log(`[migrateOwners] Created owner records for ${migrated} apps`);
+  }
+} catch (err) {
+  console.error('[migrateOwners] Migration failed:', err);
+}
 
 cronManager.loadAll().catch((err) => {
   console.error('[cronManager] Failed to load jobs on startup:', err);
