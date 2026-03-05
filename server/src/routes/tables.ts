@@ -94,6 +94,7 @@ tablesRouter.get('/', resolveUserAndRole, async (req, res) => {
         id: t.id,
         name: t.name,
         columns: t.columns,
+        rlsEnabled: t.rlsEnabled === 1,
         createdAt: t.createdAt,
       })),
     });
@@ -119,8 +120,23 @@ tablesRouter.get('/:tableId', resolveUserAndRole, async (req, res) => {
       return res.status(404).json({ error: 'Table not found' });
     }
 
+    const authReq = req as AuthenticatedRequest;
+    const userRole = authReq.userRole;
+    const userId = authReq.userId;
+
+    // RLS filtering: viewer/anonymous see only their own rows in RLS-enabled tables
+    const isRlsRestricted = (userRole === 'viewer' || userRole === 'anonymous') && table.rlsEnabled === 1;
+    let rowFilter;
+    if (isRlsRestricted) {
+      rowFilter = userId
+        ? and(eq(userRows.tableId, tableId), eq(userRows.createdByUserId, userId))
+        : and(eq(userRows.tableId, tableId), sql`0`); // anonymous sees nothing
+    } else {
+      rowFilter = eq(userRows.tableId, tableId);
+    }
+
     const dbRows = await db.select().from(userRows)
-      .where(eq(userRows.tableId, tableId))
+      .where(rowFilter)
       .orderBy(desc(userRows.createdAt));
 
     const columns = table.columns as ColumnDef[];
@@ -139,6 +155,7 @@ tablesRouter.get('/:tableId', resolveUserAndRole, async (req, res) => {
       id: table.id,
       name: table.name,
       columns: table.columns,
+      rlsEnabled: table.rlsEnabled === 1,
       createdAt: table.createdAt,
       rows: filteredRows,
     });
@@ -164,8 +181,8 @@ tablesRouter.put('/:tableId', limiter, resolveUserAndRole, requireRole('owner'),
       return res.status(404).json({ error: 'Table not found' });
     }
 
-    const updates: Partial<{ name: string; columns: ColumnDef[] }> = {};
-    const { name, columns } = req.body as { name?: unknown; columns?: unknown };
+    const updates: Partial<{ name: string; columns: ColumnDef[]; rlsEnabled: number }> = {};
+    const { name, columns, rlsEnabled } = req.body as { name?: unknown; columns?: unknown; rlsEnabled?: unknown };
 
     if (name !== undefined) {
       if (typeof name !== 'string') {
@@ -203,8 +220,15 @@ tablesRouter.put('/:tableId', limiter, resolveUserAndRole, requireRole('owner'),
       });
     }
 
+    if (rlsEnabled !== undefined) {
+      if (typeof rlsEnabled !== 'boolean') {
+        return res.status(400).json({ error: 'rlsEnabled must be a boolean' });
+      }
+      updates.rlsEnabled = rlsEnabled ? 1 : 0;
+    }
+
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'Nothing to update — provide name and/or columns' });
+      return res.status(400).json({ error: 'Nothing to update — provide name, columns, and/or rlsEnabled' });
     }
 
     await db.update(userTables).set(updates).where(eq(userTables.id, tableId));
@@ -271,9 +295,11 @@ tablesRouter.post('/:tableId/rows', limiter, resolveUserAndRole, requireRole('ed
       return res.status(400).json({ error: `Maximum ${MAX_ROWS_PER_TABLE} rows per table` });
     }
 
+    const authReq = req as AuthenticatedRequest;
     const inserted = await db.insert(userRows).values({
       tableId,
       data: result.cleaned!,
+      createdByUserId: authReq.userId || null,
     }).returning({ id: userRows.id, createdAt: userRows.createdAt });
 
     return res.json({ id: inserted[0].id, data: result.cleaned, createdAt: inserted[0].createdAt });
@@ -284,9 +310,10 @@ tablesRouter.post('/:tableId/rows', limiter, resolveUserAndRole, requireRole('ed
 });
 
 // PUT /api/app/:hash/tables/:tableId/rows/:rowId — update a row
-tablesRouter.put('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
+tablesRouter.put('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRole('viewer', 'editor', 'owner'), async (req, res) => {
   try {
-    const row = (req as AuthenticatedRequest).app_row!;
+    const authReq = req as AuthenticatedRequest;
+    const row = authReq.app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
     const rowId = parseInt(req.params.rowId as string, 10);
     if (isNaN(tableId) || isNaN(rowId)) {
@@ -300,11 +327,23 @@ tablesRouter.put('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRo
       return res.status(404).json({ error: 'Table not found' });
     }
 
+    // Viewer can only update rows in RLS-enabled tables (and only their own)
+    if (authReq.userRole === 'viewer') {
+      if (table.rlsEnabled !== 1) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
+
     const [existingRow] = await db.select().from(userRows).where(
       and(eq(userRows.id, rowId), eq(userRows.tableId, tableId))
     );
     if (!existingRow) {
       return res.status(404).json({ error: 'Row not found' });
+    }
+
+    // Viewer can only update their own rows
+    if (authReq.userRole === 'viewer' && existingRow.createdByUserId !== authReq.userId) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const { data } = req.body as { data: unknown };
@@ -327,9 +366,10 @@ tablesRouter.put('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRo
 });
 
 // DELETE /api/app/:hash/tables/:tableId/rows/:rowId — delete a row
-tablesRouter.delete('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
+tablesRouter.delete('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRole('viewer', 'editor', 'owner'), async (req, res) => {
   try {
-    const row = (req as AuthenticatedRequest).app_row!;
+    const authReq = req as AuthenticatedRequest;
+    const row = authReq.app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
     const rowId = parseInt(req.params.rowId as string, 10);
     if (isNaN(tableId) || isNaN(rowId)) {
@@ -341,6 +381,23 @@ tablesRouter.delete('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requir
     );
     if (!table) {
       return res.status(404).json({ error: 'Table not found' });
+    }
+
+    // Viewer can only delete rows in RLS-enabled tables (and only their own)
+    if (authReq.userRole === 'viewer') {
+      if (table.rlsEnabled !== 1) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      // Check ownership before deleting
+      const [existingRow] = await db.select().from(userRows).where(
+        and(eq(userRows.id, rowId), eq(userRows.tableId, tableId))
+      );
+      if (!existingRow) {
+        return res.status(404).json({ error: 'Row not found' });
+      }
+      if (existingRow.createdByUserId !== authReq.userId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
     }
 
     const deleted = await db.delete(userRows).where(

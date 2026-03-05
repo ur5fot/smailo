@@ -147,16 +147,16 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7b: Row-level security — серверная фильтрация
-- [ ] При создании строки (`POST /:tableId/rows`): записывать `createdByUserId` из `req.userId`
-- [ ] При чтении (`GET /:tableId`): если `table.rlsEnabled` и `req.userRole === 'viewer'` → фильтровать rows по `createdByUserId === req.userId`
-- [ ] Owner и editor видят все строки независимо от RLS
-- [ ] Anonymous (unprotected apps) не видят строки в RLS-таблицах
-- [ ] `PUT /api/app/:hash/tables/:tableId` — owner может включить/выключить RLS (`rlsEnabled` field)
-- [ ] `DELETE /:tableId/rows/:rowId` — viewer может удалить только свою строку в RLS-таблице
-- [ ] `PUT /:tableId/rows/:rowId` — viewer может обновить только свою строку в RLS-таблице
-- [ ] Написать тесты для RLS фильтрации (owner sees all, viewer sees own, editor sees all, anonymous blocked)
-- [ ] Написать тесты для RLS write restrictions (viewer can only edit/delete own rows)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] При создании строки (`POST /:tableId/rows`): записывать `createdByUserId` из `req.userId`
+- [x] При чтении (`GET /:tableId`): если `table.rlsEnabled` и `req.userRole === 'viewer'` → фильтровать rows по `createdByUserId === req.userId`
+- [x] Owner и editor видят все строки независимо от RLS
+- [x] Anonymous (unprotected apps) не видят строки в RLS-таблицах
+- [x] `PUT /api/app/:hash/tables/:tableId` — owner может включить/выключить RLS (`rlsEnabled` field)
+- [x] `DELETE /:tableId/rows/:rowId` — viewer может удалить только свою строку в RLS-таблице
+- [x] `PUT /:tableId/rows/:rowId` — viewer может обновить только свою строку в RLS-таблице
+- [x] Написать тесты для RLS фильтрации (owner sees all, viewer sees own, editor sees all, anonymous blocked)
+- [x] Написать тесты для RLS write restrictions (viewer can only edit/delete own rows)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 8: GET /api/app/:hash — вернуть роль пользователя
 - [ ] Обновить ответ `GET /api/app/:hash`: добавить поле `myRole: 'owner'|'editor'|'viewer'|null` на основе `req.userRole`

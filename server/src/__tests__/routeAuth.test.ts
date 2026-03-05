@@ -495,8 +495,8 @@ describe('Route auth: tables.ts endpoints', () => {
     })
   })
 
-  describe('PUT /tables/:tableId/rows/:rowId (update row — editor+)', () => {
-    const roles: UserRole[] = ['editor', 'owner']
+  describe('PUT /tables/:tableId/rows/:rowId (update row — viewer+ with RLS ownership check)', () => {
+    const roles: UserRole[] = ['viewer', 'editor', 'owner']
 
     it('allows editor', async () => {
       const app = insertApp(testDb, 'h1', 'App', { userId: 'u1' })
@@ -507,19 +507,27 @@ describe('Route auth: tables.ts endpoints', () => {
       expect(await runAuth(req, res, ...roles)).toBe(true)
     })
 
-    it('blocks viewer from updating rows', async () => {
+    it('allows viewer (RLS ownership check happens in route handler)', async () => {
       const app = insertApp(testDb, 'h1', 'App', { userId: 'u1' })
       addMember(testDb, app.id, 'u1', 'owner')
       addMember(testDb, app.id, 'v1', 'viewer')
       const req = mockReq('h1', { token: makeToken('v1'), method: 'PUT' })
+      const res = mockRes()
+      expect(await runAuth(req, res, ...roles)).toBe(true)
+      expect((req as AuthenticatedRequest).userRole).toBe('viewer')
+    })
+
+    it('blocks anonymous from updating rows', async () => {
+      insertApp(testDb, 'h1', 'App')
+      const req = mockReq('h1', { method: 'PUT' })
       const res = mockRes()
       expect(await runAuth(req, res, ...roles)).toBe(false)
       expect(res.statusCode).toBe(403)
     })
   })
 
-  describe('DELETE /tables/:tableId/rows/:rowId (delete row — editor+)', () => {
-    const roles: UserRole[] = ['editor', 'owner']
+  describe('DELETE /tables/:tableId/rows/:rowId (delete row — viewer+ with RLS ownership check)', () => {
+    const roles: UserRole[] = ['viewer', 'editor', 'owner']
 
     it('allows editor', async () => {
       const app = insertApp(testDb, 'h1', 'App', { userId: 'u1' })
@@ -530,11 +538,19 @@ describe('Route auth: tables.ts endpoints', () => {
       expect(await runAuth(req, res, ...roles)).toBe(true)
     })
 
-    it('blocks viewer from deleting rows', async () => {
+    it('allows viewer (RLS ownership check happens in route handler)', async () => {
       const app = insertApp(testDb, 'h1', 'App', { userId: 'u1' })
       addMember(testDb, app.id, 'u1', 'owner')
       addMember(testDb, app.id, 'v1', 'viewer')
       const req = mockReq('h1', { token: makeToken('v1'), method: 'DELETE' })
+      const res = mockRes()
+      expect(await runAuth(req, res, ...roles)).toBe(true)
+      expect((req as AuthenticatedRequest).userRole).toBe('viewer')
+    })
+
+    it('blocks anonymous from deleting rows', async () => {
+      insertApp(testDb, 'h1', 'App')
+      const req = mockReq('h1', { method: 'DELETE' })
       const res = mockRes()
       expect(await runAuth(req, res, ...roles)).toBe(false)
       expect(res.statusCode).toBe(403)
