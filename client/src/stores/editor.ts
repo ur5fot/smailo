@@ -175,6 +175,67 @@ export const useEditorStore = defineStore('editor', () => {
     enterEditMode(config)
   }
 
+  function addPage(page: PageConfig) {
+    if (!editablePages.value) return
+    editablePages.value.push(page)
+    activePage.value = page.id
+    selectedComponentIndex.value = null
+    isDirty.value = true
+  }
+
+  function removePage(pageId: string) {
+    if (!editablePages.value) return
+    const idx = editablePages.value.findIndex(p => p.id === pageId)
+    if (idx === -1) return
+    // Don't allow removing the last page
+    if (editablePages.value.length <= 1) return
+
+    editablePages.value.splice(idx, 1)
+    selectedComponentIndex.value = null
+
+    // If removing the active page, switch to the nearest remaining page
+    if (activePage.value === pageId) {
+      const newIdx = Math.min(idx, editablePages.value.length - 1)
+      activePage.value = editablePages.value[newIdx].id
+    }
+    isDirty.value = true
+  }
+
+  function updatePage(pageId: string, updates: Partial<Pick<PageConfig, 'title' | 'icon'>>) {
+    if (!editablePages.value) return
+    const page = editablePages.value.find(p => p.id === pageId)
+    if (!page) return
+    if (updates.title !== undefined) page.title = updates.title
+    if (updates.icon !== undefined) page.icon = updates.icon || undefined
+    isDirty.value = true
+  }
+
+  function reorderPages(fromIndex: number, toIndex: number) {
+    if (!editablePages.value) return
+    if (fromIndex < 0 || fromIndex >= editablePages.value.length) return
+    if (toIndex < 0 || toIndex >= editablePages.value.length) return
+    if (fromIndex === toIndex) return
+
+    const [page] = editablePages.value.splice(fromIndex, 1)
+    editablePages.value.splice(toIndex, 0, page)
+    isDirty.value = true
+  }
+
+  function convertToMultiPage(firstPageTitle: string = 'Главная') {
+    // Convert single-page app to multi-page by wrapping current components in a page
+    if (editablePages.value) return // already multi-page
+
+    const firstPage: PageConfig = {
+      id: 'main',
+      title: firstPageTitle,
+      uiComponents: [...editableConfig.value],
+    }
+    editablePages.value = [firstPage]
+    editableConfig.value = []
+    activePage.value = 'main'
+    isDirty.value = true
+  }
+
   // Internal helper to get mutable reference to current page's components
   function _getCurrentComponents(): UiComponent[] | null {
     if (editablePages.value && activePage.value) {
@@ -209,5 +270,10 @@ export const useEditorStore = defineStore('editor', () => {
     setActivePage,
     replaceCurrentComponents,
     discardChanges,
+    addPage,
+    removePage,
+    updatePage,
+    reorderPages,
+    convertToMultiPage,
   }
 })

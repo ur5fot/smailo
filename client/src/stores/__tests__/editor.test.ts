@@ -454,4 +454,254 @@ describe('useEditorStore', () => {
       expect(store.editableConfig[0].props.header).toBe('Test')
     })
   })
+
+  describe('addPage', () => {
+    it('adds a new page to multi-page config', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.addPage({ id: 'new-page', title: 'New Page', uiComponents: [] })
+
+      expect(store.editablePages).toHaveLength(3)
+      expect(store.editablePages![2].id).toBe('new-page')
+      expect(store.activePage).toBe('new-page')
+      expect(store.selectedComponentIndex).toBeNull()
+      expect(store.isDirty).toBe(true)
+    })
+
+    it('adds a page with icon', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.addPage({ id: 'icons', title: 'Icons', icon: 'pi pi-star', uiComponents: [] })
+
+      expect(store.editablePages![2].icon).toBe('pi pi-star')
+    })
+
+    it('does nothing for single-page config (no editablePages)', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeSinglePageConfig())
+      store.addPage({ id: 'new', title: 'New', uiComponents: [] })
+
+      expect(store.editablePages).toBeNull()
+      expect(store.isDirty).toBe(false)
+    })
+  })
+
+  describe('removePage', () => {
+    it('removes a page by id', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.removePage('settings')
+
+      expect(store.editablePages).toHaveLength(1)
+      expect(store.editablePages![0].id).toBe('main')
+      expect(store.isDirty).toBe(true)
+    })
+
+    it('switches to nearest page when active page is removed', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.setActivePage('settings')
+      store.removePage('settings')
+
+      expect(store.activePage).toBe('main')
+    })
+
+    it('switches to previous page when last page is removed', () => {
+      const store = useEditorStore()
+      store.enterEditMode({
+        appName: 'Three',
+        pages: [
+          { id: 'a', title: 'A', uiComponents: [] },
+          { id: 'b', title: 'B', uiComponents: [] },
+          { id: 'c', title: 'C', uiComponents: [] },
+        ],
+      })
+      store.setActivePage('c')
+      store.removePage('c')
+
+      expect(store.activePage).toBe('b')
+    })
+
+    it('does not remove the last remaining page', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.removePage('settings')
+      store.removePage('main') // try to remove the last one
+
+      expect(store.editablePages).toHaveLength(1)
+      expect(store.editablePages![0].id).toBe('main')
+    })
+
+    it('clears selection when removing a page', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.selectComponent(0)
+      store.removePage('main')
+
+      expect(store.selectedComponentIndex).toBeNull()
+    })
+
+    it('does nothing for nonexistent page id', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.removePage('nonexistent')
+      expect(store.editablePages).toHaveLength(2)
+      expect(store.isDirty).toBe(false)
+    })
+
+    it('does nothing for single-page config', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeSinglePageConfig())
+      store.removePage('any')
+      expect(store.isDirty).toBe(false)
+    })
+  })
+
+  describe('updatePage', () => {
+    it('updates page title', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.updatePage('main', { title: 'Dashboard' })
+
+      expect(store.editablePages![0].title).toBe('Dashboard')
+      expect(store.isDirty).toBe(true)
+    })
+
+    it('updates page icon', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.updatePage('main', { icon: 'pi pi-home' })
+
+      expect(store.editablePages![0].icon).toBe('pi pi-home')
+    })
+
+    it('removes icon when empty string is provided', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.updatePage('main', { icon: 'pi pi-home' })
+      store.updatePage('main', { icon: '' })
+
+      expect(store.editablePages![0].icon).toBeUndefined()
+    })
+
+    it('does nothing for nonexistent page', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.updatePage('nonexistent', { title: 'X' })
+      expect(store.isDirty).toBe(false)
+    })
+
+    it('does nothing for single-page config', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeSinglePageConfig())
+      store.updatePage('any', { title: 'X' })
+      expect(store.isDirty).toBe(false)
+    })
+  })
+
+  describe('reorderPages', () => {
+    it('moves page forward', () => {
+      const store = useEditorStore()
+      store.enterEditMode({
+        appName: 'Multi',
+        pages: [
+          { id: 'a', title: 'A', uiComponents: [] },
+          { id: 'b', title: 'B', uiComponents: [] },
+          { id: 'c', title: 'C', uiComponents: [] },
+        ],
+      })
+      store.reorderPages(0, 2)
+
+      expect(store.editablePages![0].id).toBe('b')
+      expect(store.editablePages![1].id).toBe('c')
+      expect(store.editablePages![2].id).toBe('a')
+      expect(store.isDirty).toBe(true)
+    })
+
+    it('moves page backward', () => {
+      const store = useEditorStore()
+      store.enterEditMode({
+        appName: 'Multi',
+        pages: [
+          { id: 'a', title: 'A', uiComponents: [] },
+          { id: 'b', title: 'B', uiComponents: [] },
+          { id: 'c', title: 'C', uiComponents: [] },
+        ],
+      })
+      store.reorderPages(2, 0)
+
+      expect(store.editablePages![0].id).toBe('c')
+      expect(store.editablePages![1].id).toBe('a')
+      expect(store.editablePages![2].id).toBe('b')
+    })
+
+    it('no-op when from equals to', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.reorderPages(0, 0)
+      expect(store.isDirty).toBe(false)
+    })
+
+    it('ignores invalid indices', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      store.reorderPages(-1, 0)
+      store.reorderPages(0, 99)
+      expect(store.isDirty).toBe(false)
+    })
+
+    it('does nothing for single-page config', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeSinglePageConfig())
+      store.reorderPages(0, 1)
+      expect(store.isDirty).toBe(false)
+    })
+  })
+
+  describe('convertToMultiPage', () => {
+    it('converts single-page to multi-page with default title', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeSinglePageConfig())
+      expect(store.isMultiPage).toBe(false)
+      expect(store.editableConfig).toHaveLength(3)
+
+      store.convertToMultiPage()
+
+      expect(store.isMultiPage).toBe(true)
+      expect(store.editablePages).toHaveLength(1)
+      expect(store.editablePages![0].id).toBe('main')
+      expect(store.editablePages![0].title).toBe('Главная')
+      expect(store.editablePages![0].uiComponents).toHaveLength(3)
+      expect(store.editableConfig).toHaveLength(0)
+      expect(store.activePage).toBe('main')
+      expect(store.isDirty).toBe(true)
+    })
+
+    it('converts with custom title', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeSinglePageConfig())
+      store.convertToMultiPage('Home')
+
+      expect(store.editablePages![0].title).toBe('Home')
+    })
+
+    it('preserves existing components', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeSinglePageConfig())
+      store.convertToMultiPage()
+
+      expect(store.editablePages![0].uiComponents[0].component).toBe('Card')
+      expect(store.editablePages![0].uiComponents[1].component).toBe('DataTable')
+      expect(store.editablePages![0].uiComponents[2].component).toBe('Button')
+    })
+
+    it('does nothing if already multi-page', () => {
+      const store = useEditorStore()
+      store.enterEditMode(makeMultiPageConfig())
+      const before = store.editablePages!.length
+      store.convertToMultiPage()
+
+      expect(store.editablePages).toHaveLength(before)
+    })
+  })
 })
