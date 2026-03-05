@@ -890,6 +890,174 @@ describe('validateUiComponents', () => {
     })
   })
 
+  describe('layout validation', () => {
+    it('preserves valid layout with col and colSpan', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+    })
+
+    it('preserves layout with row and rowSpan', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 12, row: 2, rowSpan: 3 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 12, row: 2, rowSpan: 3 })
+    })
+
+    it('strips invalid row/rowSpan but keeps valid col/colSpan', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 6, row: -1, rowSpan: 0 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+    })
+
+    it('strips layout when col is out of range (0)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 0, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when col is out of range (13)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 13, colSpan: 1 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when colSpan is 0', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 0 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when col + colSpan > 13', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 7, colSpan: 7 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('allows col + colSpan = 13 (edge case)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 7, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 7, colSpan: 6 })
+    })
+
+    it('strips layout when col is a float', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1.5, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when colSpan is a string', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: '6' } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when it is a string', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: 'invalid' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when it is null', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: null },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when it is an array', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: [1, 6] },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('component without layout has layout undefined', () => {
+      const result = validateUiComponents([baseCard])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when col is missing', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when colSpan is missing', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('preserves layout on ConditionalGroup', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: [{ component: 'Card', props: { title: 'Child' }, dataKey: 'data' }],
+          layout: { col: 1, colSpan: 8 },
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 8 })
+    })
+
+    it('ignores non-integer row (float) but keeps col/colSpan', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 6, row: 1.5 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+    })
+
+    it('layout with col=12 and colSpan=1 is valid', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 12, colSpan: 1 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 12, colSpan: 1 })
+    })
+
+    it('layout in pages is validated through validateUiComponents', () => {
+      // This is implicitly tested since validatePages calls validateUiComponents
+      // but let's verify with a full-width layout
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 12 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 12 })
+    })
+  })
+
   describe('actions (action chains) validation', () => {
     it('valid chain with all 5 action types', () => {
       const result = validateUiComponents([
@@ -1142,7 +1310,7 @@ describe('validateUiComponents', () => {
       expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'x', value: 1 })
     })
 
-    it('writeData with negative index ignores index', () => {
+    it('writeData with delete-item and negative index drops the step and the Button', () => {
       const result = validateUiComponents([
         {
           component: 'Button',
@@ -1150,8 +1318,19 @@ describe('validateUiComponents', () => {
           actions: [{ type: 'writeData', key: 'items', mode: 'delete-item', index: -1 }],
         },
       ])
-      expect(result).toHaveLength(1)
-      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'items', mode: 'delete-item' })
+      // delete-item without valid index is dropped; Button with no actions is also dropped
+      expect(result).toHaveLength(0)
+    })
+
+    it('writeData with delete-item and no index drops the step and the Button', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [{ type: 'writeData', key: 'items', mode: 'delete-item' }],
+        },
+      ])
+      expect(result).toHaveLength(0)
     })
   })
 })

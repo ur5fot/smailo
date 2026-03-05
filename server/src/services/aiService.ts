@@ -49,6 +49,13 @@ export type StyleIfCondition = {
   class: string;
 };
 
+export type ComponentLayout = {
+  col: number;      // 1-12, start column
+  colSpan: number;  // 1-12, width in columns (col + colSpan <= 13)
+  row?: number;     // optional row position
+  rowSpan?: number; // optional height in rows
+};
+
 export type UiComponent = {
   component: string;
   props: Record<string, unknown>;
@@ -64,6 +71,7 @@ export type UiComponent = {
   styleIf?: StyleIfCondition[];
   condition?: string;
   children?: UiComponent[];
+  layout?: ComponentLayout;
 };
 
 export type TableColumnDef = {
@@ -698,6 +706,8 @@ function validateActions(raw: unknown): ActionStep[] | undefined {
         if (typeof step.index === 'number' && Number.isInteger(step.index) && step.index >= 0) {
           action.index = step.index;
         }
+        // delete-item requires index — skip if missing (server rejects with 400)
+        if (action.mode === 'delete-item' && action.index === undefined) continue;
         steps.push(action);
         break;
       }
@@ -739,6 +749,24 @@ function validateActions(raw: unknown): ActionStep[] | undefined {
   }
 
   return steps.length > 0 ? steps : undefined;
+}
+
+function validateLayout(raw: unknown): ComponentLayout | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const layout = raw as Record<string, unknown>;
+  const col = layout.col;
+  const colSpan = layout.colSpan;
+  if (typeof col !== 'number' || !Number.isInteger(col) || col < 1 || col > 12) return undefined;
+  if (typeof colSpan !== 'number' || !Number.isInteger(colSpan) || colSpan < 1 || colSpan > 12) return undefined;
+  if (col + colSpan > 13) return undefined;
+  const result: ComponentLayout = { col, colSpan };
+  if (typeof layout.row === 'number' && Number.isInteger(layout.row) && layout.row >= 1) {
+    result.row = layout.row;
+  }
+  if (typeof layout.rowSpan === 'number' && Number.isInteger(layout.rowSpan) && layout.rowSpan >= 1) {
+    result.rowSpan = layout.rowSpan;
+  }
+  return result;
 }
 
 /**
@@ -836,6 +864,8 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
         } else {
           item.styleIf = undefined;
         }
+        // Validate layout for ConditionalGroup itself
+        item.layout = validateLayout(item.layout);
         return item;
       }
 
@@ -956,6 +986,9 @@ export function validateUiComponents(items: unknown[]): UiComponent[] {
       } else {
         item.styleIf = undefined;
       }
+
+      // Validate layout: optional, strip if invalid
+      item.layout = validateLayout(item.layout);
 
       return item;
     })
