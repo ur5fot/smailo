@@ -73,6 +73,7 @@ smailo/
 │       │   ├── AppPanel.vue      # Panel wrapper with header slot
 │       │   ├── AppTabs.vue       # Tabs wrapper showing data per tab
 │       │   ├── AppConditionalGroup.vue  # Container that shows/hides children based on a condition
+│       │   ├── MembersPanel.vue   # Dialog for managing app members (invite, change role, remove)
 │       │   └── editor/
 │       │       ├── AppEditor.vue          # Visual drag-and-drop editor canvas (CSS Grid)
 │       │       ├── EditorComponentCard.vue # Component card in editor with drag handle and controls
@@ -80,8 +81,9 @@ smailo/
 │       │       └── PropertyEditor.vue     # Property editor panel (props, data, actions, layout)
 │       ├── views/
 │       │   ├── HomeView.vue      # Landing: create/enter user ID
-│       │   ├── UserView.vue      # User page: app list (left) + AI chat with example prompts (right)
-│       │   └── AppView.vue       # Two-column: AppRenderer (left) + in-app AI chat (right)
+│       │   ├── UserView.vue      # User page: app list with "My apps" + "Shared with me" sections
+│       │   ├── AppView.vue       # Two-column: AppRenderer (left) + in-app AI chat (right)
+│       │   └── InviteView.vue    # Accept invite link: login/create user → accept → redirect to app
 │       ├── stores/
 │       │   ├── user.ts           # Pinia store for user identity and app list
 │       │   ├── chat.ts           # Pinia store for app creation chat state
@@ -96,17 +98,17 @@ smailo/
 │       │   ├── styleIf.ts        # evaluateStyleIf — client-side conditional CSS class evaluation
 │       │   ├── actionExecutor.ts # executeActions — sequential action chain executor for Button/InputText/Form
 │       │   └── formula/          # Client-side copy of the formula parser (tokenizer, parser, evaluator)
-│       ├── api/index.ts          # Axios instance with JWT + X-User-Id interceptor
+│       ├── api/index.ts          # Axios instance with global JWT + per-app JWT interceptor
 │       └── router/index.ts       # Vue Router with regex-constrained params
 │
 └── server/                 # Express + TypeScript backend
     └── src/
         ├── db/
-        │   ├── schema.ts         # Drizzle schema: users, apps, cronJobs, appData, chatHistory, userTables, userRows
+        │   ├── schema.ts         # Drizzle schema: users, apps, appMembers, appInvites, cronJobs, appData, chatHistory, userTables, userRows
         │   ├── queries.ts        # Shared DB queries (getLatestAppData)
         │   └── index.ts          # SQLite + Drizzle connection
         ├── middleware/
-        │   └── auth.ts           # requireAuthIfProtected middleware (shared by app.ts and tables.ts)
+        │   └── auth.ts           # resolveUserAndRole + requireRole middleware (role-based access control)
         ├── services/
         │   ├── aiService.ts      # Unified AI service: Anthropic or DeepSeek via AI_PROVIDER
         │   └── cronManager.ts    # node-cron scheduler for app automations
@@ -114,7 +116,8 @@ smailo/
         │   ├── users.ts          # POST/GET /api/users — user creation and lookup
         │   ├── chat.ts           # POST/GET /api/chat — home brainstorm flow + chat history
         │   ├── app.ts            # GET/POST /api/app/:hash — app access, chat, data writes
-        │   └── tables.ts         # CRUD /api/app/:hash/tables — user-defined tables and rows
+        │   ├── tables.ts         # CRUD /api/app/:hash/tables — user-defined tables and rows
+        │   └── members.ts        # /api/app/:hash/members — invite, list, change role, remove members
         ├── utils/
         │   ├── fetchProxy.ts     # SSRF-safe HTTP fetch + dataPath extraction (shared by cron + action endpoint)
         │   └── formula/          # Safe formula engine (tokenizer, parser, evaluator)
@@ -130,11 +133,12 @@ smailo/
 | `/:userId/:hash` | AppView | App view with two-column layout (redirects to first page for multi-page apps) |
 | `/:userId/:hash/:pageId` | AppView | Specific page of a multi-page app |
 | `/app/:hash` | AppView | Backward-compatible (userId = null) |
+| `/invite/:hash/:token` | InviteView | Accept invite link — login/create user, then join app |
 
 ### Data Flow
 
-- User creation: client → `POST /api/users` → returns `{ userId }` → stored in `localStorage`
-- App list: client → `GET /api/users/:userId/apps` → list of user's apps
+- User creation: client → `POST /api/users` → returns `{ userId, token }` → userId and global JWT stored in `localStorage`
+- App list: client → `GET /api/users/:userId/apps` → list of user's own apps + shared apps (with role field)
 - Creation chat: client → `POST /api/chat` (with `userId`) → AI service (brainstorm phase) → response with mood/phase
 - App creation: when the AI returns `phase: 'created'`, server generates a 64-char hex hash, creates the app row, schedules cron jobs, and creates user-defined tables
 - App access: client → `GET /api/app/:hash` → returns config + latest appData (JWT required if password set)
@@ -152,10 +156,15 @@ smailo/
 - Multi-page apps: app config may include a `pages` array (max 10 pages, each with its own `uiComponents`); AppView renders PrimeVue tab navigation and reflects the active page in the URL as `/:userId/:hash/:pageId`; AI uses `pagesUpdate` response field to replace the pages array
 - Visual editor: toggle between chat and editor mode in AppView; editor shows components on a 12-column CSS Grid with drag-and-drop reordering, resize handles, a component palette, and a property editor panel; changes are saved via `PUT /api/app/:hash/config`
 - Layout metadata: each component may have `layout: { col, colSpan, row?, rowSpan? }` for CSS Grid placement; components without layout default to full-width; responsive breakpoint at 767px forces all components to full-width
+- Multi-user access: owners invite users via links; members management panel in AppView header; UserView shows "My apps" and "Shared with me" sections; role badges (editor/viewer) in AppView header; input components disabled for viewers; editor/chat hidden for non-owners
+- Invite flow: owner creates invite → link copied → recipient opens `/invite/:hash/:token` → accepts → redirected to app; InviteView handles login/account creation if needed
 
 ### Security
 
-- **Ownership verification**: Write operations on unprotected apps require the `X-User-Id` header to match the app owner (sent automatically by the Axios interceptor)
+- **Role-based access**: Apps support `owner`, `editor`, `viewer` roles via `app_members` table; permissions enforced server-side by `resolveUserAndRole` + `requireRole` middleware
+- **Invite links**: Owners generate single-use invite links (`/invite/:hash/:token`) with 7-day expiry; accepting adds the user as a member
+- **Row-level security (RLS)**: Tables with `rlsEnabled` filter rows by `createdByUserId` for viewers; owners/editors see all rows
+- **Global JWT auth**: Users get a long-lived JWT (`smailo_token`) at creation; per-app JWTs (`smailo_token_<hash>`) still used for password-protected apps; `X-User-Id` header removed
 - **Data pruning**: Old `app_data` rows are automatically pruned on startup and hourly (keeps latest 100 rows per key per app)
 - **CSP headers**: Helmet configures Content-Security-Policy (`'self'` for scripts/default, `'unsafe-inline'` for styles needed by PrimeVue)
 - **Trust proxy**: `app.set('trust proxy', 1)` ensures rate limiting works correctly behind a reverse proxy
@@ -176,7 +185,7 @@ Smailo is evolving from a data dashboard builder into a low-code app platform. T
 5.5. **Row filtering** — filter table rows in `dataSource` by column values with 7 operators ✅
 6. **Event system** — action chains triggered by user interactions (writeData, navigateTo, toggleVisibility, runFormula, fetchUrl) ✅
 7. **Visual editor** — drag-and-drop UI builder alongside the AI chat ✅
-8. **Multi-user access** — roles, permissions, and shared apps
+8. **Multi-user access** — roles (owner/editor/viewer), invite links, row-level security, shared apps ✅
 
 See [docs/roadmap-v2.md](docs/roadmap-v2.md) for the full plan.
 

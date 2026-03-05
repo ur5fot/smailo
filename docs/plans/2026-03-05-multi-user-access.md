@@ -223,10 +223,10 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Run full test suite (server + client)
 
 ### Task 15: [Final] Update documentation
-- [ ] Обновить `README.md` — описание мульти-пользовательского доступа
-- [ ] Обновить `README.ru.md` — описание мульти-пользовательского доступа
-- [ ] Обновить `CLAUDE.md` — добавить секции: app_members, app_invites, роли, RLS, auth, invite flow, новые endpoints
-- [ ] Обновить `docs/roadmap-v2.md` — отметить Этап 8 как реализованный
+- [x] Обновить `README.md` — описание мульти-пользовательского доступа
+- [x] Обновить `README.ru.md` — описание мульти-пользовательского доступа
+- [x] Обновить `CLAUDE.md` — добавить секции: app_members, app_invites, роли, RLS, auth, invite flow, новые endpoints
+- [x] Обновить `docs/roadmap-v2.md` — отметить Этап 8 как реализованный
 
 ## Technical Details
 

@@ -73,6 +73,7 @@ smailo/
 │       │   ├── AppPanel.vue      # Обёртка для Panel с заголовком
 │       │   ├── AppTabs.vue       # Обёртка для Tabs с данными по вкладкам
 │       │   ├── AppConditionalGroup.vue  # Контейнер, показывающий/скрывающий группу компонентов по условию
+│       │   ├── MembersPanel.vue   # Диалог управления участниками (приглашение, смена роли, удаление)
 │       │   └── editor/
 │       │       ├── AppEditor.vue          # Визуальный drag-and-drop редактор (CSS Grid)
 │       │       ├── EditorComponentCard.vue # Карточка компонента с drag handle и контролами
@@ -80,8 +81,9 @@ smailo/
 │       │       └── PropertyEditor.vue     # Панель редактирования свойств (props, data, actions, layout)
 │       ├── views/
 │       │   ├── HomeView.vue      # Лендинг — создание или ввод userId
-│       │   ├── UserView.vue      # Личная страница: список приложений (слева) + AI-чат с примерами (справа)
-│       │   └── AppView.vue       # Двухколоночный вид: AppRenderer (слева) + AI-чат (справа)
+│       │   ├── UserView.vue      # Личная страница: секции «Мои приложения» + «Общие со мной»
+│       │   ├── AppView.vue       # Двухколоночный вид: AppRenderer (слева) + AI-чат (справа)
+│       │   └── InviteView.vue    # Принятие приглашения: вход/создание аккаунта → accept → редирект
 │       ├── stores/
 │       │   ├── user.ts           # Pinia-стор для идентификации пользователя и списка приложений
 │       │   ├── chat.ts           # Pinia-стор для состояния чата создания приложений
@@ -96,17 +98,17 @@ smailo/
 │       │   ├── styleIf.ts        # evaluateStyleIf — клиентское вычисление условных CSS-классов
 │       │   ├── actionExecutor.ts # executeActions — последовательный исполнитель цепочек действий для Button/InputText/Form
 │       │   └── formula/          # Клиентская копия парсера формул (токенизатор, парсер, вычислитель)
-│       ├── api/index.ts          # Axios с JWT + X-User-Id интерцептором
+│       ├── api/index.ts          # Axios с глобальным JWT + per-app JWT интерцептором
 │       └── router/index.ts       # Vue Router с regex-ограничениями параметров
 │
 └── server/                 # Бэкенд на Express + TypeScript
     └── src/
         ├── db/
-        │   ├── schema.ts         # Drizzle-схема: users, apps, cronJobs, appData, chatHistory, userTables, userRows
+        │   ├── schema.ts         # Drizzle-схема: users, apps, appMembers, appInvites, cronJobs, appData, chatHistory, userTables, userRows
         │   ├── queries.ts        # Общие DB-запросы (getLatestAppData)
         │   └── index.ts          # Подключение SQLite + Drizzle
         ├── middleware/
-        │   └── auth.ts           # Мидлвар requireAuthIfProtected (общий для app.ts и tables.ts)
+        │   └── auth.ts           # resolveUserAndRole + requireRole мидлвар (ролевой контроль доступа)
         ├── services/
         │   ├── aiService.ts      # Единый AI-сервис: Anthropic или DeepSeek через AI_PROVIDER
         │   └── cronManager.ts    # Планировщик node-cron для автоматизаций приложений
@@ -114,7 +116,8 @@ smailo/
         │   ├── users.ts          # POST/GET /api/users — создание и поиск пользователей
         │   ├── chat.ts           # POST/GET /api/chat — поток брейнсторма + история чата
         │   ├── app.ts            # GET/POST /api/app/:hash — доступ, чат, запись данных
-        │   └── tables.ts         # CRUD /api/app/:hash/tables — пользовательские таблицы и строки
+        │   ├── tables.ts         # CRUD /api/app/:hash/tables — пользовательские таблицы и строки
+        │   └── members.ts        # /api/app/:hash/members — приглашения, список, смена роли, удаление участников
         ├── utils/
         │   ├── fetchProxy.ts     # SSRF-безопасный HTTP fetch + извлечение по dataPath (общий для cron + action endpoint)
         │   └── formula/          # Безопасный движок формул (токенизатор, парсер, вычислитель)
@@ -130,11 +133,12 @@ smailo/
 | `/:userId/:hash` | AppView | Вид приложения с двухколоночным лейаутом (редирект на первую страницу для многостраничных приложений) |
 | `/:userId/:hash/:pageId` | AppView | Конкретная страница многостраничного приложения |
 | `/app/:hash` | AppView | Обратная совместимость (userId = null) |
+| `/invite/:hash/:token` | InviteView | Принятие приглашения — вход/создание аккаунта, присоединение к приложению |
 
 ### Поток данных
 
-- Создание пользователя: клиент → `POST /api/users` → возвращает `{ userId }` → сохраняется в `localStorage`
-- Список приложений: клиент → `GET /api/users/:userId/apps` → список приложений пользователя
+- Создание пользователя: клиент → `POST /api/users` → возвращает `{ userId, token }` → userId и глобальный JWT сохраняются в `localStorage`
+- Список приложений: клиент → `GET /api/users/:userId/apps` → список собственных + общих приложений (с полем role)
 - Чат создания: клиент → `POST /api/chat` (с `userId`) → AI-сервис (фаза брейнсторм) → ответ с настроением/фазой
 - Создание приложения: когда AI возвращает `phase: 'created'`, сервер генерирует 64-символьный hex-хэш, создаёт запись приложения, планирует cron-задания и создаёт пользовательские таблицы
 - Доступ к приложению: клиент → `GET /api/app/:hash` → возвращает конфиг + последние appData (JWT обязателен при наличии пароля)
@@ -152,10 +156,15 @@ smailo/
 - Многостраничные приложения: конфиг приложения может содержать массив `pages` (макс. 10 страниц, у каждой собственный массив `uiComponents`); AppView отображает навигацию через вкладки PrimeVue и отражает активную страницу в URL как `/:userId/:hash/:pageId`; AI использует поле ответа `pagesUpdate` для замены массива страниц
 - Визуальный редактор: переключение между чатом и редактором в AppView; редактор показывает компоненты на 12-колоночной CSS Grid с drag-and-drop перестановкой, resize-ручками, палитрой компонентов и панелью редактирования свойств; изменения сохраняются через `PUT /api/app/:hash/config`
 - Layout-метаданные: каждый компонент может иметь `layout: { col, colSpan, row?, rowSpan? }` для размещения на CSS Grid; компоненты без layout занимают всю ширину; адаптивная точка перелома на 767px переключает все компоненты на полную ширину
+- Мульти-пользовательский доступ: владельцы приглашают пользователей по ссылкам; панель управления участниками в header AppView; UserView показывает секции «Мои приложения» и «Общие со мной»; бейджи ролей (editor/viewer) в header AppView; input-компоненты заблокированы для viewer; редактор/чат скрыты для не-владельцев
+- Поток приглашений: owner создаёт приглашение → ссылка копируется → получатель открывает `/invite/:hash/:token` → принимает → перенаправляется в приложение; InviteView обрабатывает вход/создание аккаунта при необходимости
 
 ### Безопасность
 
-- **Проверка владельца**: Операции записи в незащищённых приложениях требуют заголовок `X-User-Id`, совпадающий с владельцем (отправляется автоматически через Axios-интерцептор)
+- **Ролевой доступ**: Приложения поддерживают роли `owner`, `editor`, `viewer` через таблицу `app_members`; права проверяются на сервере через `resolveUserAndRole` + `requireRole`
+- **Приглашения по ссылке**: Владельцы генерируют одноразовые ссылки-приглашения (`/invite/:hash/:token`) со сроком 7 дней; принятие добавляет пользователя как участника
+- **Row-level security (RLS)**: Таблицы с `rlsEnabled` фильтруют строки по `createdByUserId` для viewer; owner/editor видят все строки
+- **Глобальный JWT**: Пользователи получают долгоживущий JWT (`smailo_token`) при создании; per-app JWT (`smailo_token_<hash>`) по-прежнему используется для password-protected приложений; заголовок `X-User-Id` удалён
 - **Очистка данных**: Старые строки `app_data` автоматически удаляются при старте сервера и каждый час (хранятся последние 100 строк на ключ на приложение)
 - **CSP-заголовки**: Helmet настраивает Content-Security-Policy (`'self'` для скриптов, `'unsafe-inline'` для стилей PrimeVue)
 - **Trust proxy**: `app.set('trust proxy', 1)` обеспечивает корректную работу rate limiting за обратным прокси
@@ -176,7 +185,7 @@ Smailo трансформируется из конструктора дашбо
 5.5. **Фильтрация строк** — фильтрация строк таблиц в `dataSource` по значениям колонок с 7 операторами ✅
 6. **Система событий** — цепочки действий, запускаемые взаимодействием пользователя (writeData, navigateTo, toggleVisibility, runFormula, fetchUrl) ✅
 7. **Визуальный редактор** — drag-and-drop конструктор UI рядом с AI-чатом ✅
-8. **Мульти-пользовательский доступ** — роли, права и общие приложения
+8. **Мульти-пользовательский доступ** — роли (owner/editor/viewer), приглашения по ссылке, row-level security, общие приложения ✅
 
 Полный план: [docs/roadmap-v2.md](docs/roadmap-v2.md)
 
