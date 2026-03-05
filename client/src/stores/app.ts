@@ -173,11 +173,33 @@ export const useAppStore = defineStore('app', () => {
     return cfg.pages as PageConfig[]
   })
 
+  async function fetchMembers(hash: string) {
+    const res = await api.get(`/app/${hash}/members`)
+    members.value = res.data
+    return res.data as MemberInfo[]
+  }
+
+  async function createInvite(hash: string, role: 'editor' | 'viewer') {
+    const res = await api.post(`/app/${hash}/members/invite`, { role })
+    return res.data as { token: string; inviteUrl: string; expiresAt: string }
+  }
+
+  async function changeMemberRole(hash: string, userId: string, role: 'editor' | 'viewer') {
+    const res = await api.put(`/app/${hash}/members/${userId}`, { role })
+    return res.data
+  }
+
+  async function removeMember(hash: string, userId: string) {
+    const res = await api.delete(`/app/${hash}/members/${userId}`)
+    return res.data
+  }
+
   return {
     appConfig, appName, appData, isAuthenticated,
     myRole, members,
     tableSchemas, tableData, computedValues, pages,
     fetchApp, verifyPassword, fetchData, chatWithApp,
     fetchTableRows, getTableData, refreshTable, invalidateTableCache, clearTableCache,
+    fetchMembers, createInvite, changeMemberRole, removeMember,
   }
 })

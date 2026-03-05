@@ -200,6 +200,13 @@
           </div>
         </div>
       </div>
+
+      <!-- Members panel dialog -->
+      <MembersPanel
+        v-if="showMembersPanel"
+        :hash="hash"
+        @close="showMembersPanel = false"
+      />
     </template>
   </div>
 </template>
@@ -218,6 +225,7 @@ import AppRenderer from '../components/AppRenderer.vue'
 import AppEditor from '../components/editor/AppEditor.vue'
 import ComponentPalette from '../components/editor/ComponentPalette.vue'
 import PropertyEditor from '../components/editor/PropertyEditor.vue'
+import MembersPanel from '../components/MembersPanel.vue'
 import { useAppStore } from '../stores/app'
 import { useEditorStore } from '../stores/editor'
 import type { ChatMessage } from '../stores/chat'
