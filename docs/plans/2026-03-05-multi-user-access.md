@@ -174,14 +174,14 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 10: Client — AppView role-aware UI
-- [ ] Скрыть кнопку редактора (pi-pencil) для viewer (нет доступа к config)
-- [ ] Скрыть кнопку редактора для editor (нет доступа к config)
-- [ ] InputBar/chat: disabled для viewer (нет доступа к POST /chat)
-- [ ] AppButton, AppInputText, AppForm: disabled для viewer (нет записи данных)
-- [ ] Показать бейдж роли в header (editor/viewer)
-- [ ] Кнопка "Участники" в header для owner → открывает панель управления участниками
-- [ ] Написать тесты для role-aware UI logic
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Скрыть кнопку редактора (pi-pencil) для viewer (нет доступа к config)
+- [x] Скрыть кнопку редактора для editor (нет доступа к config)
+- [x] InputBar/chat: disabled для viewer (нет доступа к POST /chat)
+- [x] AppButton, AppInputText, AppForm: disabled для viewer (нет записи данных)
+- [x] Показать бейдж роли в header (editor/viewer)
+- [x] Кнопка "Участники" в header для owner → открывает панель управления участниками
+- [x] Написать тесты для role-aware UI logic
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 11: Client — панель управления участниками
 - [ ] Создать `client/src/components/MembersPanel.vue` — диалог/drawer для управления участниками

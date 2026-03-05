@@ -50,6 +50,8 @@
                 <i class="pi pi-arrow-left" />
               </router-link>
               <h1 class="app-view__title">{{ appStore.appName || 'My App' }}</h1>
+              <span v-if="appStore.myRole === 'editor'" class="app-view__role-badge app-view__role-badge--editor">editor</span>
+              <span v-else-if="appStore.myRole === 'viewer'" class="app-view__role-badge app-view__role-badge--viewer">viewer</span>
             </div>
             <div class="app-view__header-actions">
               <template v-if="editorStore.isEditMode">
@@ -73,12 +75,22 @@
                 />
               </template>
               <Button
+                v-if="appStore.myRole === 'owner'"
                 :icon="editorStore.isEditMode ? 'pi pi-comments' : 'pi pi-pencil'"
                 text
                 rounded
                 :title="editorStore.isEditMode ? 'Switch to chat' : 'Switch to editor'"
                 class="app-view__mode-btn"
                 @click="toggleEditMode"
+              />
+              <Button
+                v-if="appStore.myRole === 'owner'"
+                icon="pi pi-users"
+                text
+                rounded
+                title="Участники"
+                class="app-view__members-btn"
+                @click="showMembersPanel = true"
               />
               <Button
                 icon="pi pi-refresh"
@@ -172,7 +184,7 @@
 
             <!-- Input bar -->
             <div class="app-view__input-wrapper">
-              <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading" @submit="handleChatSubmit" />
+              <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading || appStore.myRole === 'viewer'" @submit="handleChatSubmit" />
             </div>
           </template>
         </div>
@@ -194,7 +206,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
 import Tabs from 'primevue/tabs'
@@ -239,6 +251,7 @@ const chatLoading = ref(false)
 const messagesRef = ref<HTMLElement | null>(null)
 
 const showUnsavedWarning = ref(false)
+const showMembersPanel = ref(false)
 const saving = ref(false)
 
 const chatMessages = ref<ChatMessage[]>([])
@@ -527,6 +540,14 @@ watch(hash, () => {
   loadApp()
 })
 
+onBeforeRouteLeave(() => {
+  if (editorStore.isEditMode && editorStore.isDirty) {
+    const leave = window.confirm('У вас есть несохранённые изменения в редакторе. Уйти без сохранения?')
+    if (!leave) return false
+    editorStore.exitEditMode()
+  }
+})
+
 onMounted(() => {
   loadApp()
   window.addEventListener('keydown', onKeyDown)
@@ -651,10 +672,34 @@ onUnmounted(() => {
   color: #111827;
 }
 
+.app-view__role-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 1rem;
+  white-space: nowrap;
+}
+
+.app-view__role-badge--editor {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.app-view__role-badge--viewer {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
 .app-view__header-actions {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.app-view__members-btn {
+  color: #6b7280 !important;
 }
 
 .app-view__mode-btn {

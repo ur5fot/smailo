@@ -6,12 +6,14 @@
         v-if="type === 'number'"
         v-model="numericValue"
         :placeholder="placeholder"
+        :disabled="isViewer"
         class="app-input-text__input"
       />
       <DatePicker
         v-else-if="type === 'date'"
         v-model="dateValue"
         :placeholder="placeholder"
+        :disabled="isViewer"
         dateFormat="dd.mm.yy"
         class="app-input-text__input"
       />
@@ -19,11 +21,13 @@
         v-else
         v-model="textValue"
         :placeholder="placeholder"
+        :disabled="isViewer"
         class="app-input-text__input"
       />
       <Button
         label="Сохранить"
         :loading="loading"
+        :disabled="isViewer"
         @click="handleSave"
       />
     </div>
@@ -32,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -58,6 +62,7 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 const userStore = useUserStore()
+const isViewer = computed(() => appStore.myRole === 'viewer')
 
 const numericValue = ref<number | null>(null)
 const textValue = ref('')

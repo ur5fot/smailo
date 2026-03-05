@@ -4,6 +4,7 @@
       :label="label"
       :severity="severity"
       :loading="loading"
+      :disabled="isViewer"
       @click="handleClick"
     />
     <span v-if="errorMsg" class="app-button__error">{{ errorMsg }}</span>
@@ -11,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Button from 'primevue/button'
 import api from '../api'
 import { useAppStore } from '../stores/app'
@@ -33,6 +34,7 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 const userStore = useUserStore()
+const isViewer = computed(() => appStore.myRole === 'viewer')
 const loading = ref(false)
 const errorMsg = ref('')
 

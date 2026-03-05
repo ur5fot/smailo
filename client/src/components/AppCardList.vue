@@ -28,7 +28,7 @@
         </div>
 
         <button
-          v-if="hash"
+          v-if="hash && appStore.myRole !== 'viewer'"
           class="app-card-list__delete"
           :disabled="deletingId === row.id"
           :aria-label="'Удалить'"
@@ -70,7 +70,7 @@
         </div>
 
         <button
-          v-if="hash"
+          v-if="hash && appStore.myRole !== 'viewer'"
           class="app-card-list__delete"
           :disabled="deletingIndex === index"
           :aria-label="'Удалить'"
