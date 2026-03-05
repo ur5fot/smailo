@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { eq, desc, and, ne } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { users, apps, appMembers } from '../db/schema.js';
-import { JWT_SECRET } from '../middleware/auth.js';
+import { JWT_SECRET, extractUserIdFromJwt } from '../middleware/auth.js';
 
 export const usersRouter = Router();
 
@@ -70,7 +70,7 @@ usersRouter.get('/:userId', async (req, res) => {
   }
 });
 
-// GET /api/users/:userId/apps — list user's apps
+// GET /api/users/:userId/apps — list user's apps (requires matching JWT)
 usersRouter.get('/:userId/apps', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -78,6 +78,14 @@ usersRouter.get('/:userId/apps', async (req, res) => {
       res.status(404).json({ error: 'User not found' });
       return;
     }
+
+    // Require global JWT matching the requested userId
+    const jwtUserId = extractUserIdFromJwt(req);
+    if (!jwtUserId || jwtUserId !== userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
     const [user] = await db.select().from(users).where(eq(users.userId, userId));
     if (!user) {
       res.status(404).json({ error: 'User not found' });

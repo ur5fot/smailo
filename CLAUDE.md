@@ -231,7 +231,7 @@ Two layers of authentication, both JWT-based:
 **Auth middleware** (`server/src/middleware/auth.ts`):
 - `resolveUserAndRole` — extracts userId from global JWT → finds app by hash → looks up role in `app_members` → for password-protected apps without role, tries per-app JWT → attaches `app_row`, `userId`, `userRole` to request. Backward compatibility: legacy apps without `app_members` rows use `apps.userId` for owner detection.
 - `requireRole(...roles)` — checks `req.userRole` against allowed roles, returns 403 if insufficient.
-- `requireAuthIfProtected` — legacy middleware, still present for backward compatibility.
+- `requireAuthIfProtected` has been removed; all routes now use `resolveUserAndRole` + `requireRole`.
 
 **Password protection**: A one-time `creationToken` (SHA-256 stored, plaintext returned once at creation) gates the `set-password` endpoint (owner only). The `creationToken` is stored in `sessionStorage`. On successful password verification, if the user has no role in `app_members`, they are auto-added as `viewer`. Members with roles access the app via global JWT without needing the password.
 

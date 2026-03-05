@@ -154,7 +154,7 @@ function execNavigateTo(action: NavigateToAction, ctx: ActionContext): void {
 }
 
 async function execToggleVisibility(action: ToggleVisAction, ctx: ActionContext): Promise<void> {
-  const current = ctx.appData.find(d => d.key === action.key)?.value ?? false
+  const current = Boolean(ctx.appData.find(d => d.key === action.key)?.value ?? false)
   const newValue = !current
   await api.post(`/app/${ctx.hash}/data`, {
     key: action.key,

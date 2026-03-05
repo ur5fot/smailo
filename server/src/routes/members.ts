@@ -167,6 +167,12 @@ membersRouter.delete(
         return;
       }
 
+      // Cannot remove another owner
+      if (member.role === 'owner') {
+        res.status(400).json({ error: 'Cannot remove an owner' });
+        return;
+      }
+
       await db
         .delete(appMembers)
         .where(and(eq(appMembers.appId, appRow.id), eq(appMembers.userId, targetUserId)));
@@ -231,22 +237,24 @@ membersRouter.post(
         .from(appMembers)
         .where(and(eq(appMembers.appId, appRow.id), eq(appMembers.userId, userId)));
 
+      // Atomically claim the invite: conditional UPDATE ensures only one request succeeds
+      const claimed = await db
+        .update(appInvites)
+        .set({ acceptedByUserId: userId })
+        .where(and(eq(appInvites.id, invite.id), isNull(appInvites.acceptedByUserId)))
+        .returning({ id: appInvites.id });
+
+      if (claimed.length === 0) {
+        res.status(410).json({ error: 'Invite has already been used' });
+        return;
+      }
+
       if (existingMember) {
-        // Consume the invite even if user is already a member (single-use token)
-        await db
-          .update(appInvites)
-          .set({ acceptedByUserId: userId })
-          .where(eq(appInvites.id, invite.id));
         res.json({ appHash: appRow.hash, role: existingMember.role, alreadyMember: true });
         return;
       }
 
-      // Accept: mark invite as used and add member
-      await db
-        .update(appInvites)
-        .set({ acceptedByUserId: userId })
-        .where(eq(appInvites.id, invite.id));
-
+      // Add member
       await db.insert(appMembers).values({
         appId: appRow.id,
         userId,
