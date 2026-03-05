@@ -164,7 +164,7 @@ export function getDefaultComponent(type: string): UiComponent {
       return { ...base, props: { tabs: [{ header: 'Tab 1', dataKey: '' }] } }
 
     case 'ConditionalGroup':
-      return { ...base, condition: 'true', children: [] }
+      return { ...base, condition: 'true', children: [{ component: 'Card', props: { title: 'Content' } }] }
 
     default:
       return base

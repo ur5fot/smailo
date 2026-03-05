@@ -14,6 +14,15 @@ function assignEditorIds(components: UiComponent[]): void {
   }
 }
 
+function stripEditorIds(components: UiComponent[]): UiComponent[] {
+  return components.map(({ _editorId, ...rest }) => {
+    if (rest.children) {
+      rest.children = stripEditorIds(rest.children)
+    }
+    return rest
+  })
+}
+
 export interface UiComponent {
   component: string
   props: Record<string, unknown>
@@ -159,9 +168,12 @@ export const useEditorStore = defineStore('editor', () => {
   async function saveConfig(hash: string) {
     const body: Record<string, unknown> = {}
     if (editablePages.value) {
-      body.pages = editablePages.value
+      body.pages = editablePages.value.map(p => ({
+        ...p,
+        uiComponents: stripEditorIds(p.uiComponents),
+      }))
     } else {
-      body.uiComponents = editableConfig.value
+      body.uiComponents = stripEditorIds(editableConfig.value ?? [])
     }
     const res = await api.put(`/app/${hash}/config`, body)
     isDirty.value = false

@@ -82,7 +82,7 @@ describe('getDefaultComponent', () => {
     const cg = getDefaultComponent('ConditionalGroup')
     expect(cg.component).toBe('ConditionalGroup')
     expect(cg.condition).toBe('true')
-    expect(cg.children).toEqual([])
+    expect(cg.children).toEqual([{ component: 'Card', props: { title: 'Content' } }])
   })
 
   it('returns a Badge with colSpan 2', () => {

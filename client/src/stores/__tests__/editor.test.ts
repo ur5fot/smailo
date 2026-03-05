@@ -330,9 +330,13 @@ describe('useEditorStore', () => {
 
       await store.saveConfig('abc123')
 
-      expect(mockPut).toHaveBeenCalledWith('/app/abc123/config', {
-        uiComponents: store.editableConfig,
-      })
+      const sentBody = mockPut.mock.calls[0][1] as Record<string, unknown>
+      // _editorId should be stripped from saved components
+      const sentComponents = sentBody.uiComponents as UiComponent[]
+      for (const c of sentComponents) {
+        expect(c).not.toHaveProperty('_editorId')
+      }
+      expect(sentComponents.length).toBe(store.editableConfig.length)
       expect(store.isDirty).toBe(false)
     })
 
@@ -343,9 +347,13 @@ describe('useEditorStore', () => {
 
       await store.saveConfig('abc123')
 
-      expect(mockPut).toHaveBeenCalledWith('/app/abc123/config', {
-        pages: store.editablePages,
-      })
+      const sentBody = mockPut.mock.calls[0][1] as Record<string, unknown>
+      const sentPages = sentBody.pages as PageConfig[]
+      for (const page of sentPages) {
+        for (const c of page.uiComponents) {
+          expect(c).not.toHaveProperty('_editorId')
+        }
+      }
       expect(store.isDirty).toBe(false)
     })
   })

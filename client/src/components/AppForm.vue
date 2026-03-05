@@ -153,6 +153,7 @@ async function handleSubmit() {
   loading.value = true
   errorMsg.value = ''
   try {
+    let submittedData: Record<string, unknown> = {}
     if (isTableMode.value && props.dataSource) {
       // Table mode: POST row to tables API
       const data: Record<string, unknown> = {}
@@ -168,6 +169,7 @@ async function handleSubmit() {
       }
       await api.post(`/app/${props.hash}/tables/${props.dataSource.tableId}/rows`, { data })
       appStore.invalidateTableCache(props.dataSource.tableId)
+      submittedData = data
     } else {
       // KV mode: POST to appData
       const formObject: Record<string, unknown> = {}
@@ -180,6 +182,7 @@ async function handleSubmit() {
         value: formObject,
         ...(props.appendMode ? { mode: 'append' } : {}),
       })
+      submittedData = formObject
     }
     // Run post-submit action chain if defined
     if (props.actions?.length) {
@@ -190,7 +193,7 @@ async function handleSubmit() {
         currentPageId: props.currentPageId,
         appData: appStore.appData,
         appStore,
-        inputValue: formObject,
+        inputValue: submittedData,
       })
     } else {
       emit('data-written')
