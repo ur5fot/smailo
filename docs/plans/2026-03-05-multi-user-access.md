@@ -204,11 +204,11 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 13: Client — RLS UI в визуальном редакторе
-- [ ] В PropertyEditor: для компонентов с dataSource, показать RLS статус таблицы
-- [ ] В MembersPanel или отдельной настройке: toggle RLS для каждой таблицы (owner only)
-- [ ] Визуальный индикатор в DataTable/CardList когда RLS активен (например, иконка замка)
-- [ ] Написать тесты для RLS UI logic
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] В PropertyEditor: для компонентов с dataSource, показать RLS статус таблицы
+- [x] В MembersPanel или отдельной настройке: toggle RLS для каждой таблицы (owner only)
+- [x] Визуальный индикатор в DataTable/CardList когда RLS активен (например, иконка замка)
+- [x] Написать тесты для RLS UI logic
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 14: Verify acceptance criteria
 - [ ] Verify: owner может пригласить editor и viewer по ссылке

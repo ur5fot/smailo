@@ -70,6 +70,7 @@ appRouter.get('/:hash', resolveUserAndRole, async (req, res) => {
       id: userTables.id,
       name: userTables.name,
       columns: userTables.columns,
+      rlsEnabled: userTables.rlsEnabled,
       createdAt: userTables.createdAt,
     }).from(userTables).where(eq(userTables.appId, row.id));
 
@@ -98,7 +99,7 @@ appRouter.get('/:hash', resolveUserAndRole, async (req, res) => {
       config: clientConfig,
       createdAt: row.createdAt,
       appData: data,
-      tables,
+      tables: tables.map(t => ({ ...t, rlsEnabled: t.rlsEnabled === 1 })),
       myRole,
       ...(members ? { members } : {}),
     });

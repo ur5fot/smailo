@@ -15,6 +15,7 @@
           :title="comp.label"
           @dragstart="onDragStart($event, comp.type)"
           @dragend="onDragEnd"
+          @click="addComponent(comp.type)"
         >
           <i :class="comp.icon" class="component-palette__icon" />
           <span class="component-palette__label">{{ comp.label }}</span>

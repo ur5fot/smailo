@@ -1,17 +1,20 @@
 <template>
   <div v-if="loading" class="app-datatable__loading">Загрузка...</div>
-  <DataTable
-    v-else
-    :value="rows"
-    :paginator="rows.length > 10"
-    :rows="10"
-    size="small"
-    striped-rows
-    class="app-datatable"
-  >
-    <template #empty>
-      <span class="app-datatable__empty">Записей пока нет.</span>
-    </template>
+  <div v-else>
+    <div v-if="isRlsActive" class="app-datatable__rls-badge" title="Row-Level Security: viewer видит только свои строки">
+      <i class="pi pi-lock" /> RLS
+    </div>
+    <DataTable
+      :value="rows"
+      :paginator="rows.length > 10"
+      :rows="10"
+      size="small"
+      striped-rows
+      class="app-datatable"
+    >
+      <template #empty>
+        <span class="app-datatable__empty">Записей пока нет.</span>
+      </template>
     <Column
       v-for="col in effectiveColumns"
       :key="col.field"
@@ -20,6 +23,7 @@
       sortable
     />
   </DataTable>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -47,6 +51,12 @@ const props = defineProps<{
 
 const appStore = useAppStore()
 const loading = ref(false)
+
+const isRlsActive = computed(() => {
+  if (!props.dataSource?.tableId) return false
+  const schema = appStore.tableSchemas.find(t => t.id === props.dataSource!.tableId)
+  return schema?.rlsEnabled ?? false
+})
 
 // Fetch table rows on mount when dataSource is present
 watchEffect(async () => {
@@ -115,5 +125,20 @@ const effectiveColumns = computed<ColumnDef[]>(() => {
   font-style: italic;
   padding: 1rem;
   text-align: center;
+}
+.app-datatable__rls-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 0.25rem;
+}
+.app-datatable__rls-badge i {
+  font-size: 0.65rem;
 }
 </style>

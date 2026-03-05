@@ -109,6 +109,9 @@
             <option value="">Нет</option>
             <option v-for="t in tables" :key="t.id" :value="t.id">{{ t.name }}</option>
           </select>
+          <div v-if="selectedTableRls" class="pe-rls-badge" title="Row-Level Security включён">
+            <i class="pi pi-lock" /> RLS
+          </div>
         </div>
         <div class="pe-field" v-if="component.outputKey !== undefined || isFormOrInput">
           <label class="pe-field__label">outputKey</label>
@@ -331,12 +334,21 @@
 <script setup lang="ts">
 import { ref, computed, reactive, inject, type Ref } from 'vue'
 import { useEditorStore, type UiComponent } from '../../stores/editor'
+import type { TableSchema } from '../../stores/app'
 
 const editorStore = useEditorStore()
 
 // Tables injected from AppView via provide/inject (computed ref)
-const tablesRef = inject<Ref<{ id: number; name: string }[]>>('editorTables', ref([]))
+const tablesRef = inject<Ref<TableSchema[]>>('editorTables', ref([]))
 const tables = computed(() => tablesRef.value)
+
+// RLS status for the currently selected table (via dataSource)
+const selectedTableRls = computed(() => {
+  const tableId = component.value?.dataSource?.tableId
+  if (!tableId) return null
+  const table = tables.value.find(t => t.id === tableId)
+  return table?.rlsEnabled ?? false
+})
 
 const component = computed(() => editorStore.selectedComponent)
 const selectedIndex = computed(() => editorStore.selectedComponentIndex)
@@ -789,5 +801,23 @@ function handleDelete() {
   font-size: 0.8rem;
   font-style: italic;
   margin-bottom: 0.5rem;
+}
+
+/* RLS badge */
+.pe-rls-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: 0.3rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 0.25rem;
+}
+
+.pe-rls-badge i {
+  font-size: 0.65rem;
 }
 </style>

@@ -82,13 +82,38 @@
         </div>
       </div>
 
+      <!-- RLS settings -->
+      <div v-if="tablesList.length > 0" class="members-panel__rls">
+        <h3 class="members-panel__rls-title">
+          <i class="pi pi-lock" /> Row-Level Security
+        </h3>
+        <p class="members-panel__rls-desc">
+          Viewer видит только свои строки в таблицах с включённым RLS
+        </p>
+        <div
+          v-for="table in tablesList"
+          :key="table.id"
+          class="members-panel__rls-row"
+        >
+          <span class="members-panel__rls-name">{{ table.name }}</span>
+          <label class="members-panel__rls-toggle">
+            <input
+              type="checkbox"
+              :checked="table.rlsEnabled"
+              @change="handleToggleRls(table.id, ($event.target as HTMLInputElement).checked)"
+            />
+            <span class="members-panel__rls-label">{{ table.rlsEnabled ? 'Вкл' : 'Выкл' }}</span>
+          </label>
+        </div>
+      </div>
+
       <div v-if="error" class="members-panel__error">{{ error }}</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Button from 'primevue/button'
 import { useAppStore, type MemberInfo } from '../stores/app'
 
@@ -110,6 +135,17 @@ const inviteLoading = ref(false)
 const inviteUrl = ref('')
 const copied = ref(false)
 const confirmingRemove = ref<string | null>(null)
+
+const tablesList = computed(() => appStore.tableSchemas)
+
+async function handleToggleRls(tableId: number, enabled: boolean) {
+  error.value = ''
+  try {
+    await appStore.toggleTableRls(props.hash, tableId, enabled)
+  } catch {
+    error.value = 'Не удалось изменить настройку RLS'
+  }
+}
 
 async function loadMembers() {
   loadingMembers.value = true
@@ -340,5 +376,61 @@ onMounted(() => {
   font-size: 0.8rem;
   color: #ef4444;
   text-align: center;
+}
+
+/* RLS section */
+.members-panel__rls {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.members-panel__rls-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.members-panel__rls-title i {
+  font-size: 0.8rem;
+  color: #92400e;
+}
+
+.members-panel__rls-desc {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.members-panel__rls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+}
+
+.members-panel__rls-name {
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.members-panel__rls-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.members-panel__rls-toggle input {
+  cursor: pointer;
+}
+
+.members-panel__rls-label {
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 </style>

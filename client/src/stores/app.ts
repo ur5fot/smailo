@@ -21,6 +21,7 @@ export interface TableSchema {
   id: number
   name: string
   columns: TableColumn[]
+  rlsEnabled?: boolean
   createdAt: string
 }
 
@@ -126,6 +127,7 @@ export const useAppStore = defineStore('app', () => {
       id: res.data.id,
       name: res.data.name,
       columns: res.data.columns,
+      rlsEnabled: res.data.rlsEnabled,
       createdAt: res.data.createdAt,
     }
     const rows: TableRow[] = res.data.rows || []
@@ -194,12 +196,22 @@ export const useAppStore = defineStore('app', () => {
     return res.data
   }
 
+  async function toggleTableRls(hash: string, tableId: number, rlsEnabled: boolean) {
+    const res = await api.put(`/app/${hash}/tables/${tableId}`, { rlsEnabled })
+    // Update local tableSchemas
+    const schema = tableSchemas.value.find(t => t.id === tableId)
+    if (schema) {
+      schema.rlsEnabled = rlsEnabled
+    }
+    return res.data
+  }
+
   return {
     appConfig, appName, appData, isAuthenticated,
     myRole, members,
     tableSchemas, tableData, computedValues, pages,
     fetchApp, verifyPassword, fetchData, chatWithApp,
     fetchTableRows, getTableData, refreshTable, invalidateTableCache, clearTableCache,
-    fetchMembers, createInvite, changeMemberRole, removeMember,
+    fetchMembers, createInvite, changeMemberRole, removeMember, toggleTableRls,
   }
 })
