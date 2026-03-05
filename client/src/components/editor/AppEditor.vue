@@ -251,16 +251,19 @@ function onPageDrop(toIdx: number) {
   pageDragFrom.value = null
 }
 
-function onDragUpdate(evt: { oldIndex: number; newIndex: number }) {
+function onDragUpdate(evt: { oldDraggableIndex: number; newDraggableIndex: number }) {
   // VueDraggable already mutated the array via v-model.
   // Update selection to follow the moved item if needed.
-  if (editorStore.selectedComponentIndex === evt.oldIndex) {
-    editorStore.selectComponent(evt.newIndex)
+  // Use oldDraggableIndex/newDraggableIndex to exclude filtered elements (grid-lines div).
+  const oldIdx = evt.oldDraggableIndex
+  const newIdx = evt.newDraggableIndex
+  if (editorStore.selectedComponentIndex === oldIdx) {
+    editorStore.selectComponent(newIdx)
   } else if (editorStore.selectedComponentIndex !== null) {
     const sel = editorStore.selectedComponentIndex
-    if (evt.oldIndex < sel && evt.newIndex >= sel) {
+    if (oldIdx < sel && newIdx >= sel) {
       editorStore.selectComponent(sel - 1)
-    } else if (evt.oldIndex > sel && evt.newIndex <= sel) {
+    } else if (oldIdx > sel && newIdx <= sel) {
       editorStore.selectComponent(sel + 1)
     }
   }

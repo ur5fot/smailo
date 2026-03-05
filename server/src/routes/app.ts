@@ -306,7 +306,7 @@ appRouter.put('/:hash/config', chatLimiter, requireAuthIfProtected, async (req, 
       return res.status(400).json({ error: 'pages must be an array' });
     }
     const validated = validatePages(body.pages);
-    if (validated.length === 0 && body.pages.length > 0) {
+    if (validated.length === 0) {
       return res.status(400).json({ error: 'No valid pages found' });
     }
     const { uiComponents: _removedUi, ...configWithoutComponents } = currentConfig;
@@ -349,6 +349,11 @@ appRouter.post('/:hash/data', chatLimiter, requireAuthIfProtected, async (req, r
 
     if (!key || typeof key !== 'string' || !KEY_REGEX.test(key)) {
       return res.status(400).json({ error: 'key must be alphanumeric/underscore, max 100 chars' });
+    }
+
+    const VALID_MODES = ['append', 'increment', 'delete-item'];
+    if (mode !== undefined && (typeof mode !== 'string' || !VALID_MODES.includes(mode))) {
+      return res.status(400).json({ error: 'Invalid mode' });
     }
 
     // delete-item: remove item at index from stored array
