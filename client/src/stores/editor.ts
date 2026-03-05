@@ -3,6 +3,17 @@ import { ref, computed } from 'vue'
 import api from '../api'
 import type { LayoutMeta } from '../utils/gridLayout'
 
+let _editorIdCounter = 0
+function nextEditorId(): string {
+  return `e${++_editorIdCounter}`
+}
+
+function assignEditorIds(components: UiComponent[]): void {
+  for (const c of components) {
+    c._editorId = nextEditorId()
+  }
+}
+
 export interface UiComponent {
   component: string
   props: Record<string, unknown>
@@ -58,11 +69,15 @@ export const useEditorStore = defineStore('editor', () => {
 
     if (config.pages && Array.isArray(config.pages)) {
       editablePages.value = JSON.parse(JSON.stringify(config.pages))
+      for (const page of editablePages.value!) {
+        assignEditorIds(page.uiComponents)
+      }
       editableConfig.value = []
       activePage.value = (config.pages as PageConfig[])[0]?.id ?? null
     } else {
       editablePages.value = null
       editableConfig.value = JSON.parse(JSON.stringify(config.uiComponents || []))
+      assignEditorIds(editableConfig.value)
       activePage.value = null
     }
   }
@@ -102,6 +117,7 @@ export const useEditorStore = defineStore('editor', () => {
   function addComponent(component: UiComponent, index?: number) {
     const components = _getCurrentComponents()
     if (!components) return
+    component._editorId = nextEditorId()
     if (index !== undefined && index >= 0 && index <= components.length) {
       components.splice(index, 0, component)
     } else {

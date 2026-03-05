@@ -375,6 +375,7 @@ function updateProp(key: string, value: unknown) {
 function addNewProp() {
   const key = newPropKey.value.trim()
   if (!key || selectedIndex.value === null || !component.value) return
+  if (/^on[A-Z]/.test(key) || key === 'innerHTML' || key === 'v-html') return
   const newProps = { ...component.value.props, [key]: '' }
   editorStore.updateComponent(selectedIndex.value, { props: newProps })
   newPropKey.value = ''

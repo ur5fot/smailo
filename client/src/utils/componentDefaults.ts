@@ -85,7 +85,7 @@ export function getDefaultComponent(type: string): UiComponent {
 
   switch (type) {
     case 'Card':
-      return { ...base, props: { header: 'New Card' }, layout: { col: 1, colSpan: 6 } }
+      return { ...base, props: { title: 'New Card' }, layout: { col: 1, colSpan: 6 } }
 
     case 'DataTable':
       return { ...base, props: {} }

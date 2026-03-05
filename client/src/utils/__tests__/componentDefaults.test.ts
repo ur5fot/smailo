@@ -33,10 +33,10 @@ describe('COMPONENT_CATEGORIES', () => {
 })
 
 describe('getDefaultComponent', () => {
-  it('returns a Card with header prop and colSpan 6', () => {
+  it('returns a Card with title prop and colSpan 6', () => {
     const card = getDefaultComponent('Card')
     expect(card.component).toBe('Card')
-    expect(card.props.header).toBe('New Card')
+    expect(card.props.title).toBe('New Card')
     expect(card.layout).toEqual({ col: 1, colSpan: 6 })
   })
 

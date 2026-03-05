@@ -190,6 +190,7 @@ async function handleSubmit() {
         currentPageId: props.currentPageId,
         appData: appStore.appData,
         appStore,
+        inputValue: formObject,
       })
     } else {
       emit('data-written')
