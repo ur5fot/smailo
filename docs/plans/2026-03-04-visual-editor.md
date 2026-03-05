@@ -118,18 +118,18 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 9: Property editor panel
-- [ ] Создать `client/src/components/editor/PropertyEditor.vue`
-- [ ] Размещение: нижняя часть правой панели (под палитрой), скроллится
-- [ ] Секции (аккордеон/tabs): General, Props, Data, Actions, Conditional, Layout
-- [ ] **General**: component type (read-only), кнопка удаления
-- [ ] **Props**: динамическая форма из `item.props` — InputText для строк, InputNumber для чисел, Checkbox для boolean, Dropdown для enum
-- [ ] **Data**: dataKey (InputText), dataSource (Dropdown таблиц + опциональный filter builder), computedValue (InputText с подсказкой формулы)
-- [ ] **Actions**: action chain builder — список шагов, добавить/удалить шаг, per-step форма по типу (writeData, navigateTo, toggleVisibility, runFormula, fetchUrl)
-- [ ] **Conditional**: showIf (InputText), styleIf builder (condition + class dropdown)
-- [ ] **Layout**: col (InputNumber 1-12), colSpan (InputNumber 1-12), row (InputNumber), rowSpan (InputNumber)
-- [ ] Все изменения → `editorStore.updateComponent(index, partial)` → `isDirty = true`
-- [ ] Написать тесты для property editor logic
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Создать `client/src/components/editor/PropertyEditor.vue`
+- [x] Размещение: нижняя часть правой панели (под палитрой), скроллится
+- [x] Секции (аккордеон/tabs): General, Props, Data, Actions, Conditional, Layout
+- [x] **General**: component type (read-only), кнопка удаления
+- [x] **Props**: динамическая форма из `item.props` — InputText для строк, InputNumber для чисел, Checkbox для boolean, Dropdown для enum
+- [x] **Data**: dataKey (InputText), dataSource (Dropdown таблиц + опциональный filter builder), computedValue (InputText с подсказкой формулы)
+- [x] **Actions**: action chain builder — список шагов, добавить/удалить шаг, per-step форма по типу (writeData, navigateTo, toggleVisibility, runFormula, fetchUrl)
+- [x] **Conditional**: showIf (InputText), styleIf builder (condition + class dropdown)
+- [x] **Layout**: col (InputNumber 1-12), colSpan (InputNumber 1-12), row (InputNumber), rowSpan (InputNumber)
+- [x] Все изменения → `editorStore.updateComponent(index, partial)` → `isDirty = true`
+- [x] Написать тесты для property editor logic
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 10: Сохранение и синхронизация
 - [ ] Кнопка "Сохранить" в header editor (активна когда `isDirty`)

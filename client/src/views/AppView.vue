@@ -109,11 +109,7 @@
                 <ComponentPalette />
               </div>
               <div class="app-view__editor-panel-section app-view__editor-panel-section--props">
-                <div class="app-view__editor-panel-placeholder">
-                  <i class="pi pi-sliders-h" style="font-size: 1.5rem; color: #9ca3af" />
-                  <p>Свойства компонента</p>
-                  <p class="app-view__editor-panel-subtitle">Выберите компонент на canvas</p>
-                </div>
+                <PropertyEditor />
               </div>
             </div>
           </template>
@@ -177,7 +173,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
@@ -189,6 +185,7 @@ import InputBar from '../components/InputBar.vue'
 import AppRenderer from '../components/AppRenderer.vue'
 import AppEditor from '../components/editor/AppEditor.vue'
 import ComponentPalette from '../components/editor/ComponentPalette.vue'
+import PropertyEditor from '../components/editor/PropertyEditor.vue'
 import { useAppStore } from '../stores/app'
 import { useEditorStore } from '../stores/editor'
 import type { ChatMessage } from '../stores/chat'
@@ -202,6 +199,12 @@ const appStore = useAppStore()
 const editorStore = useEditorStore()
 const hash = computed(() => route.params.hash as string)
 const userId = computed(() => route.params.userId as string | undefined)
+
+// Provide table schemas to PropertyEditor for dataSource dropdown
+const editorTables = computed(() =>
+  appStore.tableSchemas.map(t => ({ id: t.id, name: t.name }))
+)
+provide('editorTables', editorTables)
 
 const loading = ref(true)
 const loadError = ref('')
@@ -772,25 +775,6 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0.75rem 0.75rem 0;
-}
-
-.app-view__editor-panel-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  color: #6b7280;
-  text-align: center;
-  padding: 1rem;
-}
-
-.app-view__editor-panel-placeholder p {
-  margin: 0;
-}
-
-.app-view__editor-panel-subtitle {
-  font-size: 0.85rem;
-  color: #9ca3af;
 }
 
 /* ── Unsaved changes dialog ────────────────────── */
