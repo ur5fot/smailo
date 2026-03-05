@@ -132,13 +132,13 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 10: Сохранение и синхронизация
-- [ ] Кнопка "Сохранить" в header editor (активна когда `isDirty`)
-- [ ] `editorStore.saveConfig(hash)` → `PUT /api/app/:hash/config` → обновить `appStore.appConfig`
-- [ ] После сохранения: `isDirty = false`, можно переключиться в view mode и увидеть результат
-- [ ] Кнопка "Отменить" — сбросить `editableConfig` к `appStore.appConfig`
-- [ ] Keyboard shortcut: Ctrl+S для сохранения в edit mode
-- [ ] Написать тесты для save/discard flow
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Кнопка "Сохранить" в header editor (активна когда `isDirty`)
+- [x] `editorStore.saveConfig(hash)` → `PUT /api/app/:hash/config` → обновить `appStore.appConfig`
+- [x] После сохранения: `isDirty = false`, можно переключиться в view mode и увидеть результат
+- [x] Кнопка "Отменить" — сбросить `editableConfig` к `appStore.appConfig`
+- [x] Keyboard shortcut: Ctrl+S для сохранения в edit mode
+- [x] Написать тесты для save/discard flow
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 11: Multi-page поддержка в редакторе
 - [ ] Табы страниц в AppEditor с возможностью: переключить, добавить новую, удалить, переименовать

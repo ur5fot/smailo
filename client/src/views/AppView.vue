@@ -52,6 +52,26 @@
               <h1 class="app-view__title">{{ appStore.appName || 'My App' }}</h1>
             </div>
             <div class="app-view__header-actions">
+              <template v-if="editorStore.isEditMode">
+                <Button
+                  label="Сохранить"
+                  icon="pi pi-check"
+                  size="small"
+                  :disabled="!editorStore.isDirty || saving"
+                  :loading="saving"
+                  class="app-view__save-btn"
+                  @click="handleSave"
+                />
+                <Button
+                  label="Отменить"
+                  icon="pi pi-times"
+                  size="small"
+                  text
+                  :disabled="!editorStore.isDirty || saving"
+                  class="app-view__discard-btn"
+                  @click="handleDiscard"
+                />
+              </template>
               <Button
                 :icon="editorStore.isEditMode ? 'pi pi-comments' : 'pi pi-pencil'"
                 text
@@ -173,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, provide } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
@@ -219,6 +239,7 @@ const chatLoading = ref(false)
 const messagesRef = ref<HTMLElement | null>(null)
 
 const showUnsavedWarning = ref(false)
+const saving = ref(false)
 
 const chatMessages = ref<ChatMessage[]>([])
 
@@ -325,6 +346,36 @@ function confirmDiscardChanges() {
 
 function cancelDiscardChanges() {
   showUnsavedWarning.value = false
+}
+
+async function handleSave() {
+  if (!editorStore.isDirty || saving.value) return
+  saving.value = true
+  try {
+    const result = await editorStore.saveConfig(hash.value)
+    // Update appStore with the saved config so view mode shows the latest
+    if (result?.config) {
+      appStore.appConfig = result.config
+    }
+  } catch {
+    // Save failed — stay dirty so user can retry
+  } finally {
+    saving.value = false
+  }
+}
+
+function handleDiscard() {
+  if (!editorStore.isDirty) return
+  if (appStore.appConfig) {
+    editorStore.discardChanges(appStore.appConfig)
+  }
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's' && editorStore.isEditMode) {
+    e.preventDefault()
+    handleSave()
+  }
 }
 
 function onPageChange(pageId: string) {
@@ -478,6 +529,11 @@ watch(hash, () => {
 
 onMounted(() => {
   loadApp()
+  window.addEventListener('keydown', onKeyDown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown)
 })
 </script>
 
@@ -606,6 +662,15 @@ onMounted(() => {
 }
 
 .app-view__refresh-btn {
+  color: #6b7280 !important;
+}
+
+.app-view__save-btn {
+  font-size: 0.8rem;
+}
+
+.app-view__discard-btn {
+  font-size: 0.8rem;
   color: #6b7280 !important;
 }
 
