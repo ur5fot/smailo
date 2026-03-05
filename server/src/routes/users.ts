@@ -70,6 +70,27 @@ usersRouter.get('/:userId', async (req, res) => {
   }
 });
 
+// POST /api/users/:userId/token — issue a JWT for an existing user (userId is the credential)
+usersRouter.post('/:userId/token', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!/^[A-Za-z0-9]{1,50}$/.test(userId)) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    const [row] = await db.select().from(users).where(eq(users.userId, userId));
+    if (!row) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ userId: row.userId, token });
+  } catch (err) {
+    console.error('[users] POST /api/users/:userId/token error:', err);
+    res.status(500).json({ error: 'Failed to issue token' });
+  }
+});
+
 // GET /api/users/:userId/apps — list user's apps (requires matching JWT)
 usersRouter.get('/:userId/apps', async (req, res) => {
   try {

@@ -231,11 +231,16 @@ membersRouter.post(
         return;
       }
 
-      // Check if user is already a member
+      // Check if user is already a member — return early without consuming the invite
       const [existingMember] = await db
         .select()
         .from(appMembers)
         .where(and(eq(appMembers.appId, appRow.id), eq(appMembers.userId, userId)));
+
+      if (existingMember) {
+        res.json({ appHash: appRow.hash, role: existingMember.role, alreadyMember: true });
+        return;
+      }
 
       // Atomically claim the invite: conditional UPDATE ensures only one request succeeds
       const claimed = await db
@@ -246,11 +251,6 @@ membersRouter.post(
 
       if (claimed.length === 0) {
         res.status(410).json({ error: 'Invite has already been used' });
-        return;
-      }
-
-      if (existingMember) {
-        res.json({ appHash: appRow.hash, role: existingMember.role, alreadyMember: true });
         return;
       }
 

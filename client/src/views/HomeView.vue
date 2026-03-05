@@ -79,8 +79,11 @@ async function handleGoto() {
   checking.value = true
   errorMsg.value = ''
   try {
-    await api.get(`/users/${userId}`)
+    const res = await api.post(`/users/${userId}/token`)
     localStorage.setItem('smailo_user_id', userId)
+    if (res.data.token) {
+      localStorage.setItem('smailo_token', res.data.token)
+    }
     router.push(`/${userId}`)
   } catch (err: any) {
     if (err?.response?.status === 404) {
