@@ -49,14 +49,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 2: API эндпоинт для прямого сохранения конфига
-- [ ] Создать `PUT /api/app/:hash/config` в `server/src/routes/app.ts`
-- [ ] Принимает `{ uiComponents?: UiComponent[], pages?: Page[] }` — одно из двух
-- [ ] Валидация через существующие `validateUiComponents()` и `validatePages()`
-- [ ] Защита: `requireAuthIfProtected` middleware (JWT для protected, X-User-Id для unprotected)
-- [ ] Rate limit: `chatLimiter` (30 req/min)
-- [ ] Сохранение в БД: обновить `apps.config`
-- [ ] Написать тесты для эндпоинта (success, validation errors, auth, rate limit)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Создать `PUT /api/app/:hash/config` в `server/src/routes/app.ts`
+- [x] Принимает `{ uiComponents?: UiComponent[], pages?: Page[] }` — одно из двух
+- [x] Валидация через существующие `validateUiComponents()` и `validatePages()`
+- [x] Защита: `requireAuthIfProtected` middleware (JWT для protected, X-User-Id для unprotected)
+- [x] Rate limit: `chatLimiter` (30 req/min)
+- [x] Сохранение в БД: обновить `apps.config`
+- [x] Написать тесты для эндпоинта (success, validation errors, auth, rate limit)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3: AppRenderer — рендеринг CSS Grid
 - [ ] Изменить `.app-renderer` с `flex-direction: column` на `display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem`

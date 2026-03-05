@@ -265,6 +265,59 @@ appRouter.get('/:hash/data', requireAuthIfProtected, async (req, res) => {
   }
 });
 
+// PUT /api/app/:hash/config
+appRouter.put('/:hash/config', chatLimiter, requireAuthIfProtected, async (req, res) => {
+  try {
+    const row = (req as AuthenticatedRequest).app_row!;
+    const body = req.body as Record<string, unknown>;
+
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return res.status(400).json({ error: 'Request body must be an object' });
+    }
+
+    const hasUiComponents = 'uiComponents' in body;
+    const hasPages = 'pages' in body;
+
+    if (!hasUiComponents && !hasPages) {
+      return res.status(400).json({ error: 'Must provide uiComponents or pages' });
+    }
+    if (hasUiComponents && hasPages) {
+      return res.status(400).json({ error: 'Cannot provide both uiComponents and pages' });
+    }
+
+    const currentConfig = (row.config as Record<string, unknown>) ?? {};
+
+    if (hasUiComponents) {
+      if (!Array.isArray(body.uiComponents)) {
+        return res.status(400).json({ error: 'uiComponents must be an array' });
+      }
+      const validated = validateUiComponents(body.uiComponents);
+      if (validated.length === 0 && body.uiComponents.length > 0) {
+        return res.status(400).json({ error: 'No valid components found' });
+      }
+      const { pages: _removed, ...configWithoutPages } = currentConfig;
+      const updatedConfig = { ...configWithoutPages, uiComponents: validated };
+      await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
+      return res.json({ ok: true, config: updatedConfig });
+    }
+
+    // hasPages
+    if (!Array.isArray(body.pages)) {
+      return res.status(400).json({ error: 'pages must be an array' });
+    }
+    const validated = validatePages(body.pages);
+    if (validated.length === 0 && body.pages.length > 0) {
+      return res.status(400).json({ error: 'No valid pages found' });
+    }
+    const updatedConfig = { ...currentConfig, pages: validated };
+    await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
+    return res.json({ ok: true, config: updatedConfig });
+  } catch (error) {
+    console.error('[PUT /api/app/:hash/config] Error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/app/:hash/chat
 appRouter.get('/:hash/chat', requireAuthIfProtected, async (req, res) => {
   try {
@@ -433,6 +486,10 @@ appRouter.post('/:hash/actions/fetch-url', chatLimiter, requireAuthIfProtected, 
     }
 
     const value = extractDataPath(result.body, typeof dataPath === 'string' ? dataPath : undefined);
+
+    if (typeof dataPath === 'string' && value === undefined) {
+      return res.status(400).json({ error: `dataPath "${dataPath}" not found in response` });
+    }
 
     const serialized = JSON.stringify(value);
     if (Buffer.byteLength(serialized, 'utf8') > VALUE_MAX_BYTES) {
