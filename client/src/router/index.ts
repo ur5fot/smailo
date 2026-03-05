@@ -28,6 +28,10 @@ const router = createRouter({
       component: () => import('../views/AppView.vue'),
     },
     {
+      path: '/invite/:hash([a-fA-F0-9]{1,128})/:token([a-fA-F0-9]{1,128})',
+      component: () => import('../views/InviteView.vue'),
+    },
+    {
       path: '/:userId([A-Za-z0-9]{1,50})',
       component: () => import('../views/UserView.vue'),
     },

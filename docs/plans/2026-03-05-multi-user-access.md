@@ -194,14 +194,14 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 12: Client — accept invite page
-- [ ] Создать route `/invite/:hash/:token` → `InviteView.vue`
-- [ ] При открытии: проверить что пользователь залогинен (имеет userId + JWT)
-- [ ] Если нет userId — предложить создать аккаунт, затем accept
-- [ ] Вызвать `POST /api/app/:hash/members/invite/:token/accept` для принятия
-- [ ] После принятия: redirect на `/:userId/:hash`
-- [ ] Ошибки: невалидный/истёкший/использованный токен, уже являешься участником
-- [ ] Написать тесты для invite flow
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Создать route `/invite/:hash/:token` → `InviteView.vue`
+- [x] При открытии: проверить что пользователь залогинен (имеет userId + JWT)
+- [x] Если нет userId — предложить создать аккаунт, затем accept
+- [x] Вызвать `POST /api/app/:hash/members/invite/:token/accept` для принятия
+- [x] После принятия: redirect на `/:userId/:hash`
+- [x] Ошибки: невалидный/истёкший/использованный токен, уже являешься участником
+- [x] Написать тесты для invite flow
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 13: Client — RLS UI в визуальном редакторе
 - [ ] В PropertyEditor: для компонентов с dataSource, показать RLS статус таблицы
