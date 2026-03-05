@@ -100,9 +100,14 @@ describe('extractDataPath', () => {
     expect(extractDataPath(body, 'data.price')).toBe(42.5);
   });
 
-  it('returns null for missing key in valid JSON', () => {
+  it('returns undefined for missing key in valid JSON', () => {
     const body = JSON.stringify({ data: { price: 42.5 } });
-    expect(extractDataPath(body, 'data.missing')).toBe(null);
+    expect(extractDataPath(body, 'data.missing')).toBeUndefined();
+  });
+
+  it('preserves actual JSON null values', () => {
+    const body = JSON.stringify({ data: { status: null } });
+    expect(extractDataPath(body, 'data.status')).toBeNull();
   });
 
   it('returns raw string for invalid JSON without dataPath', () => {
@@ -126,27 +131,50 @@ describe('extractDataPath', () => {
   });
 
   it('blocks __proto__ in path', () => {
-    const body = JSON.stringify({ __proto__: { evil: true } });
-    expect(extractDataPath(body, '__proto__.evil')).toBe(null);
+    // Use raw JSON string — JSON.stringify({ __proto__: ... }) produces '{}' because
+    // __proto__ in object literals modifies the prototype, not creating an own property.
+    const body = '{"__proto__":{"evil":true}}';
+    expect(extractDataPath(body, '__proto__.evil')).toBeUndefined();
   });
 
   it('blocks constructor in path', () => {
     const body = JSON.stringify({ constructor: { name: 'Foo' } });
-    expect(extractDataPath(body, 'constructor.name')).toBe(null);
+    expect(extractDataPath(body, 'constructor.name')).toBeUndefined();
   });
 
   it('blocks prototype in path', () => {
     const body = JSON.stringify({ prototype: { x: 1 } });
-    expect(extractDataPath(body, 'prototype.x')).toBe(null);
+    expect(extractDataPath(body, 'prototype.x')).toBeUndefined();
   });
 
-  it('returns null when traversing non-object', () => {
+  it('returns undefined when traversing non-object', () => {
     const body = JSON.stringify({ data: 'string' });
-    expect(extractDataPath(body, 'data.nested')).toBe(null);
+    expect(extractDataPath(body, 'data.nested')).toBeUndefined();
   });
 
   it('returns full parsed object when dataPath is undefined', () => {
     const body = JSON.stringify([1, 2, 3]);
     expect(extractDataPath(body, undefined)).toEqual([1, 2, 3]);
+  });
+
+  it('returns undefined for inherited prototype properties like toString', () => {
+    const body = JSON.stringify({ data: 'hello' });
+    expect(extractDataPath(body, 'toString')).toBeUndefined();
+  });
+
+  it('returns undefined for inherited hasOwnProperty', () => {
+    const body = JSON.stringify({ data: 'hello' });
+    expect(extractDataPath(body, 'hasOwnProperty')).toBeUndefined();
+  });
+
+  it('returns undefined for inherited valueOf', () => {
+    const body = JSON.stringify({ data: 'hello' });
+    expect(extractDataPath(body, 'valueOf')).toBeUndefined();
+  });
+
+  it('still accesses own properties normally', () => {
+    const body = JSON.stringify({ toString: 'custom', data: { valueOf: 42 } });
+    expect(extractDataPath(body, 'toString')).toBe('custom');
+    expect(extractDataPath(body, 'data.valueOf')).toBe(42);
   });
 });

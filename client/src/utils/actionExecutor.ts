@@ -191,9 +191,13 @@ async function execFetchUrl(action: FetchUrlAction, ctx: ActionContext): Promise
     console.warn('fetchUrl: skipping fetch — unresolved placeholder in URL')
     return
   }
-  await api.post(`/app/${ctx.hash}/actions/fetch-url`, {
+  const resp = await api.post(`/app/${ctx.hash}/actions/fetch-url`, {
     url: substitutedUrl,
     outputKey: action.outputKey,
     ...(action.dataPath ? { dataPath: action.dataPath } : {}),
   })
+  // Update local snapshot so subsequent steps in the same chain see the fetched value
+  if (resp.data?.ok && resp.data.value !== undefined) {
+    updateLocalAppData(ctx, action.outputKey, resp.data.value)
+  }
 }

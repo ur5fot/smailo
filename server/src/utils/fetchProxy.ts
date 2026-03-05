@@ -173,7 +173,7 @@ const BLOCKED_PATH_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
  * Extract a value from a response body using a dot-notation dataPath.
  * - If body is not valid JSON → returns raw string.
  * - If dataPath is absent → returns parsed JSON (or raw string if not JSON).
- * - If dataPath key is missing → returns null.
+ * - If dataPath key is missing → returns undefined (distinguishes from actual JSON null).
  */
 export function extractDataPath(body: string, dataPath?: string): unknown {
   let parsed: unknown;
@@ -190,12 +190,13 @@ export function extractDataPath(body: string, dataPath?: string): unknown {
   const parts = dataPath.replace(/^\$\./, '').split('.');
   let current: unknown = parsed;
   for (const part of parts) {
-    if (BLOCKED_PATH_KEYS.has(part)) return null;
+    if (BLOCKED_PATH_KEYS.has(part)) return undefined;
     if (current != null && typeof current === 'object') {
+      if (!Object.prototype.hasOwnProperty.call(current, part)) return undefined;
       current = (current as Record<string, unknown>)[part];
     } else {
-      return null;
+      return undefined;
     }
   }
-  return current === undefined ? null : current;
+  return current;
 }

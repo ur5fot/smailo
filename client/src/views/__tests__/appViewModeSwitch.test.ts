@@ -217,8 +217,8 @@ describe('AppView mode switching logic', () => {
       editorStore.updateComponent(0, { props: { header: 'Changed' } })
 
       await expect(editorStore.saveConfig('test-hash')).rejects.toThrow('Network error')
-      // isDirty stays false because saveConfig sets it before throw can be caught
-      // In AppView, the catch block handles this — the store clears dirty optimistically
+      // api.put rejects before isDirty = false is reached, so dirty flag stays true
+      expect(editorStore.isDirty).toBe(true)
     })
   })
 

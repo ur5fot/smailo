@@ -324,7 +324,7 @@ class CronManager {
     const dataPath = config.dataPath as string | undefined;
     const value = extractDataPath(result.body, dataPath);
 
-    if (dataPath && value === null) {
+    if (dataPath && value === undefined) {
       console.warn(`[CronManager] fetch_url dataPath "${dataPath}" not found in response for app ${appId}, skipping storage. Response: ${result.body.slice(0, 300)}`);
       return;
     }

@@ -87,7 +87,6 @@ async function handleSave() {
   errorMsg.value = ''
   try {
     if (props.actions?.length) {
-      // executeActions already calls fetchData internally
       await executeActions(props.actions, {
         hash: props.hash,
         userId: userStore.userId,
@@ -96,6 +95,7 @@ async function handleSave() {
         appStore,
         inputValue: value,
       })
+      emit('data-written')
     } else if (props.action) {
       await api.post(`/app/${props.hash}/data`, {
         key: props.action.key,
