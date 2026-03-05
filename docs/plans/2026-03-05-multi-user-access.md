@@ -211,16 +211,16 @@ anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗  
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 14: Verify acceptance criteria
-- [ ] Verify: owner может пригласить editor и viewer по ссылке
-- [ ] Verify: editor может читать и писать данные, но не менять конфиг
-- [ ] Verify: viewer может только читать (кнопки disabled, chat disabled)
-- [ ] Verify: RLS работает — viewer видит только свои строки
-- [ ] Verify: owner видит все строки независимо от RLS
-- [ ] Verify: invite token: single-use, expires after 7 days
-- [ ] Verify: обратная совместимость — старые приложения без members работают
-- [ ] Verify: password-protected apps работают с новой auth моделью
-- [ ] Verify: shared apps отображаются в UserView
-- [ ] Run full test suite (server + client)
+- [x] Verify: owner может пригласить editor и viewer по ссылке
+- [x] Verify: editor может читать и писать данные, но не менять конфиг
+- [x] Verify: viewer может только читать (кнопки disabled, chat disabled)
+- [x] Verify: RLS работает — viewer видит только свои строки
+- [x] Verify: owner видит все строки независимо от RLS
+- [x] Verify: invite token: single-use, expires after 7 days
+- [x] Verify: обратная совместимость — старые приложения без members работают
+- [x] Verify: password-protected apps работают с новой auth моделью
+- [x] Verify: shared apps отображаются в UserView
+- [x] Run full test suite (server + client)
 
 ### Task 15: [Final] Update documentation
 - [ ] Обновить `README.md` — описание мульти-пользовательского доступа
