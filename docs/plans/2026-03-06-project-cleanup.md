@@ -75,14 +75,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 4: Тесты для chat.ts store
-- [ ] Создать `client/src/stores/__tests__/chat.test.ts`:
+- [x] Создать `client/src/stores/__tests__/chat.test.ts`:
   - `initSession(userId)`: sets sessionId to `home-<userId>`, loads history
   - `reset()`: generates new random session ID
   - `addMessage()`: adds message to array
   - Phase transitions: brainstorm → confirm → created
   - `appHash` set after creation phase
   - Error handling: API errors during loadHistory
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5: Тесты для dataKey.ts и chartData.ts
 - [ ] Создать `client/src/utils/__tests__/dataKey.test.ts`:
