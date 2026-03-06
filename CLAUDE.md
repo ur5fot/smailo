@@ -15,7 +15,7 @@ npm run dev
 # Initialize DB (run once after cloning or schema changes)
 npm run db:push
 
-# Build client for production
+# Build client + server for production
 npm run build
 
 # Start production server
@@ -359,3 +359,35 @@ Axios instance (`client/src/api/index.ts`) auto-attaches global JWT from `smailo
 - `POST /api/users` — generate userId (nanoid 10), insert into users, generate global JWT (30d), return `{ userId, token }`
 - `GET /api/users/:userId` — return `{ userId, createdAt }` or 404
 - `GET /api/users/:userId/apps` — return `[{ hash, appName, description, createdAt, lastVisit, role }]` — includes both owned apps and shared apps (via `app_members`)
+
+### Environment config (`server/src/utils/env.ts`)
+
+Centralized env validation at startup. Exports `env` object with validated values. Required: `JWT_SECRET` (min 32 chars in production). Required in production: `ANTHROPIC_API_KEY` or `DEEPSEEK_API_KEY`. Optional: `PORT` (default 3000), `CLIENT_URL`, `NODE_ENV`, `SENTRY_DSN`, `DATABASE_PATH`, `BACKUP_DIR`. Throws with clear message if required vars are missing.
+
+### Structured logging (`server/src/utils/logger.ts`)
+
+Pino-based logger. Production: JSON output. Development: pretty-print via `pino-pretty`. Log level: `info` in production, `debug` in development. `pino-http` middleware adds request ID (`X-Request-Id` header, preserved from incoming or generated via `crypto.randomUUID()`), redacts `Authorization` and `Cookie` headers, skips `/api/health` and static asset requests. All server files use `logger` instead of `console.*`.
+
+### Error handling (`server/src/middleware/errorHandler.ts`)
+
+Global Express error middleware — last in the pipeline. Logs error, sends `{ error: 'Internal server error' }` with 500 status. Stack trace included only in development responses. `process.on('uncaughtException')` logs + flushes Sentry + exits. `process.on('unhandledRejection')` logs as error.
+
+### Graceful shutdown (`server/src/utils/shutdown.ts`)
+
+Handles SIGTERM and SIGINT. Flow: stop accepting connections → stop cron jobs (`cronManager.stopAll()`) → wait for in-flight requests (max 10s) → close SQLite → `process.exit(0)`. Force exit after 10s timeout.
+
+### Health check
+
+`GET /api/health` — no auth, no rate limit. Checks DB with `SELECT 1`, returns `{ ok: true, uptime }` or `{ ok: false, error: 'db' }` with 503.
+
+### Sentry integration (`server/src/utils/sentry.ts`)
+
+Optional — only active when `SENTRY_DSN` is set. Captures Express errors (via Sentry error handler before custom error handler), `uncaughtException` (with flush before exit), cron job failures, and AI parse errors. Context enrichment: `appHash`, `userId`, `requestId` on each event.
+
+### DB backups (`server/src/utils/dbBackup.ts`)
+
+Uses better-sqlite3 `.backup()` API. Backup file: `smailo-backup-YYYY-MM-DD-HHmmss.sqlite`. Auto-cleanup: removes backups older than 7 days. Scheduled daily via cron in `index.ts` when `BACKUP_DIR` is set. CLI: `npm run db:backup --workspace=server`.
+
+### Deployment
+
+Docker multi-stage build: `node:20-alpine` with `python3 make g++` for better-sqlite3 compilation (build stage), `libstdc++` only in runtime stage. `docker-compose.yml` for local dev with named volume `smailo-data` at `/data`. Railway: `railway.toml` with Dockerfile builder, health check at `/api/health`, `ON_FAILURE` restart policy. Persistent volume required at `/data` for SQLite.

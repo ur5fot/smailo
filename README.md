@@ -1,6 +1,6 @@
 # Smailo
 
-> ⚡ **Vibe coding project** — built entirely through AI-assisted development (Claude Code). The code works, but it is not production-hardened. Use at your own risk: no thorough test coverage, security audit, or stability guarantees. Not recommended for storing sensitive data.
+> ⚡ **Vibe coding project** — built entirely through AI-assisted development (Claude Code). Production-hardened with structured logging (Pino), error tracking (Sentry), graceful shutdown, health checks, Docker multi-stage build, and CI/CD. Not recommended for storing sensitive data.
 
 A personal AI applications builder. Chat with Smailo — an expressive AI assistant — to design and create personal apps like trackers, task lists, schedulers, and data visualizers. Each app gets a dynamic PrimeVue UI and optional cron jobs that run automatically in the background.
 
@@ -43,15 +43,19 @@ The client runs at http://localhost:5173 and the server at http://localhost:3000
 
 | Variable           | Description                                      | Default                   |
 |--------------------|--------------------------------------------------|---------------------------|
-| PORT               | Server port                                      | 3000                      |
+| JWT_SECRET         | Secret for signing tokens (min 32 chars in prod) | —                         |
 | ANTHROPIC_API_KEY  | Your Anthropic API key (required for anthropic)  | —                         |
 | ANTHROPIC_MODEL    | Anthropic model name                             | claude-sonnet-4-6         |
-| JWT_SECRET         | Secret used to sign app access tokens            | —                         |
+| PORT               | Server port                                      | 3000                      |
+| NODE_ENV           | Environment: production or development           | development               |
 | DATABASE_URL       | Path to the SQLite database file                 | smailo.sqlite             |
+| DATABASE_PATH      | SQLite path in Docker/Railway (overrides DATABASE_URL) | —                   |
 | CLIENT_URL         | Origin allowed by CORS                           | http://localhost:5173     |
 | AI_PROVIDER        | AI provider to use: anthropic or deepseek        | anthropic                 |
 | DEEPSEEK_API_KEY   | Your DeepSeek API key (required for deepseek)    | —                         |
 | DEEPSEEK_MODEL     | DeepSeek model name                              | deepseek-chat             |
+| SENTRY_DSN         | Sentry DSN for error tracking (optional)         | —                         |
+| BACKUP_DIR         | Directory for daily DB backups                   | —                         |
 
 ## Architecture
 
@@ -109,7 +113,8 @@ smailo/
         │   ├── migrateOwners.ts  # Auto-create owner records in app_members for legacy apps on startup
         │   └── index.ts          # SQLite + Drizzle connection
         ├── middleware/
-        │   └── auth.ts           # resolveUserAndRole + requireRole middleware (role-based access control)
+        │   ├── auth.ts           # resolveUserAndRole + requireRole middleware (role-based access control)
+        │   └── errorHandler.ts   # Global Express error handler (500 without stack leak in production)
         ├── services/
         │   ├── aiService.ts      # Unified AI service: Anthropic or DeepSeek via AI_PROVIDER
         │   └── cronManager.ts    # node-cron scheduler for app automations
@@ -120,6 +125,11 @@ smailo/
         │   ├── tables.ts         # CRUD /api/app/:hash/tables — user-defined tables and rows
         │   └── members.ts        # /api/app/:hash/members — invite, list, change role, remove members
         ├── utils/
+        │   ├── env.ts            # Centralized env validation at startup
+        │   ├── logger.ts         # Pino structured logger (JSON in prod, pretty in dev)
+        │   ├── shutdown.ts       # Graceful shutdown (SIGTERM/SIGINT handling)
+        │   ├── sentry.ts         # Sentry error tracking integration (optional)
+        │   ├── dbBackup.ts       # SQLite backup utility with old backup cleanup
         │   ├── fetchProxy.ts     # SSRF-safe HTTP fetch + dataPath extraction (shared by cron + action endpoint)
         │   └── formula/          # Safe formula engine (tokenizer, parser, evaluator)
         └── index.ts              # Express entry point
@@ -173,6 +183,40 @@ smailo/
 - **Race condition protection**: Append and delete-item operations are wrapped in database transactions
 - **Prompt injection containment**: User-generated app memory is wrapped in XML delimiters before injection into AI prompts
 - **Cron job validation**: Action-specific config objects are validated per type before storage (e.g., `fetch_url` requires HTTPS URL)
+
+### Production Infrastructure
+
+- **Structured logging**: Pino with JSON output in production, pretty-print in development; pino-http middleware with request ID correlation (`X-Request-Id`), auth header redaction, and health check filtering
+- **Error tracking**: Optional Sentry integration (`SENTRY_DSN`); captures Express errors, uncaught exceptions, cron job failures, and AI parse errors
+- **Health check**: `GET /api/health` — verifies DB connectivity, returns `{ ok, uptime }`; used by Docker HEALTHCHECK and Railway
+- **Graceful shutdown**: SIGTERM/SIGINT → stop accepting connections → stop cron jobs → wait for in-flight requests (10s timeout) → close DB → exit
+- **Global error handler**: Express error middleware catches unhandled route errors; returns 500 without stack trace in production
+- **Static serving**: In production, serves `client/dist` with cache headers (`max-age=1y` for hashed assets, `no-cache` for index.html) and SPA fallback
+- **DB backups**: Daily SQLite backup via `.backup()` API; configurable directory (`BACKUP_DIR`); auto-cleanup of backups older than 7 days
+- **CI/CD**: GitHub Actions workflow — type-check, test, build on push/PR to master
+
+### Deployment
+
+#### Docker
+
+```sh
+# Build and run locally
+docker compose up --build
+
+# Or build manually
+docker build -t smailo .
+docker run -p 3000:3000 -v smailo-data:/data --env-file .env smailo
+```
+
+The Dockerfile uses a multi-stage build (node:20-alpine). A named volume mounted at `/data` persists the SQLite database and backups.
+
+#### Railway
+
+The project includes `railway.toml` with Dockerfile builder config and health check settings. Key setup steps:
+
+1. Connect the GitHub repo to Railway
+2. Add a persistent volume mounted to `/data` (required for SQLite — without it, data is lost on redeploy)
+3. Set environment variables: `JWT_SECRET`, `ANTHROPIC_API_KEY`, `DATABASE_PATH=/data/smailo.sqlite`, `BACKUP_DIR=/data/backups`
 
 ### Roadmap
 

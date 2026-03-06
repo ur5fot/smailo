@@ -1,6 +1,6 @@
 # Smailo
 
-> ⚡ **Вайбкодинг-проект** — полностью создан с помощью AI-ассистента (Claude Code). Код работает, но не прошёл продакшн-закалку. Используйте на свой страх и риск: нет полноценного покрытия тестами, аудита безопасности и гарантий стабильности. Не рекомендуется для хранения чувствительных данных.
+> ⚡ **Вайбкодинг-проект** — полностью создан с помощью AI-ассистента (Claude Code). Подготовлен к продакшну: структурированное логирование (Pino), отслеживание ошибок (Sentry), graceful shutdown, health checks, Docker multi-stage build и CI/CD. Не рекомендуется для хранения чувствительных данных.
 
 Персональный конструктор AI-приложений. Общайтесь со Smailo — выразительным AI-ассистентом — чтобы проектировать и создавать личные приложения: трекеры, списки задач, планировщики, визуализаторы данных. Каждое приложение получает динамический интерфейс на PrimeVue и опциональные cron-задания, которые выполняются автоматически в фоне.
 
@@ -43,15 +43,19 @@ npm run dev
 
 | Переменная         | Описание                                              | По умолчанию              |
 |--------------------|-------------------------------------------------------|---------------------------|
-| PORT               | Порт сервера                                          | 3000                      |
+| JWT_SECRET         | Секрет для подписи токенов (мин. 32 символа в prod)   | —                         |
 | ANTHROPIC_API_KEY  | API-ключ Anthropic (обязателен для anthropic)         | —                         |
 | ANTHROPIC_MODEL    | Название модели Anthropic                             | claude-sonnet-4-6         |
-| JWT_SECRET         | Секрет для подписи токенов доступа к приложениям      | —                         |
+| PORT               | Порт сервера                                          | 3000                      |
+| NODE_ENV           | Окружение: production или development                 | development               |
 | DATABASE_URL       | Путь к файлу базы данных SQLite                       | smailo.sqlite             |
+| DATABASE_PATH      | Путь SQLite в Docker/Railway (переопределяет DATABASE_URL) | —                    |
 | CLIENT_URL         | Origin, разрешённый CORS                              | http://localhost:5173     |
 | AI_PROVIDER        | AI-провайдер: anthropic или deepseek                  | anthropic                 |
 | DEEPSEEK_API_KEY   | API-ключ DeepSeek (обязателен для deepseek)           | —                         |
 | DEEPSEEK_MODEL     | Название модели DeepSeek                              | deepseek-chat             |
+| SENTRY_DSN         | DSN для отслеживания ошибок в Sentry (опционально)    | —                         |
+| BACKUP_DIR         | Директория для ежедневных бэкапов БД                  | —                         |
 
 ## Архитектура
 
@@ -109,7 +113,8 @@ smailo/
         │   ├── migrateOwners.ts  # Авто-создание owner записей в app_members для legacy-приложений при старте
         │   └── index.ts          # Подключение SQLite + Drizzle
         ├── middleware/
-        │   └── auth.ts           # resolveUserAndRole + requireRole мидлвар (ролевой контроль доступа)
+        │   ├── auth.ts           # resolveUserAndRole + requireRole мидлвар (ролевой контроль доступа)
+        │   └── errorHandler.ts   # Глобальный обработчик ошибок Express (500 без stack trace в production)
         ├── services/
         │   ├── aiService.ts      # Единый AI-сервис: Anthropic или DeepSeek через AI_PROVIDER
         │   └── cronManager.ts    # Планировщик node-cron для автоматизаций приложений
@@ -120,6 +125,11 @@ smailo/
         │   ├── tables.ts         # CRUD /api/app/:hash/tables — пользовательские таблицы и строки
         │   └── members.ts        # /api/app/:hash/members — приглашения, список, смена роли, удаление участников
         ├── utils/
+        │   ├── env.ts            # Централизованная валидация переменных окружения при старте
+        │   ├── logger.ts         # Структурированный логгер Pino (JSON в prod, pretty в dev)
+        │   ├── shutdown.ts       # Graceful shutdown (обработка SIGTERM/SIGINT)
+        │   ├── sentry.ts         # Интеграция с Sentry для отслеживания ошибок (опционально)
+        │   ├── dbBackup.ts       # Утилита бэкапа SQLite с очисткой старых копий
         │   ├── fetchProxy.ts     # SSRF-безопасный HTTP fetch + извлечение по dataPath (общий для cron + action endpoint)
         │   └── formula/          # Безопасный движок формул (токенизатор, парсер, вычислитель)
         └── index.ts              # Точка входа Express
@@ -173,6 +183,40 @@ smailo/
 - **Защита от race condition**: Операции append и delete-item обёрнуты в транзакции базы данных
 - **Защита от prompt injection**: Пользовательская память приложения оборачивается в XML-теги перед инъекцией в промпт AI
 - **Валидация cron-заданий**: Конфигурации проверяются по типу действия перед сохранением (например, `fetch_url` требует HTTPS URL)
+
+### Продакшн-инфраструктура
+
+- **Структурированное логирование**: Pino с JSON-выводом в production, pretty-print в development; pino-http мидлвар с корреляцией запросов (`X-Request-Id`), редактированием auth-заголовков и фильтрацией health check
+- **Отслеживание ошибок**: Опциональная интеграция с Sentry (`SENTRY_DSN`); перехватывает ошибки Express, необработанные исключения, сбои cron-заданий и ошибки парсинга AI
+- **Health check**: `GET /api/health` — проверяет доступность БД, возвращает `{ ok, uptime }`; используется Docker HEALTHCHECK и Railway
+- **Graceful shutdown**: SIGTERM/SIGINT → прекращение приёма соединений → остановка cron-заданий → ожидание текущих запросов (таймаут 10с) → закрытие БД → выход
+- **Глобальный обработчик ошибок**: Express middleware перехватывает необработанные ошибки в маршрутах; возвращает 500 без stack trace в production
+- **Раздача статики**: В production раздаёт `client/dist` с cache-заголовками (`max-age=1y` для хешированных ассетов, `no-cache` для index.html) и SPA fallback
+- **Бэкапы БД**: Ежедневный бэкап SQLite через `.backup()` API; настраиваемая директория (`BACKUP_DIR`); автоочистка бэкапов старше 7 дней
+- **CI/CD**: GitHub Actions — проверка типов, тесты, сборка при push/PR в master
+
+### Деплой
+
+#### Docker
+
+```sh
+# Сборка и запуск локально
+docker compose up --build
+
+# Или сборка вручную
+docker build -t smailo .
+docker run -p 3000:3000 -v smailo-data:/data --env-file .env smailo
+```
+
+Dockerfile использует multi-stage build (node:20-alpine). Именованный том, примонтированный к `/data`, обеспечивает сохранность базы данных SQLite и бэкапов.
+
+#### Railway
+
+Проект включает `railway.toml` с конфигурацией Dockerfile-билдера и настройками health check. Основные шаги:
+
+1. Подключите GitHub-репозиторий к Railway
+2. Добавьте persistent volume, примонтированный к `/data` (обязательно для SQLite — без него данные теряются при редеплое)
+3. Установите переменные окружения: `JWT_SECRET`, `ANTHROPIC_API_KEY`, `DATABASE_PATH=/data/smailo.sqlite`, `BACKUP_DIR=/data/backups`
 
 ### Дорожная карта
 

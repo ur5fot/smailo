@@ -215,10 +215,10 @@
 - [x] Run full test suite (server + client)
 
 ### Task 13: [Final] Update documentation
-- [ ] Обновить `README.md` — секция Deployment (Docker, Railway, env vars)
-- [ ] Обновить `README.ru.md` — то же самое на русском
-- [ ] Обновить `CLAUDE.md` — добавить: env config, logging, health check, error handling, deployment
-- [ ] Обновить `.env.example` — все новые переменные
+- [x] Обновить `README.md` — секция Deployment (Docker, Railway, env vars)
+- [x] Обновить `README.ru.md` — то же самое на русском
+- [x] Обновить `CLAUDE.md` — добавить: env config, logging, health check, error handling, deployment
+- [x] Обновить `.env.example` — все новые переменные
 
 ## Technical Details
 
