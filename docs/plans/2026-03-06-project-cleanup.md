@@ -158,7 +158,7 @@
 - [x] Run full test suite: `npm test --workspace=server && npm test --workspace=client`
 
 ### Task 10: [Final] Update documentation
-- [ ] Обновить CLAUDE.md если новые паттерны тестирования обнаружены
+- [x] Обновить CLAUDE.md если новые паттерны тестирования обнаружены
 
 ## Technical Details
 
