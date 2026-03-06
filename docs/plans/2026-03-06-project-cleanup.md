@@ -38,13 +38,13 @@
 ## Implementation Steps
 
 ### Task 1: Fix npm audit vulnerabilities
-- [ ] Запустить `npm audit` для baseline
-- [ ] `npm audit fix` — исправить автоматически fixable (6 moderate)
-- [ ] Для оставшихся high: проверить есть ли новые версии vite/drizzle-kit, обновить если безопасно
-- [ ] Если high не фиксятся (dev-only): документировать в комментарии почему приемлемо
-- [ ] Запустить `npm test --workspace=server && npm test --workspace=client` — всё должно проходить
-- [ ] Запустить `npm run build` — build не сломан
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Запустить `npm audit` для baseline
+- [x] `npm audit fix` — исправить автоматически fixable (6 moderate)
+- [x] Для оставшихся high: проверить есть ли новые версии vite/drizzle-kit, обновить если безопасно
+- [x] Если high не фиксятся (dev-only): документировать в комментарии почему приемлемо
+- [x] Запустить `npm test --workspace=server && npm test --workspace=client` — всё должно проходить
+- [x] Запустить `npm run build` — build не сломан
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 2: Route-based code splitting
 - [ ] Обновить `client/src/router/index.ts`: lazy import для тяжёлых views:
@@ -185,9 +185,13 @@
 | Utils (conditional) | 5 | 4 | 80% |
 
 ### npm audit baseline (2026-03-06)
-- 2 high: minimatch (ReDoS), rollup (Path Traversal)
-- 6 moderate: dompurify, esbuild (via vite & drizzle-kit)
-- Все — dev dependencies, не production
+- 2 high: minimatch (ReDoS), rollup (Path Traversal) — FIXED via `npm audit fix`
+- 1 moderate: dompurify (XSS) — FIXED via `npm audit fix`
+- 5 moderate: esbuild (dev server cross-origin, GHSA-67mh-4wv8-2f99) via vite 5.x & drizzle-kit 0.30.x
+  - Fix requires vite 6.2+ (breaking) or drizzle-kit 0.31.9 (breaking) — too risky for this cleanup
+  - Dev-only: esbuild vulnerability only affects local dev server, not production builds or runtime
+  - Accepted risk: no production impact, all are devDependencies
+- Final: 0 high, 5 moderate (all dev-only esbuild, accepted)
 
 ## Post-Completion
 
