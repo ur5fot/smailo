@@ -12,6 +12,7 @@ import { usersRouter } from './routes/users.js';
 import { membersRouter } from './routes/members.js';
 import { cronManager } from './services/cronManager.js';
 import { migrateOwnerRecords } from './db/migrateOwners.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -39,6 +40,9 @@ app.use('/api/app/:hash/tables', tablesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/app/:hash/members', membersRouter);
 
+// Global error handler — must be last middleware
+app.use(errorHandler);
+
 // Migrate existing apps: ensure every app with userId has an owner in app_members
 try {
   const migrated = migrateOwnerRecords();
@@ -62,6 +66,16 @@ setInterval(() => {
     console.error('[pruneOldAppData] Hourly prune failed:', err);
   });
 }, 60 * 60 * 1000);
+
+// Process-level error handlers
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException] Fatal error:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
 
 app.listen(PORT, () => {
   console.log(`[server] Listening on port ${PORT}`);

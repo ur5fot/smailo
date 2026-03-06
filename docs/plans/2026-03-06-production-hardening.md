@@ -59,16 +59,16 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 2: Global error handling middleware
-- [ ] Создать `server/src/middleware/errorHandler.ts`:
+- [x] Создать `server/src/middleware/errorHandler.ts`:
   - Express error middleware `(err, req, res, next)` — ловит все необработанные ошибки в routes
   - Логирует ошибку (stack trace в development, без stack в production)
   - Возвращает `{ error: 'Internal server error' }` с status 500
   - Не утекает stack trace клиенту в production
-- [ ] Добавить `process.on('uncaughtException', ...)` в `index.ts` — логирует и gracefully завершает процесс (после Task 6: добавить `Sentry.captureException()` + `await Sentry.flush(2000)` перед exit)
-- [ ] Добавить `process.on('unhandledRejection', ...)` в `index.ts` — логирует как error
-- [ ] Подключить error middleware последним в Express pipeline (`app.use(errorHandler)`)
-- [ ] Написать тесты для error middleware (синхронная ошибка, async ошибка, не утекает stack)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Добавить `process.on('uncaughtException', ...)` в `index.ts` — логирует и gracefully завершает процесс (после Task 6: добавить `Sentry.captureException()` + `await Sentry.flush(2000)` перед exit)
+- [x] Добавить `process.on('unhandledRejection', ...)` в `index.ts` — логирует как error
+- [x] Подключить error middleware последним в Express pipeline (`app.use(errorHandler)`)
+- [x] Написать тесты для error middleware (синхронная ошибка, async ошибка, не утекает stack)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3: Graceful shutdown
 - [ ] Экспортировать `sqlite` instance из `server/src/db/index.ts` (сейчас экспортируется только `db`)
