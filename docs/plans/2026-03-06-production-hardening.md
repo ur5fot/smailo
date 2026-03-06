@@ -175,14 +175,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 10: DB backup utility
-- [ ] Создать `server/src/utils/dbBackup.ts`:
+- [x] Создать `server/src/utils/dbBackup.ts`:
   - Функция `backupDatabase(destPath)` — использует SQLite `.backup()` API из better-sqlite3
   - Backup в файл с timestamp: `smailo-backup-YYYY-MM-DD-HHmmss.sqlite`
   - Cleanup: удалять бэкапы старше 7 дней
-- [ ] Добавить cron job в `index.ts`: ежедневный backup в `/data/backups/` (опционально, через env `BACKUP_DIR`)
-- [ ] Добавить `npm run db:backup` script в server package.json
-- [ ] Написать тесты для backup (создание файла, cleanup старых)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Добавить cron job в `index.ts`: ежедневный backup в `/data/backups/` (опционально, через env `BACKUP_DIR`)
+- [x] Добавить `npm run db:backup` script в server package.json
+- [x] Написать тесты для backup (создание файла, cleanup старых)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 11: Railway deployment config
 - [ ] Создать `railway.toml`:

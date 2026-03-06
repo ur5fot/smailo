@@ -22,6 +22,7 @@ import { sqlite } from './db/index.js';
 import { setupGracefulShutdown } from './utils/shutdown.js';
 import { httpLogger, logger } from './utils/logger.js';
 import { setupStaticServing } from './utils/staticServing.js';
+import { backupDatabase, cleanupOldBackups } from './utils/dbBackup.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -96,6 +97,21 @@ setInterval(() => {
     logger.error({ err }, 'Hourly prune of old app data failed');
   });
 }, 60 * 60 * 1000);
+
+// Daily database backup (if BACKUP_DIR is configured)
+if (envConfig.backupDir) {
+  const backupDir = envConfig.backupDir;
+  // Run backup daily at 3:00 AM
+  setInterval(async () => {
+    try {
+      await backupDatabase(backupDir);
+      cleanupOldBackups(backupDir);
+    } catch (err) {
+      logger.error({ err }, 'Daily database backup failed');
+    }
+  }, 24 * 60 * 60 * 1000);
+  logger.info({ backupDir }, 'Daily database backup enabled');
+}
 
 // Process-level error handlers
 process.on('uncaughtException', async (err) => {
