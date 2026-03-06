@@ -85,18 +85,18 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5: Тесты для dataKey.ts и chartData.ts
-- [ ] Создать `client/src/utils/__tests__/dataKey.test.ts`:
+- [x] Создать `client/src/utils/__tests__/dataKey.test.ts`:
   - Simple key lookup
   - Dot notation: `"rates.USD"` → nested access
   - Auto-parse JSON strings
   - Missing segments → undefined
   - Prototype pollution blocked: `__proto__`, `constructor`, `prototype`
-- [ ] Создать `client/src/utils/__tests__/chartData.test.ts`:
+- [x] Создать `client/src/utils/__tests__/chartData.test.ts`:
   - `buildChartDataFromTable()`: first column as labels, numeric columns as datasets
   - Empty table → empty chart data
   - Mixed column types → only numeric as datasets
   - Single column table
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 6: Тесты для input components (AppButton, AppInputText, AppForm)
 - [ ] Создать `client/src/components/__tests__/AppButton.test.ts`:
