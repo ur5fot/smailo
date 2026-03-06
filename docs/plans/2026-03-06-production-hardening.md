@@ -85,13 +85,13 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 4: Health check endpoint
-- [ ] Добавить `GET /api/health` в `server/src/routes/app.ts` или отдельный файл:
+- [x] Добавить `GET /api/health` в `server/src/routes/app.ts` или отдельный файл:
   - Проверяет: DB доступна (простой SELECT 1), cron manager loaded
   - Возвращает `{ ok: true, uptime: process.uptime() }`
   - Если DB недоступна: `{ ok: false, error: 'db' }` с status 503
-- [ ] Не требует аутентификации, не rate-limited (load balancer должен иметь быстрый доступ)
-- [ ] Написать тесты для health endpoint (success, DB failure)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Не требует аутентификации, не rate-limited (load balancer должен иметь быстрый доступ)
+- [x] Написать тесты для health endpoint (success, DB failure)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5a: Structured logging — logger + middleware
 - [ ] Установить `pino` + `pino-http` + `pino-pretty` (dev) — `npm install pino pino-http --workspace=server` и `npm install -D pino-pretty --workspace=server`

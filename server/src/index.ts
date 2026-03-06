@@ -10,6 +10,7 @@ import { appRouter, pruneOldAppData } from './routes/app.js';
 import { tablesRouter } from './routes/tables.js';
 import { usersRouter } from './routes/users.js';
 import { membersRouter } from './routes/members.js';
+import { healthRouter } from './routes/health.js';
 import { cronManager } from './services/cronManager.js';
 import { migrateOwnerRecords } from './db/migrateOwners.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -36,6 +37,7 @@ app.use(helmet({
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json({ limit: '50kb' }));
 
+app.use('/api/health', healthRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/app', appRouter);
 app.use('/api/app/:hash/tables', tablesRouter);
