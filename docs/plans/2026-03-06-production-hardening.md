@@ -165,14 +165,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 9: GitHub Actions CI
-- [ ] Создать `.github/workflows/ci.yml`:
+- [x] Создать `.github/workflows/ci.yml`:
   - Trigger: push to master, pull_request to master
   - Matrix: Node 20.x
   - Steps: checkout → npm ci → type-check server → type-check client → test server → test client → build
-- [ ] Добавить build step: `npm run build` (client + server) — проверяет что production build не сломан
-- [ ] Env vars для CI: `JWT_SECRET=ci-test-secret`
-- [ ] Проверить что workflow проходит (если есть возможность запустить локально с act)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Добавить build step: `npm run build` (client + server) — проверяет что production build не сломан
+- [x] Env vars для CI: `JWT_SECRET=ci-test-secret`
+- [x] Проверить что workflow проходит (если есть возможность запустить локально с act)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 10: DB backup utility
 - [ ] Создать `server/src/utils/dbBackup.ts`:
