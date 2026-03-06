@@ -150,12 +150,12 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 9: Verify acceptance criteria
-- [ ] Verify: `npm audit` показывает 0 high vulnerabilities (или документировано почему приемлемо)
-- [ ] Verify: `npm run build` — chunk sizes уменьшились (AppView в отдельном chunk)
-- [ ] Verify: клиентских тест-файлов >= 27 (было 19, добавлено ~8+)
-- [ ] Verify: formula engine, chat store, dataKey, chartData протестированы
-- [ ] Verify: input и display components протестированы
-- [ ] Run full test suite: `npm test --workspace=server && npm test --workspace=client`
+- [x] Verify: `npm audit` показывает 0 high vulnerabilities (или документировано почему приемлемо)
+- [x] Verify: `npm run build` — chunk sizes уменьшились (AppView в отдельном chunk)
+- [x] Verify: клиентских тест-файлов >= 27 (было 19, добавлено ~8+)
+- [x] Verify: formula engine, chat store, dataKey, chartData протестированы
+- [x] Verify: input и display components протестированы
+- [x] Run full test suite: `npm test --workspace=server && npm test --workspace=client`
 
 ### Task 10: [Final] Update documentation
 - [ ] Обновить CLAUDE.md если новые паттерны тестирования обнаружены
