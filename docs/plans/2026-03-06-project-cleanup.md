@@ -99,25 +99,25 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 6: Тесты для input components (AppButton, AppInputText, AppForm)
-- [ ] Создать `client/src/components/__tests__/AppButton.test.ts`:
+- [x] Создать `client/src/components/__tests__/AppButton.test.ts`:
   - Renders button with label
   - Click triggers action chain (mock executeActions)
   - Disabled when role is viewer or no role
   - Loading state during action execution
-- [ ] Создать `client/src/components/__tests__/AppInputText.test.ts`:
+- [x] Создать `client/src/components/__tests__/AppInputText.test.ts`:
   - Renders text/number/date input variants
   - Validates empty input → error message
   - Calls executeActions with inputValue on save
   - Falls back to legacy action prop
   - Disabled for viewer role
-- [ ] Создать `client/src/components/__tests__/AppForm.test.ts`:
+- [x] Создать `client/src/components/__tests__/AppForm.test.ts`:
   - Renders fields from props.fields
   - Table mode: auto-generates fields from table schema
   - Validates required fields
   - Submits to correct API (KV mode vs table mode)
   - Calls executeActions after submit
   - Resets form after successful submit
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7: Тесты для display components (AppCard, AppDataTable, AppCardList)
 - [ ] Создать `client/src/components/__tests__/AppCard.test.ts`:
