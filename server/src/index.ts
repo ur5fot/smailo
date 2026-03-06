@@ -2,7 +2,7 @@ import { loadEnvConfig } from './utils/env.js';
 
 const envConfig = loadEnvConfig();
 
-import { initSentry, captureException, flushSentry, setupExpressErrorHandler } from './utils/sentry.js';
+import { initSentry, isSentryInitialized, captureException, flushSentry, setupExpressErrorHandler } from './utils/sentry.js';
 
 initSentry(envConfig.sentryDsn);
 
@@ -69,7 +69,9 @@ if (envConfig.nodeEnv === 'production') {
 }
 
 // Sentry error handler — captures exceptions before our custom handler
-setupExpressErrorHandler(app);
+if (isSentryInitialized()) {
+  setupExpressErrorHandler(app);
+}
 
 // Global error handler — must be last middleware
 app.use(errorHandler);
@@ -101,7 +103,7 @@ setInterval(() => {
 // Daily database backup (if BACKUP_DIR is configured)
 if (envConfig.backupDir) {
   const backupDir = envConfig.backupDir;
-  // Run backup daily at 3:00 AM
+  // Run backup every 24 hours from startup
   setInterval(async () => {
     try {
       await backupDatabase(backupDir);

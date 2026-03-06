@@ -45,5 +45,3 @@ export function setupGracefulShutdown(server: Server, sqlite: Database.Database)
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
-
-export { isShuttingDown };

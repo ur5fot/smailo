@@ -58,16 +58,14 @@ describe.skipIf(!hasClientDist)('setupStaticServing', () => {
   })
 
   it('serves hashed assets with long-lived cache headers', async () => {
-    // Find an actual asset file
     const assetsDir = path.join(clientDistPath, 'assets')
     const files = fs.readdirSync(assetsDir)
     const jsFile = files.find((f) => f.endsWith('.js'))
-    if (!jsFile) return
+    expect(jsFile).toBeDefined()
 
     const app = createApp()
     const { status, headers } = await request(app, `/assets/${jsFile}`)
     expect(status).toBe(200)
-    // express.static with maxAge: '1y' and immutable: true
     expect(headers['cache-control']).toContain('max-age=')
     expect(headers['cache-control']).toContain('immutable')
   })
@@ -84,14 +82,5 @@ describe.skipIf(!hasClientDist)('setupStaticServing', () => {
     const { status, text } = await request(app, '/some-user/some-hash')
     expect(status).toBe(200)
     expect(text.toLowerCase()).toContain('<!doctype html>')
-  })
-})
-
-describe('static serving in development', () => {
-  it('setupStaticServing is not called in index.ts when NODE_ENV != production', async () => {
-    // This is a design verification test — in index.ts, setupStaticServing
-    // is only called inside `if (envConfig.nodeEnv === 'production')`.
-    // We verify the module exports correctly and can be conditionally used.
-    expect(typeof setupStaticServing).toBe('function')
   })
 })

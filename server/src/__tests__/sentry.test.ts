@@ -20,26 +20,25 @@ vi.mock('@sentry/node', () => ({
   setupExpressErrorHandler: mockSetupExpressErrorHandler,
 }))
 
-import {
-  initSentry,
-  isSentryInitialized,
-  captureException,
-  flushSentry,
-  sentryContextMiddleware,
-} from '../utils/sentry.js'
-
 describe('sentry utility', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.resetModules()
   })
 
+  async function loadSentry() {
+    return await import('../utils/sentry.js')
+  }
+
   describe('initSentry', () => {
-    it('does not call Sentry.init when DSN is undefined', () => {
+    it('does not call Sentry.init when DSN is undefined', async () => {
+      const { initSentry } = await loadSentry()
       initSentry(undefined)
       expect(mockInit).not.toHaveBeenCalled()
     })
 
-    it('calls Sentry.init when DSN is provided', () => {
+    it('calls Sentry.init when DSN is provided', async () => {
+      const { initSentry } = await loadSentry()
       initSentry('https://abc@sentry.io/123')
       expect(mockInit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -50,15 +49,26 @@ describe('sentry utility', () => {
   })
 
   describe('captureException', () => {
-    it('captures exception via Sentry.withScope after init', () => {
-      // initSentry was called with DSN above, so initialized = true
+    it('is a no-op when not initialized', async () => {
+      const { captureException } = await loadSentry()
+      captureException(new Error('test'))
+      expect(mockWithScope).not.toHaveBeenCalled()
+    })
+
+    it('captures exception via Sentry.withScope after init', async () => {
+      const { initSentry, captureException } = await loadSentry()
+      initSentry('https://abc@sentry.io/123')
+
       const err = new Error('test error')
       captureException(err)
       expect(mockWithScope).toHaveBeenCalled()
       expect(mockCaptureException).toHaveBeenCalledWith(err)
     })
 
-    it('captures exception with context tags', () => {
+    it('captures exception with context tags', async () => {
+      const { initSentry, captureException } = await loadSentry()
+      initSentry('https://abc@sentry.io/123')
+
       const err = new Error('cron failed')
       captureException(err, { jobId: '42', appId: '7' })
 
@@ -73,31 +83,31 @@ describe('sentry utility', () => {
   })
 
   describe('flushSentry', () => {
-    it('calls Sentry.flush with timeout', async () => {
+    it('is a no-op when not initialized', async () => {
+      const { flushSentry } = await loadSentry()
+      await flushSentry(3000)
+      expect(mockFlush).not.toHaveBeenCalled()
+    })
+
+    it('calls Sentry.flush with timeout after init', async () => {
+      const { initSentry, flushSentry } = await loadSentry()
+      initSentry('https://abc@sentry.io/123')
+
       await flushSentry(3000)
       expect(mockFlush).toHaveBeenCalledWith(3000)
     })
   })
 
   describe('isSentryInitialized', () => {
-    it('returns true after init with DSN', () => {
+    it('returns false before init', async () => {
+      const { isSentryInitialized } = await loadSentry()
+      expect(isSentryInitialized()).toBe(false)
+    })
+
+    it('returns true after init with DSN', async () => {
+      const { initSentry, isSentryInitialized } = await loadSentry()
+      initSentry('https://abc@sentry.io/123')
       expect(isSentryInitialized()).toBe(true)
-    })
-  })
-
-  describe('sentryContextMiddleware', () => {
-    it('calls next and enriches scope with request context', () => {
-      const next = vi.fn()
-      const req = { params: { hash: 'abc123' }, userId: 'user1', id: 'req-id' }
-      sentryContextMiddleware(req, {}, next)
-      expect(next).toHaveBeenCalled()
-      expect(mockWithScope).toHaveBeenCalled()
-    })
-
-    it('calls next when no params present', () => {
-      const next = vi.fn()
-      sentryContextMiddleware({}, {}, next)
-      expect(next).toHaveBeenCalled()
     })
   })
 })

@@ -18,10 +18,6 @@ const httpOptions: Options<IncomingMessage, ServerResponse> = {
     const incoming = req.headers['x-request-id'];
     return (typeof incoming === 'string' && incoming) ? incoming : crypto.randomUUID();
   },
-  customProps: (req: IncomingMessage) => ({
-    userId: req.headers['x-user-id'] || null,
-    appHash: (req as any).params?.hash || null,
-  }),
   redact: ['req.headers.authorization', 'req.headers.cookie'],
   autoLogging: {
     ignore: (req: IncomingMessage) => {

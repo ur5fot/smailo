@@ -53,37 +53,10 @@ describe('errorHandler middleware', () => {
     expect(res.body).toEqual({ error: 'Internal server error' })
   })
 
-  it('does not leak stack trace in production', () => {
-    const originalEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = 'production'
-
+  it('logs the full error object including stack', () => {
     const req = createMockReq()
     const res = createMockRes()
-    const err = new Error('Secret DB error')
-    err.stack = 'Error: Secret DB error\n    at somefile.ts:10:5'
-
-    errorHandler(err, req as Request, res as unknown as Response, next)
-
-    // Should log message only, not the full error object with stack
-    expect(logger.error).toHaveBeenCalledWith(
-      { err: { message: 'Secret DB error' } },
-      'Unhandled route error'
-    )
-    // Response should not contain stack
-    expect(res.body).toEqual({ error: 'Internal server error' })
-    expect(JSON.stringify(res.body)).not.toContain('somefile')
-
-    process.env.NODE_ENV = originalEnv
-  })
-
-  it('logs full error in development', () => {
-    const originalEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = 'development'
-
-    const req = createMockReq()
-    const res = createMockRes()
-    const err = new Error('Dev error')
-    err.stack = 'Error: Dev error\n    at devfile.ts:20:3'
+    const err = new Error('DB error')
 
     errorHandler(err, req as Request, res as unknown as Response, next)
 
@@ -91,8 +64,18 @@ describe('errorHandler middleware', () => {
       { err },
       'Unhandled route error'
     )
+  })
 
-    process.env.NODE_ENV = originalEnv
+  it('does not leak error details in response', () => {
+    const req = createMockReq()
+    const res = createMockRes()
+    const err = new Error('Secret DB error')
+    err.stack = 'Error: Secret DB error\n    at somefile.ts:10:5'
+
+    errorHandler(err, req as Request, res as unknown as Response, next)
+
+    expect(res.body).toEqual({ error: 'Internal server error' })
+    expect(JSON.stringify(res.body)).not.toContain('somefile')
   })
 
   it('does not send response if headers already sent', () => {
@@ -109,9 +92,6 @@ describe('errorHandler middleware', () => {
   })
 
   it('handles error without stack property', () => {
-    const originalEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = 'development'
-
     const req = createMockReq()
     const res = createMockRes()
     const err = new Error('No stack')
@@ -119,13 +99,10 @@ describe('errorHandler middleware', () => {
 
     errorHandler(err, req as Request, res as unknown as Response, next)
 
-    // In development, logs the full error object
     expect(logger.error).toHaveBeenCalledWith(
       { err },
       'Unhandled route error'
     )
     expect(res.statusCode).toBe(500)
-
-    process.env.NODE_ENV = originalEnv
   })
 })

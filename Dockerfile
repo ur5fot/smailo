@@ -19,7 +19,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./
 COPY --from=build /app/server/package.json ./server/
 ENV NODE_ENV=production
-ENV DATABASE_URL=/data/smailo.sqlite
+ENV DATABASE_PATH=/data/smailo.sqlite
 EXPOSE 3000
-HEALTHCHECK CMD wget -qO- http://localhost:3000/api/health || exit 1
+HEALTHCHECK --start-period=10s CMD wget -qO- http://localhost:3000/api/health || exit 1
 CMD ["node", "server/dist/index.js"]

@@ -382,11 +382,11 @@ Handles SIGTERM and SIGINT. Flow: stop accepting connections → stop cron jobs 
 
 ### Sentry integration (`server/src/utils/sentry.ts`)
 
-Optional — only active when `SENTRY_DSN` is set. Captures Express errors (via Sentry error handler before custom error handler), `uncaughtException` (with flush before exit), cron job failures, and AI parse errors. Context enrichment: `appHash`, `userId`, `requestId` on each event.
+Optional — only active when `SENTRY_DSN` is set. Captures Express errors (via `setupExpressErrorHandler`, only registered when Sentry is initialized), `uncaughtException` (with flush before exit), cron job failures, and AI parse errors.
 
 ### DB backups (`server/src/utils/dbBackup.ts`)
 
-Uses better-sqlite3 `.backup()` API. Backup file: `smailo-backup-YYYY-MM-DD-HHmmss.sqlite`. Auto-cleanup: removes backups older than 7 days. Scheduled daily via cron in `index.ts` when `BACKUP_DIR` is set. CLI: `npm run db:backup --workspace=server`.
+Uses better-sqlite3 `.backup()` API. Backup file: `smailo-backup-YYYY-MM-DD-HHmmss.sqlite`. Auto-cleanup: removes backups older than 7 days. Scheduled every 24 hours via `setInterval` in `index.ts` when `BACKUP_DIR` is set. CLI: `npm run db:backup --workspace=server`.
 
 ### Deployment
 
