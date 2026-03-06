@@ -157,30 +157,18 @@ describe('AppButton — logic', () => {
   })
 
   describe('error handling', () => {
-    it('sets error message on API failure', async () => {
+    it('API post rejection is catchable', async () => {
       mockPost.mockRejectedValueOnce(new Error('Network error'))
 
-      let errorMsg = ''
-      try {
-        await api.post('/app/h/data', { key: 'k', value: true })
-      } catch {
-        errorMsg = 'Не удалось сохранить. Попробуйте ещё раз.'
-      }
-
-      expect(errorMsg).toBe('Не удалось сохранить. Попробуйте ещё раз.')
+      await expect(api.post('/app/h/data', { key: 'k', value: true }))
+        .rejects.toThrow('Network error')
     })
 
-    it('sets error message on executeActions failure', async () => {
+    it('executeActions rejection is catchable', async () => {
       mockExecuteActions.mockRejectedValueOnce(new Error('Action failed'))
 
-      let errorMsg = ''
-      try {
-        await executeActions([], { hash: 'h', userId: 'u', appData: {}, appStore })
-      } catch {
-        errorMsg = 'Не удалось сохранить. Попробуйте ещё раз.'
-      }
-
-      expect(errorMsg).toBe('Не удалось сохранить. Попробуйте ещё раз.')
+      await expect(executeActions([], { hash: 'h', userId: 'u', appData: {}, appStore }))
+        .rejects.toThrow('Action failed')
     })
   })
 })

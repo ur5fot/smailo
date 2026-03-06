@@ -212,17 +212,11 @@ describe('AppInputText — logic', () => {
   })
 
   describe('error handling', () => {
-    it('sets error message on save failure', async () => {
+    it('API post rejection is catchable', async () => {
       mockPost.mockRejectedValueOnce(new Error('Fail'))
 
-      let errorMsg = ''
-      try {
-        await api.post('/app/h/data', { key: 'k', value: 'v' })
-      } catch {
-        errorMsg = 'Не удалось сохранить. Попробуйте ещё раз.'
-      }
-
-      expect(errorMsg).toBe('Не удалось сохранить. Попробуйте ещё раз.')
+      await expect(api.post('/app/h/data', { key: 'k', value: 'v' }))
+        .rejects.toThrow('Fail')
     })
   })
 })

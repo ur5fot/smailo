@@ -206,8 +206,11 @@ describe('AppDataTable — logic', () => {
     })
 
     it('hides RLS badge when no dataSource', () => {
-      const dataSource = undefined
-      const isRlsActive = dataSource ? false : false
+      const dataSource = undefined as { type: 'table'; tableId: number } | undefined
+      // Without dataSource, no schema lookup occurs → RLS is not active
+      const isRlsActive = dataSource
+        ? (appStore.tableSchemas.find(t => t.id === dataSource.tableId)?.rlsEnabled ?? false)
+        : false
       expect(isRlsActive).toBe(false)
     })
   })

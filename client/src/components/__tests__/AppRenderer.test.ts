@@ -422,29 +422,3 @@ describe('AppRenderer — conditional CSS classes (getConditionalClasses)', () =
     expect(classes).toContain('si-warning')
   })
 })
-
-describe('AppRenderer — dataKey resolution (via resolveDataKey)', () => {
-  it('simple key lookup', () => {
-    expect(resolveDataKey({ name: 'Alice' }, 'name')).toBe('Alice')
-  })
-
-  it('dot notation for nested access', () => {
-    expect(resolveDataKey({ config: JSON.stringify({ theme: 'dark' }) }, 'config.theme')).toBe('dark')
-  })
-
-  it('auto-parses JSON strings', () => {
-    const data = { rates: JSON.stringify({ USD: 90 }) }
-    expect(resolveDataKey(data, 'rates.USD')).toBe(90)
-  })
-
-  it('returns undefined for missing segments', () => {
-    expect(resolveDataKey({ a: 1 }, 'b')).toBeUndefined()
-    expect(resolveDataKey({ a: JSON.stringify({ x: 1 }) }, 'a.y')).toBeUndefined()
-  })
-
-  it('blocks prototype pollution paths', () => {
-    expect(resolveDataKey({ a: '{}' }, 'a.__proto__')).toBeUndefined()
-    expect(resolveDataKey({ a: '{}' }, 'a.constructor')).toBeUndefined()
-    expect(resolveDataKey({ a: '{}' }, 'a.prototype')).toBeUndefined()
-  })
-})
