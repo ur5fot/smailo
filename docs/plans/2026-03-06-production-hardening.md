@@ -71,18 +71,18 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3: Graceful shutdown
-- [ ] Экспортировать `sqlite` instance из `server/src/db/index.ts` (сейчас экспортируется только `db`)
-- [ ] Реализовать `stopAll()` в `cronManager.ts` — останавливает все активные cron jobs (метод НЕ существует)
-- [ ] Создать `server/src/utils/shutdown.ts`:
+- [x] Экспортировать `sqlite` instance из `server/src/db/index.ts` (сейчас экспортируется только `db`)
+- [x] Реализовать `stopAll()` в `cronManager.ts` — останавливает все активные cron jobs (метод НЕ существует)
+- [x] Создать `server/src/utils/shutdown.ts`:
   - Обработка SIGTERM и SIGINT
   - Закрытие HTTP сервера (перестаёт принимать новые соединения, дожидается текущих)
   - Остановка cron jobs через `cronManager.stopAll()`
   - Закрытие SQLite connection через `sqlite.close()`
   - Timeout 10 секунд — force exit если не закрылось
-- [ ] Обновить `index.ts`: `app.listen()` → сохранить `server` reference, передать в shutdown handler
-- [ ] Написать тесты для stopAll() в cronManager
-- [ ] Написать тесты для shutdown logic (signal handling, timeout, cleanup order)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Обновить `index.ts`: `app.listen()` → сохранить `server` reference, передать в shutdown handler
+- [x] Написать тесты для stopAll() в cronManager
+- [x] Написать тесты для shutdown logic (signal handling, timeout, cleanup order)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 4: Health check endpoint
 - [ ] Добавить `GET /api/health` в `server/src/routes/app.ts` или отдельный файл:

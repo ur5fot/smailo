@@ -13,6 +13,8 @@ import { membersRouter } from './routes/members.js';
 import { cronManager } from './services/cronManager.js';
 import { migrateOwnerRecords } from './db/migrateOwners.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { sqlite } from './db/index.js';
+import { setupGracefulShutdown } from './utils/shutdown.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -77,6 +79,8 @@ process.on('unhandledRejection', (reason) => {
   console.error('[unhandledRejection]', reason);
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`[server] Listening on port ${PORT}`);
 });
+
+setupGracefulShutdown(server, sqlite);

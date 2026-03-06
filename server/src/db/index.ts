@@ -9,4 +9,5 @@ const sqlite = new Database(dbUrl);
 sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
 
+export { sqlite };
 export const db = drizzle(sqlite, { schema });

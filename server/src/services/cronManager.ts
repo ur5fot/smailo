@@ -489,6 +489,14 @@ class CronManager {
     }
   }
 
+  /** Stop all scheduled cron tasks. Used during graceful shutdown. */
+  stopAll(): void {
+    for (const [jobId, task] of this.tasks) {
+      task.stop();
+    }
+    this.tasks.clear();
+  }
+
   /**
    * Run all active jobs for an app that have `config.triggerOnKey` matching the given key.
    * Called after a value is written to appData so buttons can trigger on-demand URL fetches
