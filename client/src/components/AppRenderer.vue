@@ -1,7 +1,7 @@
 <template>
   <div class="app-renderer">
     <template v-for="(item, index) in uiConfig" :key="index">
-      <div v-if="shouldShow(item, index)" :class="getConditionalClasses(item, index)">
+      <div v-if="shouldShow(item, index)" :class="getConditionalClasses(item, index)" :style="gridItemStyle(item)">
       <!-- Card: PrimeVue Card uses slots, not props — use wrapper -->
       <AppCard
         v-if="item.component === 'Card'"
@@ -18,22 +18,26 @@
 
       <!-- Button: user-triggered data write -->
       <AppButton
-        v-else-if="item.component === 'Button' && item.action"
+        v-else-if="item.component === 'Button' && (item.actions || item.action)"
         :label="item.props?.label ?? ''"
         :severity="item.props?.severity"
         :action="item.action"
+        :actions="item.actions"
         :hash="props.hash"
+        :current-page-id="currentPageId"
         @data-written="emit('data-written')"
       />
 
       <!-- InputText: user-entered data write -->
       <AppInputText
-        v-else-if="item.component === 'InputText' && item.action"
+        v-else-if="item.component === 'InputText' && (item.actions || item.action)"
         :label="item.props?.label"
         :type="item.props?.type"
         :placeholder="item.props?.placeholder"
         :action="item.action"
+        :actions="item.actions"
         :hash="props.hash"
+        :current-page-id="currentPageId"
         @data-written="emit('data-written')"
       />
 
@@ -46,6 +50,8 @@
         :append-mode="item.appendMode"
         :hash="props.hash"
         :data-source="item.dataSource"
+        :actions="item.actions"
+        :current-page-id="currentPageId"
         @data-written="emit('data-written')"
       />
 
@@ -110,6 +116,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Timeline from 'primevue/timeline'
 import Knob from 'primevue/knob'
 import Tag from 'primevue/tag'
@@ -136,9 +143,11 @@ import { resolveDataKey } from '../utils/dataKey'
 import { useAppStore } from '../stores/app'
 import type { FilterCondition } from '../stores/app'
 import { buildFormulaContext } from '../utils/formulaContext'
+import type { ActionStep } from '../utils/actionExecutor'
 import { evaluateShowIf } from '../utils/showIf'
 import type { StyleIfCondition } from '../utils/styleIf'
 import { getConditionalClasses as computeConditionalClasses } from '../utils/conditionalClasses'
+import { gridItemStyle as computeGridItemStyle } from '../utils/gridLayout'
 import '../assets/conditional-styles.css'
 
 interface UiConfigItem {
@@ -148,6 +157,7 @@ interface UiConfigItem {
   dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }
   computedValue?: string
   action?: { key: string; value?: unknown; mode?: 'append' }
+  actions?: ActionStep[]
   fields?: Array<{ name: string; type: string; label: string }>
   outputKey?: string
   appendMode?: boolean
@@ -155,6 +165,12 @@ interface UiConfigItem {
   styleIf?: StyleIfCondition[]
   condition?: string
   children?: UiConfigItem[]
+  layout?: {
+    col: number
+    colSpan: number
+    row?: number
+    rowSpan?: number
+  }
 }
 
 const props = defineProps<{
@@ -169,6 +185,8 @@ const emit = defineEmits<{
 }>()
 
 const appStore = useAppStore()
+const route = useRoute()
+const currentPageId = computed(() => route.params.pageId as string | undefined)
 
 // Build formula context once per appData change, shared across all shouldShow/getConditionalClasses calls
 const formulaContext = computed(() => buildFormulaContext(props.appData))
@@ -184,6 +202,10 @@ function shouldShow(item: UiConfigItem, _index: number): boolean {
 
 function getConditionalClasses(item: UiConfigItem, _index: number): string[] {
   return computeConditionalClasses(item.styleIf, props.appData)
+}
+
+function gridItemStyle(item: UiConfigItem): Record<string, string> {
+  return computeGridItemStyle(item.layout)
 }
 
 const componentMap: Record<string, any> = {
@@ -246,8 +268,19 @@ function resolvedProps(item: UiConfigItem, index: number): Record<string, any> {
 
 <style scoped>
 .app-renderer {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
   gap: 1rem;
+}
+
+.app-renderer > div {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .app-renderer > div {
+    grid-column: 1 / -1 !important;
+  }
 }
 </style>

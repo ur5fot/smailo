@@ -15,7 +15,7 @@ npm run dev
 # Initialize DB (run once after cloning or schema changes)
 npm run db:push
 
-# Build client for production
+# Build client + server for production
 npm run build
 
 # Start production server
@@ -50,6 +50,7 @@ npm workspaces; root `package.json` has scripts that delegate to both. Server us
 /:userId/:hash           → AppView        (two-column: app left, AI assistant right; redirects to first page if multi-page)
 /:userId/:hash/:pageId   → AppView        (specific page of a multi-page app)
 /app/:hash               → AppView        (backward-compatible; userId = null)
+/invite/:hash/:token     → InviteView     (accept invite link — login/create user, then join app)
 ```
 
 ### App lifecycle (the core flow)
@@ -90,7 +91,14 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     dataSource?: { type: 'table'; tableId: number; filter?: FilterCondition | FilterCondition[] }  // bind to user-defined table; filter limits rows shown (display components only, not Form)
     // FilterCondition: { column: string; operator?: 'eq'|'ne'|'lt'|'lte'|'gt'|'gte'|'contains'; value: string|number|boolean }
     // Input component fields (top-level, NOT inside props):
-    action?: { key: string; value?: unknown }  // Button: fixed value; InputText: value from user input
+    actions?: ActionStep[]             // action chain for Button/InputText/Form (see ActionStep types below)
+    // ActionStep types (executed sequentially, max 5 per chain):
+    //   WriteDataAction:   { type: 'writeData'; key: string; value?: unknown; mode?: 'append' | 'increment' | 'delete-item'; index?: number }
+    //   NavigateToAction:  { type: 'navigateTo'; pageId: string }                    — multi-page apps only
+    //   ToggleVisAction:   { type: 'toggleVisibility'; key: string }                 — toggles boolean, pair with showIf
+    //   RunFormulaAction:  { type: 'runFormula'; formula: string; outputKey: string } — client-side formula eval
+    //   FetchUrlAction:    { type: 'fetchUrl'; url: string; outputKey: string; dataPath?: string } — HTTPS proxy fetch
+    // Legacy `action?: { key; value? }` field still read by client for old apps not yet re-saved
     fields?: Array<{ name: string; type: 'text' | 'number'; label: string }>  // Form only; `name` must match /^[a-zA-Z0-9_]{1,100}$/ and 'timestamp' is reserved (auto-injected)
     outputKey?: string             // Form only: appData key for the submitted object
     computedValue?: string         // server-evaluated formula: "= SUM(expenses.amount)" — alternative to dataKey for display components
@@ -100,6 +108,8 @@ The AI generates and the server stores configs in this shape (cronJobs are store
     // ConditionalGroup fields (only when component == 'ConditionalGroup'):
     condition?: string             // formula evaluated on client; group shown when truthy
     children?: UiComponent[]       // nested components shown/hidden together (max 1 level deep)
+    // Layout fields (CSS Grid placement):
+    layout?: { col: number; colSpan: number; row?: number; rowSpan?: number }  // col 1-12, colSpan 1-12, col+colSpan ≤ 13; without layout → full-width (grid-column: 1 / -1)
   }>
   pages?: Array<{                  // optional multi-page mode; if present, uiComponents is ignored for rendering
     id: string                     // URL-safe: /^[a-zA-Z0-9_-]{1,50}$/, unique across pages
@@ -116,7 +126,7 @@ AI response may include `pagesUpdate?: Page[]` (replaces entire `config.pages`).
 
 ### Dynamic UI rendering (`client/src/components/AppRenderer.vue`)
 
-Iterates `uiConfig` array and renders each component dynamically. Eleven components use dedicated wrappers:
+Uses CSS Grid (12 columns, 1rem gap) to render components. Each component's position is determined by `item.layout` (`grid-column: col / span colSpan`); components without layout default to `grid-column: 1 / -1` (full-width). On mobile (<=767px) all components are forced full-width. Iterates `uiConfig` array and renders each component dynamically. Eleven components use dedicated wrappers:
 - `Card` → `AppCard.vue`, `DataTable` → `AppDataTable.vue`, `CardList` → `AppCardList.vue`, `Chart` → `AppChart.vue` (data display)
 - `Button` → `AppButton.vue`, `InputText` → `AppInputText.vue`, `Form` → `AppForm.vue` (user input)
 - `Accordion` → `AppAccordion.vue`, `Panel` → `AppPanel.vue`, `Tabs` → `AppTabs.vue` (slot-based layout)
@@ -160,7 +170,7 @@ Input wrapper components call `POST /api/app/:hash/data` on user interaction and
 
 `CronManager` singleton. Five action types:
 - `log_entry` — inserts a timestamped entry into `appData`
-- `fetch_url` — fetches external HTTPS URL, extracts via `dataPath` (dot notation from `$.`), stores result; has SSRF protection (private IP check + DNS rebinding check + redirect blocking + 1 MB limit + 10-second timeout). If the response body is not valid JSON, raw text is stored and `dataPath` extraction is skipped.
+- `fetch_url` — fetches external HTTPS URL, extracts via `dataPath` (dot notation from `$.`), stores result; SSRF protection via shared `server/src/utils/fetchProxy.ts` (private IP check + DNS rebinding check + redirect blocking + 1 MB limit + 10-second timeout). If the response body is not valid JSON, raw text is stored and `dataPath` extraction is skipped.
 - `send_reminder` — stores `{ text: string, sentAt: ISO8601 }` under `outputKey` (not a raw string)
 - `aggregate_data` — computes avg/sum/count/max/min over a time window; result stored as a plain `number` under `outputKey`
 - `compute` — performs calculated operations (currently supports `date_diff`: computes difference between two dates from `inputKeys`, stores `{ totalDays, years, months, days }` under `outputKey`)
@@ -194,32 +204,45 @@ Formula integration utilities:
 
 ### Database (`server/src/db/schema.ts`)
 
-Seven tables, all using Drizzle ORM with SQLite via better-sqlite3:
+Nine tables, all using Drizzle ORM with SQLite via better-sqlite3:
 
 | Table | Purpose |
 |---|---|
 | `users` | Anonymous users; `userId` is a 10-char nanoid (unique); no auth — just identity |
-| `apps` | One row per created app; `config` stores uiComponents JSON; `cronJobs` stripped before storage; `userId` FK (nullable for old apps) |
+| `apps` | One row per created app; `config` stores uiComponents JSON; `cronJobs` stripped before storage; `userId` FK (nullable for old apps); `passwordVersion` counter for JWT revocation on password change |
+| `app_members` | Role assignments per app; unique `(appId, userId)`; `role`: 'owner'\|'editor'\|'viewer'; cascade-deletes with app |
+| `app_invites` | Single-use invite tokens; `token` (32-char hex, unique); `expiresAt` (+7 days); `acceptedByUserId` (null until used); cascade-deletes with app |
 | `cron_jobs` | Automation jobs per app; `config` is action-specific JSON |
 | `app_data` | Append-only log of key/value entries written by cron jobs and user input components (Button, InputText, Form); queries always get latest row per key; auto-pruned to 100 rows per key on startup and hourly |
 | `chat_history` | Full chat history; home chat rows have `appId = NULL`; in-app rows use `sessionId = 'app-<hash>'` |
-| `user_tables` | User-defined table schemas per app; `columns` is JSON array of `{ name, type, required?, options?, formula? }`. Max 20 tables per app, max 30 columns per table |
-| `user_rows` | Row data for user-defined tables; `data` is JSON object matching column definitions. FK cascade-deletes when table is deleted. Max 10,000 rows per table |
+| `user_tables` | User-defined table schemas per app; `columns` is JSON array of `{ name, type, required?, options?, formula? }`. Max 20 tables per app, max 30 columns per table. `rlsEnabled` (0\|1) enables row-level security |
+| `user_rows` | Row data for user-defined tables; `data` is JSON object matching column definitions. `createdByUserId` (nullable) tracks row author for RLS. FK cascade-deletes when table is deleted. Max 10,000 rows per table |
 
 ### Auth
 
-Password-protected apps use bcrypt (cost 12) + JWT (7d expiry). A one-time `creationToken` (SHA-256 stored, plaintext returned once at creation) gates the `set-password` endpoint to prevent race-condition hijacking. JWT is stored per-app in `localStorage` under key `smailo_token_<hash>`; the Axios interceptor selects the correct token by extracting the hash from the request URL. The `creationToken` is stored in `sessionStorage` (lost on tab close) — users must set a password before closing the tab if they want password protection. `GET /api/app/:hash` strips `cronJobs` from `apps.config` before returning to the client.
+Two layers of authentication, both JWT-based:
 
-Unprotected apps (no password) use ownership verification via `X-User-Id` header for write operations (POST, PUT, DELETE). The Axios interceptor sends this header automatically from `localStorage`. Apps without a `userId` (legacy) skip this check for backward compatibility. Read operations remain open to anyone with the hash.
+**Global JWT** (`smailo_token` in localStorage): issued at user creation (`POST /api/users`), 30-day expiry, payload `{ userId }`. Sent via `Authorization: Bearer <token>` header. Used by `resolveUserAndRole` middleware to identify the user and look up their role in `app_members`.
 
-Auth middleware (`requireAuthIfProtected`) is extracted to `server/src/middleware/auth.ts` and shared between `app.ts` and `tables.ts`.
+**Per-app JWT** (`smailo_token_<hash>` in localStorage): issued on password verification (`POST /:hash/verify`), 7-day expiry, payload `{ hash, userId, pv }` where `pv` is `passwordVersion`. Sent via `X-App-Token` header. Used as fallback for password-protected apps when the user has no `app_members` role. Password changes increment `passwordVersion`, revoking all existing per-app JWTs.
+
+**Roles**: `owner` (full control), `editor` (read + write data + chat, no config changes), `viewer` (read-only), `anonymous` (unprotected apps only, read-only).
+
+**Auth middleware** (`server/src/middleware/auth.ts`):
+- `resolveUserAndRole` — extracts userId from global JWT → finds app by hash → looks up role in `app_members` → for password-protected apps without role, tries per-app JWT → attaches `app_row`, `userId`, `userRole` to request. Backward compatibility: legacy apps without `app_members` rows use `apps.userId` for owner detection.
+- `requireRole(...roles)` — checks `req.userRole` against allowed roles, returns 403 if insufficient.
+- `requireAuthIfProtected` has been removed; all routes now use `resolveUserAndRole` + `requireRole`.
+
+**Password protection**: A one-time `creationToken` (SHA-256 stored, plaintext returned once at creation) gates the `set-password` endpoint (owner only). The `creationToken` is stored in `sessionStorage`. On successful password verification, if the user has no role in `app_members`, they are auto-added as `viewer`. Members with roles access the app via global JWT without needing the password.
+
+`GET /api/app/:hash` strips `cronJobs` from `apps.config` before returning to the client.
 
 ### User-triggered data writes (`POST /api/app/:hash/data`)
 
 Input components write to `appData` directly without AI involvement:
 - `key`: string matching `/^[a-zA-Z0-9_]{1,100}$/`
 - `value`: any JSON-serializable value; JSON-stringified size must not exceed 10 KB
-- Protected by `requireAuthIfProtected` middleware (JWT required if app has password; `X-User-Id` ownership check for unprotected apps on write ops)
+- Protected by `resolveUserAndRole` + `requireRole('editor', 'owner')` middleware
 - Returns `{ ok: true }` on success; 400 for invalid key or null/undefined value; 413 for oversized value
 - Value size check uses `Buffer.byteLength(serialized, 'utf8')` (byte count, not character count)
 - `AppForm` always injects a `timestamp: ISO8601` field into the submitted object alongside declared fields
@@ -227,7 +250,43 @@ Input components write to `appData` directly without AI involvement:
 
 ### App data read (`GET /api/app/:hash/data`)
 
-Returns `{ appData: [...], computedValues?: Record<number, unknown> }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. If the app config has components with `computedValue`, the server evaluates formulas against table data and includes results keyed by component index. Used by the client to refresh displayed values without reloading the full app config. Protected by `requireAuthIfProtected`. Shared query logic lives in `server/src/db/queries.ts`.
+Returns `{ appData: [...], computedValues?: Record<number, unknown> }` — the latest value per key, same format as the `appData` field in `GET /api/app/:hash`. If the app config has components with `computedValue`, the server evaluates formulas against table data and includes results keyed by component index. Used by the client to refresh displayed values without reloading the full app config. Protected by `resolveUserAndRole` (viewer+ can read). Shared query logic lives in `server/src/db/queries.ts`.
+
+### Action chains (`client/src/utils/actionExecutor.ts`)
+
+Button, InputText, and Form support `actions: ActionStep[]` — an ordered list of up to 5 steps executed sequentially on user interaction. Five action types: `writeData`, `navigateTo`, `toggleVisibility`, `runFormula`, `fetchUrl`.
+
+Client-side executor: `executeActions(actions, ctx)` iterates steps sequentially. Auth errors (401/403) abort remaining steps; other errors log and continue. After all steps, `appStore.fetchData()` is always called to refresh UI.
+
+Server-side validation: `validateActions()` in `aiService.ts` validates each step per-type, drops invalid steps silently, enforces max 5 steps per chain. Migration: legacy `action: { key, value }` is converted to `actions: [{ type: 'writeData', key, value }]` at save time; `action` field is removed after migration. Client components still support the legacy `action` prop for configs not yet re-saved.
+
+### Action fetch-url endpoint (`POST /api/app/:hash/actions/fetch-url`)
+
+Server-side proxy for the `fetchUrl` action step. Request body: `{ url: string, outputKey: string, dataPath?: string }`. Validates: `url` must start with `https://` (max 2048 chars), `outputKey` must match `/^[a-zA-Z0-9_]{1,100}$/`, `dataPath` if present must be non-empty string (max 500 chars). Calls `fetchSafe(url)` then `extractDataPath(body, dataPath)`, writes result to `appData` along with `{outputKey}_updated_at` timestamp, returns `{ ok: true, value }`. Protected by `resolveUserAndRole` + `requireRole('editor', 'owner')`. Rate-limited at 30 req/min (chatLimiter). Returns 502 on upstream fetch failure, 413 if fetched value exceeds 10 KB.
+
+### Visual editor (`client/src/components/editor/`)
+
+Alternative to AI chat for editing app UI. Toggle between chat and editor mode via button in AppView header.
+
+Editor components:
+- `AppEditor.vue` — main canvas: 12-column CSS Grid mirroring AppRenderer, but with draggable component cards; supports multi-page editing via tabs
+- `EditorComponentCard.vue` — card representing a component: shows type icon, label, dataKey info; click to select, drag handle for reordering, delete button
+- `ComponentPalette.vue` — component palette grouped by category (Display, Input, Layout); drag from palette to canvas to add components
+- `PropertyEditor.vue` — panel for editing selected component properties: General (type, delete), Props (dynamic form), Data (dataKey, dataSource, computedValue), Actions (chain builder), Conditional (showIf, styleIf), Layout (col, colSpan, row, rowSpan)
+
+Editor state: `client/src/stores/editor.ts` — Pinia store with `isEditMode`, `selectedComponentIndex`, `editableConfig` (working copy), `isDirty`, `activePage`. Actions: `enterEditMode`, `exitEditMode`, `selectComponent`, `updateComponent`, `removeComponent`, `addComponent`, `moveComponent`, `updateLayout`, `saveConfig(hash)` (calls `PUT /api/app/:hash/config`).
+
+Drag-and-drop: `vue-draggable-plus` (SortableJS wrapper for Vue 3). Supports reordering on canvas, cross-container drag from palette, and resize handles for changing `colSpan`.
+
+Save flow: Save button (or Ctrl+S) → `PUT /api/app/:hash/config` → updates `appStore.appConfig` → `isDirty = false`. Discard button resets to last saved config.
+
+### Config save endpoint (`PUT /api/app/:hash/config`)
+
+Direct config save without AI involvement. Body: `{ uiComponents?: UiComponent[] }` or `{ pages?: Page[] }` (one of two). Validates via existing `validateUiComponents()` / `validatePages()`. Protected by `resolveUserAndRole` + `requireRole('owner')`. Rate-limited at 30 req/min (chatLimiter). Returns `{ ok: true, config: {...} }`.
+
+### SSRF-safe fetch utility (`server/src/utils/fetchProxy.ts`)
+
+Shared fetch utility used by both cron `fetch_url` and the action `fetchUrl` endpoint. Exports: `isPrivateHost(hostname)` — checks IPv4/IPv6 private ranges; `fetchSafe(url)` — HTTPS-only fetch with SSRF protection (private IP block, DNS rebinding check, redirect blocking, 1 MB body limit, 10s timeout); `extractDataPath(body, dataPath?)` — dot-notation JSON extraction with prototype-pollution protection.
 
 ### User-defined tables (`server/src/routes/tables.ts`)
 
@@ -237,18 +296,32 @@ Column types: `text`, `number`, `date`, `boolean`, `select` (with `options` arra
 Column names: must start with letter, alphanumeric + underscore, max 50 chars (`/^[a-zA-Z][a-zA-Z0-9_]{0,49}$/`).
 Table names: can include Cyrillic and spaces, max 100 chars.
 
-API endpoints (all under `/api/app/:hash/tables`, protected by `requireAuthIfProtected`):
-- `POST /` — create table: `{ name, columns: [{ name, type, required?, options? }] }`
-- `GET /` — list all tables for the app
-- `GET /:tableId` — get table schema + all rows
-- `PUT /:tableId` — update table schema (name and/or columns)
-- `DELETE /:tableId` — delete table and all rows (cascade)
-- `POST /:tableId/rows` — add row: `{ data: { col1: val1, ... } }` (validated against column types)
-- `PUT /:tableId/rows/:rowId` — update row
-- `DELETE /:tableId/rows/:rowId` — delete row
+API endpoints (all under `/api/app/:hash/tables`, protected by `resolveUserAndRole`):
+- `POST /` — create table (owner only)
+- `GET /` — list all tables for the app (viewer+)
+- `GET /:tableId` — get table schema + rows (viewer+; RLS filtering applied for viewers on `rlsEnabled` tables)
+- `PUT /:tableId` — update table schema including `rlsEnabled` toggle (owner only)
+- `DELETE /:tableId` — delete table and all rows (owner only)
+- `POST /:tableId/rows` — add row (editor+); `createdByUserId` set from `req.userId`
+- `PUT /:tableId/rows/:rowId` — update row (editor+; viewer can only update own rows in RLS tables)
+- `DELETE /:tableId/rows/:rowId` — delete row (editor+; viewer can only delete own rows in RLS tables)
 
 The `GET /api/app/:hash` endpoint returns table schemas in the `tables` field alongside `appData`.
-Auth middleware (`server/src/middleware/auth.ts`) is shared between `app.ts` and `tables.ts`; it checks JWT for password-protected apps and `X-User-Id` ownership for unprotected apps on write operations (POST, PUT, DELETE).
+
+### Row-level security (RLS)
+
+Tables with `rlsEnabled = 1` restrict row visibility for viewers: `GET /:tableId` filters rows where `createdByUserId === req.userId`. Owners and editors always see all rows. Anonymous users see no rows in RLS tables. Viewers can only update/delete their own rows.
+
+Server-side `computedValue` formulas respect RLS: `evaluateComputedValues` receives `userRole` and `userId`; for viewers with RLS tables, rows are filtered before formula aggregation.
+
+### Members API (`server/src/routes/members.ts`)
+
+Endpoints under `/api/app/:hash/members`, rate-limited at 30 req/min:
+- `GET /` — list members (owner only): returns `[{ userId, role, joinedAt }]`
+- `POST /invite` — create invite (owner only): body `{ role: 'editor'|'viewer' }`, returns `{ token, inviteUrl, expiresAt }`
+- `POST /invite/:token/accept` — accept invite (authenticated user): validates token not expired/used, adds user to `app_members`, marks invite as used; returns `{ appHash, role }`
+- `PUT /:userId` — change member role (owner only): body `{ role: 'editor'|'viewer' }`; cannot change own role or another owner's role
+- `DELETE /:userId` — remove member (owner only); cannot remove self
 
 ### Rate limits
 
@@ -257,27 +330,64 @@ Auth middleware (`server/src/middleware/auth.ts`) is shared between `app.ts` and
 - `POST /api/app/:hash/verify` and `set-password`: 5 req/min
 - All `/api/users` routes: 30 req/min
 - All `/api/app/:hash/tables` write routes: 30 req/min
+- `POST /api/app/:hash/actions/fetch-url`: 30 req/min (chatLimiter)
+- `PUT /api/app/:hash/config`: 30 req/min (chatLimiter)
+- All `/api/app/:hash/members` routes: 30 req/min
 
 ### Client state
 
-Three Pinia stores:
-- `user.ts` — user identity: `userId`, list of user's apps; methods: `createUser()`, `fetchApps(userId)`
+Four Pinia stores:
+- `user.ts` — user identity: `userId`, list of user's apps split into `myApps` (owner) and `sharedApps` (editor/viewer); methods: `createUser()` (also stores global JWT), `fetchApps(userId)`
 - `chat.ts` — creation chat state: messages array, current phase, appHash after creation
-- `app.ts` — per-app state: app config, appData map, tableData cache (table rows keyed by tableId), computedValues (formula results keyed by component index), auth token, in-app chat messages
+- `app.ts` — per-app state: app config, appData map, tableData cache (table rows keyed by tableId), computedValues (formula results keyed by component index), auth token, in-app chat messages, `myRole` (current user's role in the app)
+- `editor.ts` — visual editor state: edit mode toggle, selected component, editable config copy, dirty tracking, active page; save via `PUT /api/app/:hash/config`
 
-Three views:
+Four views:
 - `HomeView.vue` — minimal landing: create new userId or enter existing one; no chat
-- `UserView.vue` — two-column: left = list of user's apps, right = Smailo + AI chat for creating apps
-- `AppView.vue` — two-column: left = AppRenderer + app data, right = Smailo + in-app chat
+- `UserView.vue` — two-column: left = list of user's apps ("My apps" + "Shared with me" sections), right = Smailo + AI chat for creating apps
+- `AppView.vue` — two-column: left = AppRenderer (view mode) or AppEditor (edit mode), right = Smailo + in-app chat (view mode) or ComponentPalette + PropertyEditor (edit mode); role-aware: editor button hidden for non-owners, inputs disabled for viewers, role badge in header, members button for owner
+- `InviteView.vue` — accept invite link: if user not logged in, prompts to create account; calls accept endpoint; redirects to app on success
 
 `InputBar.vue` — chat input with two extra controls: (1) quick number buttons (1–N, up to 5) shown when the last assistant message contains a numbered list; (2) a microphone button for browser-native speech recognition (Web Speech API), hidden when unsupported. Number buttons auto-submit the digit immediately.
 
 `chat.ts` store exposes two session management methods: `initSession(userId)` — called by `UserView` on mount — sets `sessionId = home-<userId>` (deterministic, persistent across visits) and reloads chat history (server validates `userId` matches the session); and `reset()` — generates a new random UUID session ID, used for a full clean break. The voice input microphone (`InputBar.vue`) uses Web Speech API configured for Russian (`lang: 'ru-RU'`).
 
-Axios instance (`client/src/api/index.ts`) auto-attaches JWT from localStorage and sends `X-User-Id` header (from `smailo_user_id` in localStorage) for ownership verification.
+Axios instance (`client/src/api/index.ts`) auto-attaches global JWT from `smailo_token` in localStorage via `Authorization: Bearer` header. For app routes, also sends per-app JWT from `smailo_token_<hash>` via `X-App-Token` header. `X-User-Id` header has been removed.
 
 ### User API (`server/src/routes/users.ts`)
 
-- `POST /api/users` — generate userId (nanoid 10), insert into users, return `{ userId }`
+- `POST /api/users` — generate userId (nanoid 10), insert into users, generate global JWT (30d), return `{ userId, token }`
 - `GET /api/users/:userId` — return `{ userId, createdAt }` or 404
-- `GET /api/users/:userId/apps` — return `[{ hash, appName, description, createdAt, lastVisit }]`
+- `GET /api/users/:userId/apps` — return `[{ hash, appName, description, createdAt, lastVisit, role }]` — includes both owned apps and shared apps (via `app_members`)
+
+### Environment config (`server/src/utils/env.ts`)
+
+Centralized env validation at startup. Exports `env` object with validated values. Required: `JWT_SECRET` (min 32 chars in production). Required in production: `ANTHROPIC_API_KEY` or `DEEPSEEK_API_KEY`. Optional: `PORT` (default 3000), `CLIENT_URL`, `NODE_ENV`, `SENTRY_DSN`, `DATABASE_PATH`, `BACKUP_DIR`. Throws with clear message if required vars are missing.
+
+### Structured logging (`server/src/utils/logger.ts`)
+
+Pino-based logger. Production: JSON output. Development: pretty-print via `pino-pretty`. Log level: `info` in production, `debug` in development. `pino-http` middleware adds request ID (`X-Request-Id` header, preserved from incoming or generated via `crypto.randomUUID()`), redacts `Authorization` and `Cookie` headers, skips `/api/health` and static asset requests. All server files use `logger` instead of `console.*`.
+
+### Error handling (`server/src/middleware/errorHandler.ts`)
+
+Global Express error middleware — last in the pipeline. Logs error, sends `{ error: 'Internal server error' }` with 500 status. Stack trace included only in development responses. `process.on('uncaughtException')` logs + flushes Sentry + exits. `process.on('unhandledRejection')` logs as error.
+
+### Graceful shutdown (`server/src/utils/shutdown.ts`)
+
+Handles SIGTERM and SIGINT. Flow: stop accepting connections → stop cron jobs (`cronManager.stopAll()`) → wait for in-flight requests (max 10s) → close SQLite → `process.exit(0)`. Force exit after 10s timeout.
+
+### Health check
+
+`GET /api/health` — no auth, no rate limit. Checks DB with `SELECT 1`, returns `{ ok: true, uptime }` or `{ ok: false, error: 'db' }` with 503.
+
+### Sentry integration (`server/src/utils/sentry.ts`)
+
+Optional — only active when `SENTRY_DSN` is set. Captures Express errors (via `setupExpressErrorHandler`, only registered when Sentry is initialized), `uncaughtException` (with flush before exit), cron job failures, and AI parse errors.
+
+### DB backups (`server/src/utils/dbBackup.ts`)
+
+Uses better-sqlite3 `.backup()` API. Backup file: `smailo-backup-YYYY-MM-DD-HHmmss.sqlite`. Auto-cleanup: removes backups older than 7 days. Scheduled every 24 hours via `setInterval` in `index.ts` when `BACKUP_DIR` is set. CLI: `npm run db:backup --workspace=server`.
+
+### Deployment
+
+Docker multi-stage build: `node:20-alpine` with `python3 make g++` for better-sqlite3 compilation (build stage), `libstdc++` only in runtime stage. `docker-compose.yml` for local dev with named volume `smailo-data` at `/data`. Railway: `railway.toml` with Dockerfile builder, health check at `/api/health`, `ON_FAILURE` restart policy. Persistent volume required at `/data` for SQLite.

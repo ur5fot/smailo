@@ -6,12 +6,14 @@
         v-if="type === 'number'"
         v-model="numericValue"
         :placeholder="placeholder"
+        :disabled="isReadOnly"
         class="app-input-text__input"
       />
       <DatePicker
         v-else-if="type === 'date'"
         v-model="dateValue"
         :placeholder="placeholder"
+        :disabled="isReadOnly"
         dateFormat="dd.mm.yy"
         class="app-input-text__input"
       />
@@ -19,11 +21,13 @@
         v-else
         v-model="textValue"
         :placeholder="placeholder"
+        :disabled="isReadOnly"
         class="app-input-text__input"
       />
       <Button
         label="Сохранить"
         :loading="loading"
+        :disabled="isReadOnly"
         @click="handleSave"
       />
     </div>
@@ -32,24 +36,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import DatePicker from 'primevue/datepicker'
 import api from '../api'
+import { useAppStore } from '../stores/app'
+import { useUserStore } from '../stores/user'
+import { executeActions, type ActionStep } from '../utils/actionExecutor'
 
 const props = defineProps<{
   label?: string
   type?: 'text' | 'number' | 'date'
   placeholder?: string
-  action: { key: string; mode?: 'append' }
+  action?: { key: string; mode?: 'append' }
+  actions?: ActionStep[]
   hash: string
+  currentPageId?: string
 }>()
 
 const emit = defineEmits<{
   'data-written': []
 }>()
+
+const appStore = useAppStore()
+const userStore = useUserStore()
+const isReadOnly = computed(() => appStore.myRole === 'viewer' || !appStore.myRole)
 
 const numericValue = ref<number | null>(null)
 const textValue = ref('')
@@ -57,15 +70,20 @@ const dateValue = ref<Date | null>(null)
 const loading = ref(false)
 const errorMsg = ref('')
 
+function getInputValue(): unknown {
+  if (props.type === 'number') return numericValue.value
+  if (props.type === 'date') return dateValue.value ? (dateValue.value as Date).toISOString() : null
+  return textValue.value
+}
+
+function clearInputs() {
+  numericValue.value = null
+  textValue.value = ''
+  dateValue.value = null
+}
+
 async function handleSave() {
-  let value: unknown
-  if (props.type === 'number') {
-    value = numericValue.value
-  } else if (props.type === 'date') {
-    value = dateValue.value ? (dateValue.value as Date).toISOString() : null
-  } else {
-    value = textValue.value
-  }
+  const value = getInputValue()
   if (value === null || (typeof value === 'string' && value.trim() === '')) {
     errorMsg.value = 'Введите значение.'
     return
@@ -73,15 +91,25 @@ async function handleSave() {
   loading.value = true
   errorMsg.value = ''
   try {
-    await api.post(`/app/${props.hash}/data`, {
-      key: props.action.key,
-      value,
-      ...(props.action.mode === 'append' ? { mode: 'append' } : {}),
-    })
-    numericValue.value = null
-    textValue.value = ''
-    dateValue.value = null
-    emit('data-written')
+    if (props.actions?.length) {
+      // executeActions already calls fetchData internally — no need to emit 'data-written'
+      await executeActions(props.actions, {
+        hash: props.hash,
+        userId: userStore.userId,
+        currentPageId: props.currentPageId,
+        appData: appStore.appData,
+        appStore,
+        inputValue: value,
+      })
+    } else if (props.action) {
+      await api.post(`/app/${props.hash}/data`, {
+        key: props.action.key,
+        value,
+        ...(props.action.mode === 'append' ? { mode: 'append' } : {}),
+      })
+      emit('data-written')
+    }
+    clearInputs()
   } catch {
     errorMsg.value = 'Не удалось сохранить. Попробуйте ещё раз.'
   } finally {

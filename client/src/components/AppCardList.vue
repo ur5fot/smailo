@@ -1,5 +1,8 @@
 <template>
   <div class="app-card-list">
+    <div v-if="isRlsActive" class="app-card-list__rls-badge" title="Row-Level Security: viewer видит только свои строки">
+      <i class="pi pi-lock" /> RLS
+    </div>
     <!-- Loading state for table mode -->
     <div v-if="isTableMode && loading" class="app-card-list__empty">
       Загрузка...
@@ -28,7 +31,7 @@
         </div>
 
         <button
-          v-if="hash"
+          v-if="hash && (appStore.myRole === 'owner' || appStore.myRole === 'editor')"
           class="app-card-list__delete"
           :disabled="deletingId === row.id"
           :aria-label="'Удалить'"
@@ -70,7 +73,7 @@
         </div>
 
         <button
-          v-if="hash"
+          v-if="hash && (appStore.myRole === 'owner' || appStore.myRole === 'editor')"
           class="app-card-list__delete"
           :disabled="deletingIndex === index"
           :aria-label="'Удалить'"
@@ -105,6 +108,12 @@ const appStore = useAppStore()
 
 const isTableMode = computed(() => props.dataSource?.type === 'table')
 const loading = ref(false)
+
+const isRlsActive = computed(() => {
+  if (!props.dataSource?.tableId) return false
+  const schema = appStore.tableSchemas.find(t => t.id === props.dataSource!.tableId)
+  return schema?.rlsEnabled ?? false
+})
 
 // Table mode: fetch rows on mount / when tableId changes
 watchEffect(async () => {
@@ -275,5 +284,21 @@ async function deleteKvItem(index: number) {
 .app-card-list__delete:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.app-card-list__rls-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 0.25rem;
+}
+.app-card-list__rls-badge i {
+  font-size: 0.65rem;
 }
 </style>

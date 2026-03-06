@@ -377,6 +377,66 @@ describe('buildSystemPrompt', () => {
     })
   })
 
+  describe('brainstorm prompt includes action chains documentation', () => {
+    it('documents actions array with all 5 action types', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('"actions"')
+      expect(prompt).toContain('writeData')
+      expect(prompt).toContain('navigateTo')
+      expect(prompt).toContain('toggleVisibility')
+      expect(prompt).toContain('runFormula')
+      expect(prompt).toContain('fetchUrl')
+    })
+
+    it('documents writeData mode for increment', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('"mode": "increment"')
+    })
+
+    it('documents fetchUrl {key} template syntax', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('{key}')
+      expect(prompt).toMatch(/\{[a-zA-Z]+\}.*template/is)
+    })
+
+    it('includes ACTION CHAINS section', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('ACTION CHAINS')
+    })
+
+    it('documents max 5 steps per chain', () => {
+      const prompt = buildSystemPrompt('brainstorm')
+      expect(prompt).toContain('Max 5 steps')
+    })
+  })
+
+  describe('chat prompt includes action chains documentation', () => {
+    it('documents actions array with all 5 action types', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('"actions"')
+      expect(prompt).toContain('writeData')
+      expect(prompt).toContain('navigateTo')
+      expect(prompt).toContain('toggleVisibility')
+      expect(prompt).toContain('runFormula')
+      expect(prompt).toContain('fetchUrl')
+    })
+
+    it('documents writeData mode for increment', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('"mode": "increment"')
+    })
+
+    it('documents fetchUrl {key} template syntax', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('{key}')
+    })
+
+    it('includes ACTION CHAINS section', () => {
+      const prompt = buildSystemPrompt('chat')
+      expect(prompt).toContain('ACTION CHAINS')
+    })
+  })
+
   describe('non-chat phases ignore app context', () => {
     it('brainstorm phase does not append app context even if provided', () => {
       const context: AppContext = {

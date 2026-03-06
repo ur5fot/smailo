@@ -80,6 +80,19 @@ async function handleGoto() {
   errorMsg.value = ''
   try {
     await api.get(`/users/${userId}`)
+    // User exists — save userId and navigate (no JWT issued for existing users to prevent auth bypass)
+    // Clear stale JWT to prevent identity desync (token belongs to a different user)
+    const currentToken = localStorage.getItem('smailo_token')
+    if (currentToken) {
+      try {
+        const payload = JSON.parse(atob(currentToken.split('.')[1]))
+        if (payload.userId !== userId) {
+          localStorage.removeItem('smailo_token')
+        }
+      } catch {
+        localStorage.removeItem('smailo_token')
+      }
+    }
     localStorage.setItem('smailo_user_id', userId)
     router.push(`/${userId}`)
   } catch (err: any) {

@@ -889,4 +889,533 @@ describe('validateUiComponents', () => {
       expect(result[0].children![0].computedValue).toBeUndefined()
     })
   })
+
+  describe('layout validation', () => {
+    it('preserves valid layout with col and colSpan', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+    })
+
+    it('preserves layout with row and rowSpan', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 12, row: 2, rowSpan: 3 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 12, row: 2, rowSpan: 3 })
+    })
+
+    it('strips invalid row/rowSpan but keeps valid col/colSpan', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 6, row: -1, rowSpan: 0 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+    })
+
+    it('strips layout when col is out of range (0)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 0, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when col is out of range (13)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 13, colSpan: 1 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when colSpan is 0', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 0 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when col + colSpan > 13', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 7, colSpan: 7 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('allows col + colSpan = 13 (edge case)', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 7, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 7, colSpan: 6 })
+    })
+
+    it('strips layout when col is a float', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1.5, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when colSpan is a string', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: '6' } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when it is a string', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: 'invalid' },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when it is null', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: null },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when it is an array', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: [1, 6] },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('component without layout has layout undefined', () => {
+      const result = validateUiComponents([baseCard])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when col is missing', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('strips layout when colSpan is missing', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toBeUndefined()
+    })
+
+    it('preserves layout on ConditionalGroup', () => {
+      const result = validateUiComponents([
+        {
+          component: 'ConditionalGroup',
+          props: {},
+          condition: 'count > 0',
+          children: [{ component: 'Card', props: { title: 'Child' }, dataKey: 'data' }],
+          layout: { col: 1, colSpan: 8 },
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 8 })
+    })
+
+    it('ignores non-integer row (float) but keeps col/colSpan', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 6, row: 1.5 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+    })
+
+    it('layout with col=12 and colSpan=1 is valid', () => {
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 12, colSpan: 1 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 12, colSpan: 1 })
+    })
+
+    it('layout in pages is validated through validateUiComponents', () => {
+      // This is implicitly tested since validatePages calls validateUiComponents
+      // but let's verify with a full-width layout
+      const result = validateUiComponents([
+        { ...baseCard, layout: { col: 1, colSpan: 12 } },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 12 })
+    })
+  })
+
+  describe('actions (action chains) validation', () => {
+    it('valid chain with all 5 action types', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Go' },
+          actions: [
+            { type: 'writeData', key: 'step', value: 2 },
+            { type: 'navigateTo', pageId: 'page2' },
+            { type: 'toggleVisibility', key: 'showPanel' },
+            { type: 'runFormula', formula: 'x + 1', outputKey: 'result' },
+            { type: 'fetchUrl', url: 'https://api.example.com/data', outputKey: 'apiData' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(5)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'step', value: 2 })
+      expect(result[0].actions![1]).toEqual({ type: 'navigateTo', pageId: 'page2' })
+      expect(result[0].actions![2]).toEqual({ type: 'toggleVisibility', key: 'showPanel' })
+      expect(result[0].actions![3]).toEqual({ type: 'runFormula', formula: 'x + 1', outputKey: 'result' })
+      expect(result[0].actions![4]).toEqual({ type: 'fetchUrl', url: 'https://api.example.com/data', outputKey: 'apiData' })
+      expect(result[0].action).toBeUndefined()
+    })
+
+    it('max 5 steps: chain of 6 drops the 6th', () => {
+      const actions = Array.from({ length: 6 }, (_, i) => ({
+        type: 'writeData',
+        key: `key${i}`,
+        value: i,
+      }))
+      const result = validateUiComponents([
+        { component: 'Button', props: { label: 'Test' }, actions },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(5)
+      expect(result[0].actions![4]).toEqual({ type: 'writeData', key: 'key4', value: 4 })
+    })
+
+    it('invalid step type is dropped silently', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [
+            { type: 'writeData', key: 'ok', value: 1 },
+            { type: 'unknownType', key: 'bad' },
+            { type: 'writeData', key: 'ok2', value: 2 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(2)
+      expect(result[0].actions![0].type).toBe('writeData')
+      expect(result[0].actions![1].type).toBe('writeData')
+    })
+
+    it('writeData with bad key is dropped', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [
+            { type: 'writeData', key: 'valid_key', value: 1 },
+            { type: 'writeData', key: 'has spaces', value: 2 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0].key).toBe('valid_key')
+    })
+
+    it('writeData with delete-item mode and index is valid', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Delete' },
+          actions: [
+            { type: 'writeData', key: 'items', mode: 'delete-item', index: 3 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'items', mode: 'delete-item', index: 3 })
+    })
+
+    it('runFormula with invalid formula is dropped', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [
+            { type: 'runFormula', formula: '>>> invalid <<<', outputKey: 'result' },
+            { type: 'writeData', key: 'fallback', value: 1 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0].type).toBe('writeData')
+    })
+
+    it('fetchUrl with http:// url is dropped', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Fetch' },
+          actions: [
+            { type: 'fetchUrl', url: 'http://example.com', outputKey: 'data' },
+            { type: 'writeData', key: 'ok', value: 1 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0].type).toBe('writeData')
+    })
+
+    it('fetchUrl with missing outputKey is dropped', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Fetch' },
+          actions: [
+            { type: 'fetchUrl', url: 'https://example.com' },
+            { type: 'writeData', key: 'ok', value: 1 },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(1)
+      expect(result[0].actions![0].type).toBe('writeData')
+    })
+
+    it('old action field is migrated to actions[0] writeData; action removed', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Click' },
+          action: { key: 'mood', value: 3 },
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toEqual([{ type: 'writeData', key: 'mood', value: 3 }])
+      expect(result[0].action).toBeUndefined()
+    })
+
+    it('old action with mode is migrated correctly', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: '+1' },
+          action: { key: 'count', value: 1, mode: 'increment' },
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toEqual([{ type: 'writeData', key: 'count', value: 1, mode: 'increment' }])
+      expect(result[0].action).toBeUndefined()
+    })
+
+    it('both action + actions present: action discarded, actions kept', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          action: { key: 'old', value: 1 },
+          actions: [
+            { type: 'writeData', key: 'new', value: 2 },
+            { type: 'navigateTo', pageId: 'p1' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions).toHaveLength(2)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'new', value: 2 })
+      expect(result[0].action).toBeUndefined()
+    })
+
+    it('Button with actions and no action is valid', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Navigate' },
+          actions: [{ type: 'navigateTo', pageId: 'settings' }],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].component).toBe('Button')
+      expect(result[0].actions).toEqual([{ type: 'navigateTo', pageId: 'settings' }])
+    })
+
+    it('empty array after filtering invalid steps: actions absent', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Bad' },
+          actions: [
+            { type: 'unknownAction' },
+            { type: 'writeData', key: 'has spaces' },
+          ],
+        },
+      ])
+      // Button without valid action or actions is rejected
+      expect(result).toHaveLength(0)
+    })
+
+    it('InputText with actions uses inputValue flow', () => {
+      const result = validateUiComponents([
+        {
+          component: 'InputText',
+          props: { label: 'Name' },
+          actions: [{ type: 'writeData', key: 'name' }],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].component).toBe('InputText')
+      expect(result[0].actions).toEqual([{ type: 'writeData', key: 'name' }])
+    })
+
+    it('fetchUrl with dataPath is preserved', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Fetch' },
+          actions: [
+            { type: 'fetchUrl', url: 'https://api.example.com/rates', outputKey: 'rate', dataPath: 'USD' },
+          ],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions![0]).toEqual({
+        type: 'fetchUrl',
+        url: 'https://api.example.com/rates',
+        outputKey: 'rate',
+        dataPath: 'USD',
+      })
+    })
+
+    it('writeData with invalid mode is stored without mode', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [{ type: 'writeData', key: 'x', value: 1, mode: 'invalid_mode' }],
+        },
+      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].actions![0]).toEqual({ type: 'writeData', key: 'x', value: 1 })
+    })
+
+    it('writeData with delete-item and negative index drops the step and the Button', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [{ type: 'writeData', key: 'items', mode: 'delete-item', index: -1 }],
+        },
+      ])
+      // delete-item without valid index is dropped; Button with no actions is also dropped
+      expect(result).toHaveLength(0)
+    })
+
+    it('writeData with delete-item and no index drops the step and the Button', () => {
+      const result = validateUiComponents([
+        {
+          component: 'Button',
+          props: { label: 'Test' },
+          actions: [{ type: 'writeData', key: 'items', mode: 'delete-item' }],
+        },
+      ])
+      expect(result).toHaveLength(0)
+    })
+  })
+
+  describe('AI-generated layout patterns', () => {
+    it('validates a typical AI dashboard config with layout', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Всего' }, dataKey: 'total', layout: { col: 1, colSpan: 6 } },
+        { component: 'Card', props: { title: 'Среднее' }, dataKey: 'avg', layout: { col: 7, colSpan: 6 } },
+        { component: 'Chart', props: { type: 'line' }, dataKey: 'trend', layout: { col: 1, colSpan: 12 } },
+        { component: 'DataTable', props: { columns: [{ field: 'date', header: 'Дата' }] }, dataKey: 'log', layout: { col: 1, colSpan: 12 } },
+      ])
+      expect(result).toHaveLength(4)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+      expect(result[1].layout).toEqual({ col: 7, colSpan: 6 })
+      expect(result[2].layout).toEqual({ col: 1, colSpan: 12 })
+      expect(result[3].layout).toEqual({ col: 1, colSpan: 12 })
+    })
+
+    it('validates AI config with buttons in a row', () => {
+      const result = validateUiComponents([
+        { component: 'Button', props: { label: 'Хорошо', severity: 'success' }, actions: [{ type: 'writeData', key: 'mood', value: 3 }], layout: { col: 1, colSpan: 4 } },
+        { component: 'Button', props: { label: 'Нормально' }, actions: [{ type: 'writeData', key: 'mood', value: 2 }], layout: { col: 5, colSpan: 4 } },
+        { component: 'Button', props: { label: 'Плохо', severity: 'danger' }, actions: [{ type: 'writeData', key: 'mood', value: 1 }], layout: { col: 9, colSpan: 4 } },
+      ])
+      expect(result).toHaveLength(3)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 4 })
+      expect(result[1].layout).toEqual({ col: 5, colSpan: 4 })
+      expect(result[2].layout).toEqual({ col: 9, colSpan: 4 })
+    })
+
+    it('validates AI config with form and card side by side', () => {
+      const result = validateUiComponents([
+        { component: 'Form', props: { submitLabel: 'Сохранить' }, fields: [{ name: 'weight', type: 'number', label: 'Вес' }], outputKey: 'entry', layout: { col: 1, colSpan: 8 } },
+        { component: 'Card', props: { title: 'Последнее' }, dataKey: 'entry', layout: { col: 9, colSpan: 4 } },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 8 })
+      expect(result[1].layout).toEqual({ col: 9, colSpan: 4 })
+    })
+
+    it('validates AI config with InputText half-width', () => {
+      const result = validateUiComponents([
+        { component: 'InputText', props: { label: 'Город', type: 'text' }, actions: [{ type: 'writeData', key: 'city' }], layout: { col: 1, colSpan: 6 } },
+        { component: 'Card', props: { title: 'Погода' }, dataKey: 'weather', layout: { col: 7, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+      expect(result[1].layout).toEqual({ col: 7, colSpan: 6 })
+    })
+
+    it('validates AI multi-page config with layout in page components', () => {
+      const page1Components = validateUiComponents([
+        { component: 'Card', props: { title: 'Сводка' }, computedValue: '= SUM(data.amount)', layout: { col: 1, colSpan: 6 } },
+        { component: 'Chart', props: { type: 'pie' }, dataSource: { type: 'table', tableId: 1 }, layout: { col: 1, colSpan: 12 } },
+      ])
+      const page2Components = validateUiComponents([
+        { component: 'Form', props: { submitLabel: 'Добавить' }, dataSource: { type: 'table', tableId: 1 }, layout: { col: 1, colSpan: 8 } },
+        { component: 'DataTable', props: {}, dataSource: { type: 'table', tableId: 1 }, layout: { col: 1, colSpan: 12 } },
+      ])
+      expect(page1Components).toHaveLength(2)
+      expect(page2Components).toHaveLength(2)
+      expect(page1Components[0].layout).toEqual({ col: 1, colSpan: 6 })
+      expect(page1Components[1].layout).toEqual({ col: 1, colSpan: 12 })
+      expect(page2Components[0].layout).toEqual({ col: 1, colSpan: 8 })
+      expect(page2Components[1].layout).toEqual({ col: 1, colSpan: 12 })
+    })
+
+    it('strips invalid AI layout but keeps valid component', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'Test' }, dataKey: 'val', layout: { col: 1, colSpan: 13 } },
+        { component: 'Card', props: { title: 'Test2' }, dataKey: 'val2', layout: { col: 1, colSpan: 6 } },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result[0].layout).toBeUndefined() // invalid colSpan 13 → stripped
+      expect(result[1].layout).toEqual({ col: 1, colSpan: 6 }) // valid → kept
+    })
+
+    it('accepts AI config mixing components with and without layout', () => {
+      const result = validateUiComponents([
+        { component: 'Card', props: { title: 'With Layout' }, dataKey: 'a', layout: { col: 1, colSpan: 6 } },
+        { component: 'Card', props: { title: 'Without Layout' }, dataKey: 'b' },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result[0].layout).toEqual({ col: 1, colSpan: 6 })
+      expect(result[1].layout).toBeUndefined()
+    })
+  })
 })

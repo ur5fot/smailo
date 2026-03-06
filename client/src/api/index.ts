@@ -5,18 +5,21 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  // Derive the app hash from the URL to use per-app token storage
+  // Send global JWT for user authentication
+  const globalToken = localStorage.getItem('smailo_token')
+  if (globalToken) {
+    config.headers.Authorization = `Bearer ${globalToken}`
+  }
+
+  // For app routes, also send per-app JWT (password-protected apps) via separate header
   const appMatch = config.url?.match(/^\/app\/([^/]+)/)
-  const tokenKey = appMatch ? `smailo_token_${appMatch[1]}` : 'smailo_token'
-  const token = localStorage.getItem(tokenKey)
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (appMatch) {
+    const perAppToken = localStorage.getItem(`smailo_token_${appMatch[1]}`)
+    if (perAppToken) {
+      config.headers['X-App-Token'] = perAppToken
+    }
   }
-  // Send userId for ownership verification on unprotected apps
-  const userId = localStorage.getItem('smailo_user_id')
-  if (userId) {
-    config.headers['X-User-Id'] = userId
-  }
+
   return config
 })
 

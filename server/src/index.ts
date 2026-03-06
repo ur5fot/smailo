@@ -1,3 +1,11 @@
+import { loadEnvConfig } from './utils/env.js';
+
+const envConfig = loadEnvConfig();
+
+import { initSentry, isSentryInitialized, captureException, flushSentry, setupExpressErrorHandler } from './utils/sentry.js';
+
+initSentry(envConfig.sentryDsn);
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -5,12 +13,21 @@ import { chatRouter } from './routes/chat.js';
 import { appRouter, pruneOldAppData } from './routes/app.js';
 import { tablesRouter } from './routes/tables.js';
 import { usersRouter } from './routes/users.js';
+import { membersRouter } from './routes/members.js';
+import { healthRouter } from './routes/health.js';
 import { cronManager } from './services/cronManager.js';
+import { migrateOwnerRecords } from './db/migrateOwners.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { sqlite } from './db/index.js';
+import { setupGracefulShutdown } from './utils/shutdown.js';
+import { httpLogger, logger } from './utils/logger.js';
+import { setupStaticServing } from './utils/staticServing.js';
+import { backupDatabase, cleanupOldBackups } from './utils/dbBackup.js';
 
 const app = express();
 app.set('trust proxy', 1);
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const PORT = envConfig.port;
+const CLIENT_URL = envConfig.clientUrl;
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -27,25 +44,93 @@ app.use(helmet({
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json({ limit: '50kb' }));
 
+// Structured logging middleware
+app.use(httpLogger);
+
+// Return request ID to client for log correlation
+app.use((req, res, next) => {
+  const reqId = req.id;
+  if (reqId) {
+    res.setHeader('X-Request-Id', String(reqId));
+  }
+  next();
+});
+
+app.use('/api/health', healthRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/app', appRouter);
 app.use('/api/app/:hash/tables', tablesRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/app/:hash/members', membersRouter);
+
+// In production, serve client/dist as static assets with SPA fallback
+if (envConfig.nodeEnv === 'production') {
+  setupStaticServing(app);
+}
+
+// Sentry error handler — captures exceptions before our custom handler
+if (isSentryInitialized()) {
+  setupExpressErrorHandler(app);
+}
+
+// Global error handler — must be last middleware
+app.use(errorHandler);
+
+// Migrate existing apps: ensure every app with userId has an owner in app_members
+try {
+  const migrated = migrateOwnerRecords();
+  if (migrated > 0) {
+    logger.info({ migrated }, 'Created owner records for apps');
+  }
+} catch (err) {
+  logger.error({ err }, 'migrateOwners migration failed');
+}
 
 cronManager.loadAll().catch((err) => {
-  console.error('[cronManager] Failed to load jobs on startup:', err);
+  logger.error({ err }, 'Failed to load cron jobs on startup');
 });
 
 // Prune old app_data rows on startup and then hourly
 pruneOldAppData().catch((err) => {
-  console.error('[pruneOldAppData] Startup prune failed:', err);
+  logger.error({ err }, 'Startup prune of old app data failed');
 });
 setInterval(() => {
   pruneOldAppData().catch((err) => {
-    console.error('[pruneOldAppData] Hourly prune failed:', err);
+    logger.error({ err }, 'Hourly prune of old app data failed');
   });
 }, 60 * 60 * 1000);
 
-app.listen(PORT, () => {
-  console.log(`[server] Listening on port ${PORT}`);
+// Daily database backup (if BACKUP_DIR is configured)
+if (envConfig.backupDir) {
+  const backupDir = envConfig.backupDir;
+  // Run initial backup shortly after startup, then every 24 hours
+  const runBackup = async () => {
+    try {
+      await backupDatabase(backupDir);
+      cleanupOldBackups(backupDir);
+    } catch (err) {
+      logger.error({ err }, 'Database backup failed');
+    }
+  };
+  setTimeout(runBackup, 60_000);
+  setInterval(runBackup, 24 * 60 * 60 * 1000);
+  logger.info({ backupDir }, 'Daily database backup enabled');
+}
+
+// Process-level error handlers
+process.on('uncaughtException', async (err) => {
+  logger.fatal({ err }, 'Uncaught exception — exiting');
+  captureException(err);
+  await flushSentry(2000);
+  process.exit(1);
 });
+
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'Unhandled rejection');
+});
+
+const server = app.listen(PORT, () => {
+  logger.info({ port: PORT }, 'Server listening');
+});
+
+setupGracefulShutdown(server, sqlite);

@@ -1,0 +1,341 @@
+# Мульти-пользовательский доступ (Этап 8)
+
+## Overview
+- Добавить систему ролей для приложений: `owner`, `editor`, `viewer`
+- Приглашения пользователей по ссылке с выбором роли
+- Row-level security (RLS): пользователь видит только свои строки в таблицах с включённым RLS (owner/editor видят всё)
+- Унификация auth через глобальный JWT (заменяет X-User-Id header)
+- Обратная совместимость: существующие приложения без app_members работают как раньше
+
+## Context (from discovery)
+- Текущая модель: один владелец (`apps.userId`), два механизма auth (JWT per-app для password + X-User-Id header для ownership)
+- `requireAuthIfProtected` middleware: для protected → проверяет JWT `{ hash }`, для unprotected → сравнивает X-User-Id с `row.userId`
+- Нет таблицы `app_members`, нет ролей, нет приглашений
+- JWT сейчас per-app (`smailo_token_<hash>`) и не содержит userId
+- `user_rows` не имеет `createdByUserId` — нельзя фильтровать по автору
+- Axios interceptor отправляет оба: JWT + X-User-Id на каждый запрос
+- Ключевые файлы: `server/src/middleware/auth.ts`, `server/src/routes/app.ts`, `server/src/routes/tables.ts`, `server/src/routes/users.ts`, `client/src/api/index.ts`, `client/src/stores/user.ts`, `client/src/stores/app.ts`
+
+## Development Approach
+- **Testing approach**: Regular (code first, tests after)
+- Complete each task fully before moving to the next
+- Make small, focused changes
+- **CRITICAL: every task MUST include new/updated tests** for code changes in that task
+- **CRITICAL: all tests must pass before starting next task**
+- **CRITICAL: update this plan file when scope changes during implementation**
+- Run tests after each change
+- Maintain backward compatibility
+
+## Testing Strategy
+- **Unit tests**: required for every task (vitest)
+- Server tests: `npm test --workspace=server`
+- Client tests: `npm test --workspace=client`
+
+## Progress Tracking
+- Mark completed items with `[x]` immediately when done
+- Add newly discovered tasks with ➕ prefix
+- Document issues/blockers with ⚠️ prefix
+- Update plan if implementation deviates from original scope
+
+## Permission Model
+
+```
+Role         | Read app | Read data | Write data | Chat              | Write rows | Config/cron | Members | Password
+-------------|----------|-----------|------------|-------------------|------------|-------------|---------|--------
+owner        | ✓        | ✓         | ✓          | ✓ (full)          | ✓          | ✓           | ✓       | ✓
+editor       | ✓        | ✓         | ✓          | ✓ (no config chg) | ✓          | ✗           | ✗       | ✗
+viewer       | ✓        | ✓         | ✗          | ✗                 | read-only* | ✗           | ✗       | ✗
+anonymous    | unprotected only | unprotected only | ✗ | ✗           | ✗          | ✗           | ✗       | ✗
+
+* viewer + RLS: видит только свои строки в таблицах с rlsEnabled=true
+```
+
+"Write data" = POST /api/app/:hash/data, POST /api/app/:hash/actions/fetch-url
+"Chat" = POST /api/app/:hash/chat (editor может общаться, но uiUpdate/pagesUpdate от AI отклоняется сервером для non-owner)
+"Config/cron" = PUT /api/app/:hash/config, set-password
+"Members" = invite, change role, remove
+
+## Implementation Steps
+
+### Task 1: DB schema — таблица app_members + createdByUserId
+- [x] Добавить таблицу `app_members` в `server/src/db/schema.ts`: `id` (PK), `appId` (FK → apps.id, cascade delete), `userId` (text), `role` (text: 'owner'|'editor'|'viewer'), `invitedAt` (text), `joinedAt` (text)
+- [x] Добавить unique constraint: `(appId, userId)` — один пользователь = одна роль в приложении
+- [x] Добавить колонку `createdByUserId` (text, nullable) в `user_rows` для RLS
+- [x] Добавить колонку `rlsEnabled` (integer, default 0) в `user_tables` для включения RLS
+- [x] Запустить `npm run db:push` для применения миграции
+- [x] Написать тесты для схемы (вставка/чтение app_members, unique constraint, cascade delete)
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 2: Глобальный JWT — выдача при создании пользователя
+- [x] Обновить `POST /api/users` в `users.ts`: после создания userId, генерировать JWT `{ userId }` (долгоживущий, 30 дней), вернуть `{ userId, token }`
+- [x] ⚠️ НЕ создавать `GET /api/users/:userId/token` — это auth bypass (любой зная userId получит JWT). Восстановление: пользователь создаёт нового userId
+- [x] Обновить клиентский `user.ts` store: после `createUser()` сохранять JWT в localStorage как `smailo_token`
+- [x] Обновить клиентский `api/index.ts` interceptor: отправлять глобальный JWT из `smailo_token` (заменяет X-User-Id); для password-protected apps дополнительно отправлять per-app JWT из `smailo_token_<hash>`
+- [x] Явно прекратить отправку `X-User-Id` header из interceptor — удалить полностью
+- [x] Написать тесты для JWT генерации, валидации, interceptor логики
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 3a: Auth middleware — resolveUserAndRole + requireRole
+- [x] Создать новый middleware `resolveUserAndRole` в `server/src/middleware/auth.ts`:
+  - Извлекает userId из глобального JWT (header `Authorization: Bearer <token>`)
+  - Находит app row по hash
+  - Ищет роль в `app_members` для данного userId+appId
+  - Если нет роли → anonymous
+  - Для password-protected apps: anonymous → 401 (нужен пароль или invite)
+  - Для unprotected apps: anonymous → viewer-level read (GET только)
+  - Аттачит на req: `app_row`, `userId`, `userRole` ('owner'|'editor'|'viewer'|'anonymous')
+  - ⚠️ Игнорировать X-User-Id header полностью — только JWT
+- [x] Создать middleware `requireRole(...roles)` — проверяет `req.userRole`, возвращает 403 если роль недостаточна
+- [x] Обратная совместимость: если app не имеет ни одного app_members row, fallback → `apps.userId === req.userId` значит owner, остальные anonymous
+- [x] Написать тесты для resolveUserAndRole (all role combinations, anonymous, password-protected, legacy apps)
+- [x] Написать тесты для requireRole (allowed, denied, missing role)
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 3b: Применить новый auth ко всем routes
+- [x] Обновить все routes в `app.ts`: заменить `requireAuthIfProtected` на `resolveUserAndRole` + `requireRole(...)`:
+  - GET /:hash, GET /:hash/data, GET /:hash/chat → viewer+ (anonymous OK для unprotected)
+  - POST /:hash/data, POST /:hash/actions/fetch-url → `requireRole('editor', 'owner')`
+  - POST /:hash/chat → `requireRole('editor', 'owner')` (⚠️ editor НЕ может менять конфиг — если AI возвращает uiUpdate/pagesUpdate, отклонять для editor)
+  - PUT /:hash/config → `requireRole('owner')`
+  - POST /:hash/set-password → `requireRole('owner')` (⚠️ требует JWT, не доступен без аутентификации)
+- [x] Обновить routes в `tables.ts`: GET → viewer+, POST/PUT/DELETE rows → editor+, POST/PUT/DELETE tables → owner
+- [x] Обновить существующие тесты в `app.ts` и `tables.ts` под новый middleware
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 3c: computedValue + RLS guard
+- [x] ⚠️ Серверные computedValue формулы (`evaluateComputedValues`) обходят RLS — формула может прочитать данные из таблиц, к которым viewer не имеет доступа
+- [x] Решение: передавать `userRole` и `userId` в `evaluateComputedValues`; для viewer с RLS-таблицей — фильтровать rows перед вычислением формул
+- [x] Написать тесты: viewer с computedValue на RLS-таблице видит только агрегат своих строк
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 4: Password-protected apps — интеграция с ролями
+- [x] Обновить `POST /:hash/verify` — при успешной верификации пароля: если пользователь (из JWT) не имеет роли в app_members, добавить как `viewer` (идемпотентно — повторный verify не дублирует)
+- [x] Обновить per-app JWT payload: `{ hash, userId }` — теперь содержит userId
+- [x] Обновить middleware: для password-protected apps, если есть per-app JWT с userId → искать роль в app_members
+- [x] Пользователи с ролью в app_members не требуют пароль (доступ по глобальному JWT)
+- [x] ⚠️ Смена пароля (`set-password`): ревокировать все per-app JWT — увеличить `passwordVersion` counter, проверять в middleware
+- [x] Написать тесты для verify + auto-add viewer, per-app JWT с userId, member bypass password, password change revocation
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 5: Auto-migration — создание owner записей
+- [x] При старте сервера: для всех apps с `userId IS NOT NULL` и без owner в app_members — создать owner запись
+- [x] При создании нового приложения (POST /api/chat, фаза created): автоматически добавлять owner запись в app_members
+- [x] Идемпотентность: повторный запуск миграции не создаёт дубликаты (INSERT OR IGNORE)
+- [x] Написать тесты для миграции (создание, идемпотентность, пропуск legacy apps без userId)
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 6: Invite system — отдельная таблица app_invites
+- [x] Создать таблицу `app_invites` в schema.ts: `id`, `appId` (FK), `role` ('editor'|'viewer'), `token` (32-char hex, unique), `createdAt`, `expiresAt` (7 дней), `acceptedByUserId` (nullable — заполняется при принятии)
+- [x] ⚠️ НЕ хранить invite на `app_members` — userId неизвестен при создании приглашения
+- [x] `POST /api/app/:hash/members/invite` (owner only): создать запись в `app_invites`, вернуть `{ token, inviteUrl }`
+- [x] `POST /api/app/:hash/members/invite/:token/accept` — принять приглашение (⚠️ POST не GET — state-mutating):
+  - Проверить: токен существует, не истёк (`expiresAt > now`), не использован (`acceptedByUserId IS NULL`)
+  - Записать `acceptedByUserId = req.userId`
+  - Создать запись в `app_members` (или skip если userId уже member)
+  - Вернуть `{ appHash, role }`
+- [x] Invite токен single-use: после accept, другие пользователи не могут использовать тот же токен
+- [x] Написать тесты: create invite, accept, expired token, reused token, already member
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 7a: Member management API (CRUD)
+- [x] Создать `server/src/routes/members.ts` — маршруты под `/api/app/:hash/members`
+- [x] `GET /api/app/:hash/members` — список участников (owner only), возвращает `[{ userId, role, joinedAt }]`
+- [x] `PUT /api/app/:hash/members/:userId` — изменить роль (owner only): `{ role }`. Нельзя изменить свою роль. Нельзя сделать другого owner
+- [x] `DELETE /api/app/:hash/members/:userId` — удалить участника (owner only). Нельзя удалить себя (owner)
+- [x] Rate limit: 30 req/min (chatLimiter)
+- [x] Написать тесты для каждого endpoint (success, auth, validation, edge cases)
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 7b: Row-level security — серверная фильтрация
+- [x] При создании строки (`POST /:tableId/rows`): записывать `createdByUserId` из `req.userId`
+- [x] При чтении (`GET /:tableId`): если `table.rlsEnabled` и `req.userRole === 'viewer'` → фильтровать rows по `createdByUserId === req.userId`
+- [x] Owner и editor видят все строки независимо от RLS
+- [x] Anonymous (unprotected apps) не видят строки в RLS-таблицах
+- [x] `PUT /api/app/:hash/tables/:tableId` — owner может включить/выключить RLS (`rlsEnabled` field)
+- [x] `DELETE /:tableId/rows/:rowId` — viewer может удалить только свою строку в RLS-таблице
+- [x] `PUT /:tableId/rows/:rowId` — viewer может обновить только свою строку в RLS-таблице
+- [x] Написать тесты для RLS фильтрации (owner sees all, viewer sees own, editor sees all, anonymous blocked)
+- [x] Написать тесты для RLS write restrictions (viewer can only edit/delete own rows)
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 8: GET /api/app/:hash — вернуть роль пользователя
+- [x] Обновить ответ `GET /api/app/:hash`: добавить поле `myRole: 'owner'|'editor'|'viewer'|null` на основе `req.userRole`
+- [x] Обновить ответ `GET /api/app/:hash`: добавить `members: [{ userId, role }]` (только для owner)
+- [x] Обновить `appStore.fetchApp()`: сохранять `myRole` в store
+- [x] Написать тесты для myRole в ответе (owner, editor, viewer, anonymous)
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 9: Client — UserView и список shared apps
+- [x] Обновить `GET /api/users/:userId/apps` — возвращать также приложения где пользователь = member (не только owner). Добавить поле `role` в ответе
+- [x] Обновить `user.ts` store: разделить на `myApps` (owner) и `sharedApps` (editor/viewer)
+- [x] Обновить `UserView.vue`: показать две секции — "Мои приложения" и "Общие со мной"
+- [x] Для shared apps: показать роль бейджем (editor/viewer)
+- [x] Написать тесты для store и endpoint
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 10: Client — AppView role-aware UI
+- [x] Скрыть кнопку редактора (pi-pencil) для viewer (нет доступа к config)
+- [x] Скрыть кнопку редактора для editor (нет доступа к config)
+- [x] InputBar/chat: disabled для viewer (нет доступа к POST /chat)
+- [x] AppButton, AppInputText, AppForm: disabled для viewer (нет записи данных)
+- [x] Показать бейдж роли в header (editor/viewer)
+- [x] Кнопка "Участники" в header для owner → открывает панель управления участниками
+- [x] Написать тесты для role-aware UI logic
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 11: Client — панель управления участниками
+- [x] Создать `client/src/components/MembersPanel.vue` — диалог/drawer для управления участниками
+- [x] Список текущих участников с ролями
+- [x] Кнопка "Пригласить" → генерирует invite ссылку с выбором роли (editor/viewer)
+- [x] Копирование ссылки в буфер
+- [x] Изменение роли участника (dropdown)
+- [x] Удаление участника (с подтверждением)
+- [x] Написать тесты для MembersPanel logic
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 12: Client — accept invite page
+- [x] Создать route `/invite/:hash/:token` → `InviteView.vue`
+- [x] При открытии: проверить что пользователь залогинен (имеет userId + JWT)
+- [x] Если нет userId — предложить создать аккаунт, затем accept
+- [x] Вызвать `POST /api/app/:hash/members/invite/:token/accept` для принятия
+- [x] После принятия: redirect на `/:userId/:hash`
+- [x] Ошибки: невалидный/истёкший/использованный токен, уже являешься участником
+- [x] Написать тесты для invite flow
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 13: Client — RLS UI в визуальном редакторе
+- [x] В PropertyEditor: для компонентов с dataSource, показать RLS статус таблицы
+- [x] В MembersPanel или отдельной настройке: toggle RLS для каждой таблицы (owner only)
+- [x] Визуальный индикатор в DataTable/CardList когда RLS активен (например, иконка замка)
+- [x] Написать тесты для RLS UI logic
+- [x] Запустить тесты — должны проходить перед следующим таском
+
+### Task 14: Verify acceptance criteria
+- [x] Verify: owner может пригласить editor и viewer по ссылке
+- [x] Verify: editor может читать и писать данные, но не менять конфиг
+- [x] Verify: viewer может только читать (кнопки disabled, chat disabled)
+- [x] Verify: RLS работает — viewer видит только свои строки
+- [x] Verify: owner видит все строки независимо от RLS
+- [x] Verify: invite token: single-use, expires after 7 days
+- [x] Verify: обратная совместимость — старые приложения без members работают
+- [x] Verify: password-protected apps работают с новой auth моделью
+- [x] Verify: shared apps отображаются в UserView
+- [x] Run full test suite (server + client)
+
+### Task 15: [Final] Update documentation
+- [x] Обновить `README.md` — описание мульти-пользовательского доступа
+- [x] Обновить `README.ru.md` — описание мульти-пользовательского доступа
+- [x] Обновить `CLAUDE.md` — добавить секции: app_members, app_invites, роли, RLS, auth, invite flow, новые endpoints
+- [x] Обновить `docs/roadmap-v2.md` — отметить Этап 8 как реализованный
+
+## Technical Details
+
+### app_members schema
+```ts
+export const appMembers = sqliteTable('app_members', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  appId: integer('app_id').notNull().references(() => apps.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  role: text('role').notNull(),        // 'owner' | 'editor' | 'viewer'
+  joinedAt: text('joined_at').notNull(),
+}, (table) => ({
+  uniqueMember: unique().on(table.appId, table.userId),
+}))
+```
+
+### app_invites schema (отдельная таблица — userId неизвестен при создании invite)
+```ts
+export const appInvites = sqliteTable('app_invites', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  appId: integer('app_id').notNull().references(() => apps.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),              // 'editor' | 'viewer'
+  token: text('token').notNull().unique(),   // 32-char random hex
+  createdAt: text('created_at').notNull(),
+  expiresAt: text('expires_at').notNull(),   // +7 days from creation
+  acceptedByUserId: text('accepted_by_user_id'),  // null until accepted, then single-use
+})
+```
+
+### user_rows — новая колонка
+```ts
+createdByUserId: text('created_by_user_id'),  // nullable for backward compat
+```
+
+### user_tables — новая колонка
+```ts
+rlsEnabled: integer('rls_enabled').default(0),  // 0=off, 1=on
+```
+
+### Глобальный JWT
+```ts
+// Payload
+{ userId: string }
+
+// Expiry: 30 days
+// Storage: localStorage key 'smailo_token'
+// Header: Authorization: Bearer <token>
+```
+
+### Per-app JWT (password-protected)
+```ts
+// Payload (extended)
+{ hash: string, userId: string }
+
+// Expiry: 7 days (unchanged)
+// Storage: localStorage key 'smailo_token_<hash>'
+// Header: X-App-Token: <token> (отдельный header чтобы не конфликтовать с глобальным)
+```
+
+### Auth middleware flow
+```
+Request → Extract global JWT → userId
+       → Find app row by hash
+       → Lookup app_members(appId, userId) → role
+       → If no role + unprotected app → 'anonymous' (GET only)
+       → If no role + protected app → check per-app JWT → if valid, 'viewer'
+       → If no role + protected app + no JWT → 401
+       → Attach: req.app_row, req.userId, req.userRole
+```
+
+### Новые API endpoints
+```
+GET    /api/app/:hash/members                     — list members (owner only)
+POST   /api/app/:hash/members/invite              — create invite (owner only)
+POST   /api/app/:hash/members/invite/:token/accept — accept invite (any authenticated user, POST не GET!)
+PUT    /api/app/:hash/members/:userId              — change role (owner only)
+DELETE /api/app/:hash/members/:userId              — remove member (owner only)
+```
+
+### Invite URL format
+```
+https://<domain>/invite/<hash>/<token>
+```
+Client route перехватывает URL и делает POST на accept endpoint.
+
+### Новые client routes
+```
+/invite/:hash/:token  → InviteView.vue
+```
+
+## Post-Completion
+
+**Manual verification:**
+- Создать приложение → пригласить другого пользователя (другой браузер) → проверить роли
+- Включить RLS на таблице → viewer видит только свои строки
+- Password-protected app + member access: member заходит без пароля
+- Старые приложения без members: работают как раньше
+- Mobile: invite link работает на телефоне
+
+**Security review:**
+- Invite token не поддаётся brute-force (32 hex = 128 bits)
+- Invite token single-use + 7-day expiry (отдельная таблица `app_invites`)
+- Accept invite через POST (не GET) — нет CSRF через prefetch/img tags
+- Owner не может удалить себя или сменить свою роль
+- Viewer не может escalate до editor через API
+- RLS фильтрация на сервере, не на клиенте
+- computedValue формулы уважают RLS для viewer
+- X-User-Id header полностью удалён — только JWT
+- Editor не может менять конфиг через chat (uiUpdate/pagesUpdate отклоняется)
+- set-password требует JWT (owner only)
+- Смена пароля ревокирует все per-app JWT
+- JWT секрет должен быть достаточно длинным (ENV: JWT_SECRET)

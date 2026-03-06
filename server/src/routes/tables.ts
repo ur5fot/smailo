@@ -3,11 +3,12 @@ import rateLimit from 'express-rate-limit';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { userTables, userRows } from '../db/schema.js';
-import { requireAuthIfProtected, type AuthenticatedRequest } from '../middleware/auth.js';
+import { resolveUserAndRole, requireRole, type AuthenticatedRequest } from '../middleware/auth.js';
 import { isValidColumnDef, validateRowData } from '../utils/tableValidation.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
 import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
 import { applyFilter, parseFilterParam } from '../utils/filterRows.js';
+import { logger } from '../utils/logger.js';
 
 export const tablesRouter = Router({ mergeParams: true });
 
@@ -25,7 +26,7 @@ const MAX_ROWS_PER_TABLE = 10_000;
 const TABLE_NAME_REGEX = /^[a-zA-Z\u0400-\u04FF][a-zA-Z0-9\u0400-\u04FF_ ]{0,99}$/;
 
 // POST /api/app/:hash/tables — create a new table
-tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.post('/', limiter, resolveUserAndRole, requireRole('owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const { name, columns } = req.body as { name: unknown; columns: unknown };
@@ -78,13 +79,13 @@ tablesRouter.post('/', limiter, requireAuthIfProtected, async (req, res) => {
 
     return res.json({ id: inserted[0].id, name: trimmedName, columns: cleanedColumns });
   } catch (error) {
-    console.error('[POST /tables] Error:', error);
+    logger.error({ err: error }, 'POST /tables failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // GET /api/app/:hash/tables — list all tables for an app
-tablesRouter.get('/', requireAuthIfProtected, async (req, res) => {
+tablesRouter.get('/', resolveUserAndRole, async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tables = await db.select().from(userTables).where(eq(userTables.appId, row.id));
@@ -94,17 +95,18 @@ tablesRouter.get('/', requireAuthIfProtected, async (req, res) => {
         id: t.id,
         name: t.name,
         columns: t.columns,
+        rlsEnabled: t.rlsEnabled === 1,
         createdAt: t.createdAt,
       })),
     });
   } catch (error) {
-    console.error('[GET /tables] Error:', error);
+    logger.error({ err: error }, 'GET /tables failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // GET /api/app/:hash/tables/:tableId — get a table with its rows
-tablesRouter.get('/:tableId', requireAuthIfProtected, async (req, res) => {
+tablesRouter.get('/:tableId', resolveUserAndRole, async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -119,8 +121,23 @@ tablesRouter.get('/:tableId', requireAuthIfProtected, async (req, res) => {
       return res.status(404).json({ error: 'Table not found' });
     }
 
+    const authReq = req as AuthenticatedRequest;
+    const userRole = authReq.userRole;
+    const userId = authReq.userId;
+
+    // RLS filtering: viewer/anonymous see only their own rows in RLS-enabled tables
+    const isRlsRestricted = (userRole === 'viewer' || userRole === 'anonymous') && table.rlsEnabled === 1;
+    let rowFilter;
+    if (isRlsRestricted) {
+      rowFilter = userId
+        ? and(eq(userRows.tableId, tableId), eq(userRows.createdByUserId, userId))
+        : and(eq(userRows.tableId, tableId), sql`0`); // anonymous sees nothing
+    } else {
+      rowFilter = eq(userRows.tableId, tableId);
+    }
+
     const dbRows = await db.select().from(userRows)
-      .where(eq(userRows.tableId, tableId))
+      .where(rowFilter)
       .orderBy(desc(userRows.createdAt));
 
     const columns = table.columns as ColumnDef[];
@@ -139,17 +156,18 @@ tablesRouter.get('/:tableId', requireAuthIfProtected, async (req, res) => {
       id: table.id,
       name: table.name,
       columns: table.columns,
+      rlsEnabled: table.rlsEnabled === 1,
       createdAt: table.createdAt,
       rows: filteredRows,
     });
   } catch (error) {
-    console.error('[GET /tables/:tableId] Error:', error);
+    logger.error({ err: error }, 'GET /tables/:tableId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // PUT /api/app/:hash/tables/:tableId — update table schema (name and/or columns)
-tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.put('/:tableId', limiter, resolveUserAndRole, requireRole('owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -164,8 +182,8 @@ tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) 
       return res.status(404).json({ error: 'Table not found' });
     }
 
-    const updates: Partial<{ name: string; columns: ColumnDef[] }> = {};
-    const { name, columns } = req.body as { name?: unknown; columns?: unknown };
+    const updates: Partial<{ name: string; columns: ColumnDef[]; rlsEnabled: number }> = {};
+    const { name, columns, rlsEnabled } = req.body as { name?: unknown; columns?: unknown; rlsEnabled?: unknown };
 
     if (name !== undefined) {
       if (typeof name !== 'string') {
@@ -203,21 +221,28 @@ tablesRouter.put('/:tableId', limiter, requireAuthIfProtected, async (req, res) 
       });
     }
 
+    if (rlsEnabled !== undefined) {
+      if (typeof rlsEnabled !== 'boolean') {
+        return res.status(400).json({ error: 'rlsEnabled must be a boolean' });
+      }
+      updates.rlsEnabled = rlsEnabled ? 1 : 0;
+    }
+
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'Nothing to update — provide name and/or columns' });
+      return res.status(400).json({ error: 'Nothing to update — provide name, columns, and/or rlsEnabled' });
     }
 
     await db.update(userTables).set(updates).where(eq(userTables.id, tableId));
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[PUT /tables/:tableId] Error:', error);
+    logger.error({ err: error }, 'PUT /tables/:tableId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // DELETE /api/app/:hash/tables/:tableId — delete a table and all its rows
-tablesRouter.delete('/:tableId', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.delete('/:tableId', limiter, resolveUserAndRole, requireRole('owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -237,13 +262,13 @@ tablesRouter.delete('/:tableId', limiter, requireAuthIfProtected, async (req, re
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[DELETE /tables/:tableId] Error:', error);
+    logger.error({ err: error }, 'DELETE /tables/:tableId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // POST /api/app/:hash/tables/:tableId/rows — add a row to a table
-tablesRouter.post('/:tableId/rows', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.post('/:tableId/rows', limiter, resolveUserAndRole, requireRole('editor', 'owner'), async (req, res) => {
   try {
     const row = (req as AuthenticatedRequest).app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
@@ -271,22 +296,25 @@ tablesRouter.post('/:tableId/rows', limiter, requireAuthIfProtected, async (req,
       return res.status(400).json({ error: `Maximum ${MAX_ROWS_PER_TABLE} rows per table` });
     }
 
+    const authReq = req as AuthenticatedRequest;
     const inserted = await db.insert(userRows).values({
       tableId,
       data: result.cleaned!,
+      createdByUserId: authReq.userId || null,
     }).returning({ id: userRows.id, createdAt: userRows.createdAt });
 
     return res.json({ id: inserted[0].id, data: result.cleaned, createdAt: inserted[0].createdAt });
   } catch (error) {
-    console.error('[POST /tables/:tableId/rows] Error:', error);
+    logger.error({ err: error }, 'POST /tables/:tableId/rows failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // PUT /api/app/:hash/tables/:tableId/rows/:rowId — update a row
-tablesRouter.put('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.put('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRole('viewer', 'editor', 'owner'), async (req, res) => {
   try {
-    const row = (req as AuthenticatedRequest).app_row!;
+    const authReq = req as AuthenticatedRequest;
+    const row = authReq.app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
     const rowId = parseInt(req.params.rowId as string, 10);
     if (isNaN(tableId) || isNaN(rowId)) {
@@ -300,11 +328,23 @@ tablesRouter.put('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, async
       return res.status(404).json({ error: 'Table not found' });
     }
 
+    // Viewer can only update rows in RLS-enabled tables (and only their own)
+    if (authReq.userRole === 'viewer') {
+      if (table.rlsEnabled !== 1) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
+
     const [existingRow] = await db.select().from(userRows).where(
       and(eq(userRows.id, rowId), eq(userRows.tableId, tableId))
     );
     if (!existingRow) {
       return res.status(404).json({ error: 'Row not found' });
+    }
+
+    // Viewer can only update their own rows
+    if (authReq.userRole === 'viewer' && existingRow.createdByUserId !== authReq.userId) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const { data } = req.body as { data: unknown };
@@ -321,15 +361,16 @@ tablesRouter.put('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, async
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[PUT /tables/:tableId/rows/:rowId] Error:', error);
+    logger.error({ err: error }, 'PUT /tables/:tableId/rows/:rowId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // DELETE /api/app/:hash/tables/:tableId/rows/:rowId — delete a row
-tablesRouter.delete('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, async (req, res) => {
+tablesRouter.delete('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRole('viewer', 'editor', 'owner'), async (req, res) => {
   try {
-    const row = (req as AuthenticatedRequest).app_row!;
+    const authReq = req as AuthenticatedRequest;
+    const row = authReq.app_row!;
     const tableId = parseInt(req.params.tableId as string, 10);
     const rowId = parseInt(req.params.rowId as string, 10);
     if (isNaN(tableId) || isNaN(rowId)) {
@@ -343,6 +384,23 @@ tablesRouter.delete('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, as
       return res.status(404).json({ error: 'Table not found' });
     }
 
+    // Viewer can only delete rows in RLS-enabled tables (and only their own)
+    if (authReq.userRole === 'viewer') {
+      if (table.rlsEnabled !== 1) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      // Check ownership before deleting
+      const [existingRow] = await db.select().from(userRows).where(
+        and(eq(userRows.id, rowId), eq(userRows.tableId, tableId))
+      );
+      if (!existingRow) {
+        return res.status(404).json({ error: 'Row not found' });
+      }
+      if (existingRow.createdByUserId !== authReq.userId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
+
     const deleted = await db.delete(userRows).where(
       and(eq(userRows.id, rowId), eq(userRows.tableId, tableId))
     ).returning({ id: userRows.id });
@@ -353,7 +411,7 @@ tablesRouter.delete('/:tableId/rows/:rowId', limiter, requireAuthIfProtected, as
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[DELETE /tables/:tableId/rows/:rowId] Error:', error);
+    logger.error({ err: error }, 'DELETE /tables/:tableId/rows/:rowId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

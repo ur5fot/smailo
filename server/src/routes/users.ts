@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import rateLimit from 'express-rate-limit';
-import { eq, desc } from 'drizzle-orm';
+import jwt from 'jsonwebtoken';
+import { eq, desc, and, ne } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { users, apps } from '../db/schema.js';
+import { users, apps, appMembers } from '../db/schema.js';
+import { JWT_SECRET, extractUserIdFromJwt } from '../middleware/auth.js';
+import { logger } from '../utils/logger.js';
 
 export const usersRouter = Router();
 
@@ -40,9 +43,10 @@ usersRouter.post('/', async (req, res) => {
     }
 
     await db.insert(users).values({ userId });
-    res.json({ userId });
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ userId, token });
   } catch (err) {
-    console.error('[users] POST /api/users error:', err);
+    logger.error({ err }, 'POST /api/users failed');
     res.status(500).json({ error: 'Failed to create user' });
   }
 });
@@ -62,12 +66,12 @@ usersRouter.get('/:userId', async (req, res) => {
     }
     res.json({ userId: row.userId, createdAt: row.createdAt });
   } catch (err) {
-    console.error('[users] GET /api/users/:userId error:', err);
+    logger.error({ err }, 'GET /api/users/:userId failed');
     res.status(500).json({ error: 'Failed to get user' });
   }
 });
 
-// GET /api/users/:userId/apps — list user's apps
+// GET /api/users/:userId/apps — list user's apps (requires matching JWT)
 usersRouter.get('/:userId/apps', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -75,13 +79,22 @@ usersRouter.get('/:userId/apps', async (req, res) => {
       res.status(404).json({ error: 'User not found' });
       return;
     }
+
+    // Require global JWT matching the requested userId
+    const jwtUserId = extractUserIdFromJwt(req);
+    if (!jwtUserId || jwtUserId !== userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
     const [user] = await db.select().from(users).where(eq(users.userId, userId));
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
 
-    const userApps = await db
+    // Own apps (owner)
+    const ownApps = await db
       .select({
         hash: apps.hash,
         appName: apps.appName,
@@ -93,9 +106,30 @@ usersRouter.get('/:userId/apps', async (req, res) => {
       .where(eq(apps.userId, userId))
       .orderBy(desc(apps.createdAt));
 
-    res.json(userApps);
+    // Shared apps (editor/viewer via app_members, excluding owner)
+    const sharedApps = await db
+      .select({
+        hash: apps.hash,
+        appName: apps.appName,
+        description: apps.description,
+        createdAt: apps.createdAt,
+        lastVisit: apps.lastVisit,
+        role: appMembers.role,
+      })
+      .from(appMembers)
+      .innerJoin(apps, eq(appMembers.appId, apps.id))
+      .where(and(
+        eq(appMembers.userId, userId),
+        ne(appMembers.role, 'owner'),
+      ))
+      .orderBy(desc(apps.createdAt));
+
+    res.json({
+      myApps: ownApps.map(a => ({ ...a, role: 'owner' as const })),
+      sharedApps,
+    });
   } catch (err) {
-    console.error('[users] GET /api/users/:userId/apps error:', err);
+    logger.error({ err }, 'GET /api/users/:userId/apps failed');
     res.status(500).json({ error: 'Failed to get user apps' });
   }
 });

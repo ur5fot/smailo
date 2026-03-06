@@ -12,11 +12,13 @@
       <InputNumber
         v-if="field.type === 'number'"
         v-model="fieldValues[field.name] as number | null"
+        :disabled="isReadOnly"
         class="app-form__input"
       />
       <DatePicker
         v-else-if="field.type === 'date'"
         v-model="(fieldValues[field.name] as Date)"
+        :disabled="isReadOnly"
         class="app-form__input"
         dateFormat="yy-mm-dd"
         showIcon
@@ -25,23 +27,27 @@
         v-else-if="field.type === 'boolean'"
         v-model="fieldValues[field.name] as boolean"
         :binary="true"
+        :disabled="isReadOnly"
       />
       <Select
         v-else-if="field.type === 'select'"
         v-model="fieldValues[field.name] as string | null"
         :options="field.options"
+        :disabled="isReadOnly"
         class="app-form__input"
         placeholder="Выберите..."
       />
       <InputText
         v-else
         v-model="fieldValues[field.name] as string"
+        :disabled="isReadOnly"
         class="app-form__input"
       />
     </div>
     <Button
       :label="submitLabel || 'Сохранить'"
       :loading="loading"
+      :disabled="isReadOnly"
       @click="handleSubmit"
     />
     <span v-if="errorMsg" class="app-form__error">{{ errorMsg }}</span>
@@ -58,6 +64,8 @@ import Checkbox from 'primevue/checkbox'
 import Select from 'primevue/select'
 import api from '../api'
 import { useAppStore } from '../stores/app'
+import { useUserStore } from '../stores/user'
+import { executeActions, type ActionStep } from '../utils/actionExecutor'
 
 interface FormField {
   name: string
@@ -74,6 +82,8 @@ const props = defineProps<{
   appendMode?: boolean
   hash: string
   dataSource?: { type: 'table'; tableId: number }
+  actions?: ActionStep[]
+  currentPageId?: string
 }>()
 
 const emit = defineEmits<{
@@ -81,6 +91,8 @@ const emit = defineEmits<{
 }>()
 
 const appStore = useAppStore()
+const userStore = useUserStore()
+const isReadOnly = computed(() => appStore.myRole === 'viewer' || !appStore.myRole)
 
 const isTableMode = computed(() => props.dataSource?.type === 'table')
 
@@ -148,6 +160,7 @@ async function handleSubmit() {
   loading.value = true
   errorMsg.value = ''
   try {
+    let submittedData: Record<string, unknown> = {}
     if (isTableMode.value && props.dataSource) {
       // Table mode: POST row to tables API
       const data: Record<string, unknown> = {}
@@ -163,6 +176,7 @@ async function handleSubmit() {
       }
       await api.post(`/app/${props.hash}/tables/${props.dataSource.tableId}/rows`, { data })
       appStore.invalidateTableCache(props.dataSource.tableId)
+      submittedData = data
     } else {
       // KV mode: POST to appData
       const formObject: Record<string, unknown> = {}
@@ -175,10 +189,24 @@ async function handleSubmit() {
         value: formObject,
         ...(props.appendMode ? { mode: 'append' } : {}),
       })
+      submittedData = formObject
+    }
+    // Run post-submit action chain if defined
+    if (props.actions?.length) {
+      // executeActions already calls fetchData internally
+      await executeActions(props.actions, {
+        hash: props.hash,
+        userId: userStore.userId,
+        currentPageId: props.currentPageId,
+        appData: appStore.appData,
+        appStore,
+        inputValue: submittedData,
+      })
+    } else {
+      emit('data-written')
     }
     // Reset form
     Object.assign(fieldValues, initDefaults(fields))
-    emit('data-written')
   } catch (e: any) {
     const serverError = e?.response?.data?.error
     errorMsg.value = serverError || 'Не удалось сохранить. Попробуйте ещё раз.'

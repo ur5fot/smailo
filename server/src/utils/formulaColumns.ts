@@ -1,6 +1,7 @@
 import { evaluateFormula } from './formula/index.js';
 import type { FormulaContext } from './formula/index.js';
 import type { ColumnDef } from './tableValidation.js';
+import { logger } from './logger.js';
 
 type RowWithMeta = { id: number; data: Record<string, unknown>; createdAt: string; updatedAt: string | null };
 
@@ -30,7 +31,7 @@ export function evaluateFormulaColumns(
       try {
         rowDataCopies[i][col.name] = evaluateFormula(col.formula!, context);
       } catch (err) {
-        console.warn(`[formula] Failed to evaluate formula column "${col.name}" (${col.formula}):`, err);
+        logger.warn({ columnName: col.name, formula: col.formula, err }, 'Failed to evaluate formula column');
         rowDataCopies[i][col.name] = null;
       }
     }

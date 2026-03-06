@@ -50,20 +50,62 @@
                 <i class="pi pi-arrow-left" />
               </router-link>
               <h1 class="app-view__title">{{ appStore.appName || 'My App' }}</h1>
+              <span v-if="appStore.myRole === 'editor'" class="app-view__role-badge app-view__role-badge--editor">редактор</span>
+              <span v-else-if="appStore.myRole === 'viewer'" class="app-view__role-badge app-view__role-badge--viewer">просмотр</span>
             </div>
-            <Button
-              icon="pi pi-refresh"
-              text
-              rounded
-              :loading="refreshing"
-              title="Refresh data"
-              class="app-view__refresh-btn"
-              @click="handleRefresh"
-            />
+            <div class="app-view__header-actions">
+              <template v-if="editorStore.isEditMode">
+                <Button
+                  label="Сохранить"
+                  icon="pi pi-check"
+                  size="small"
+                  :disabled="!editorStore.isDirty || saving"
+                  :loading="saving"
+                  class="app-view__save-btn"
+                  @click="handleSave"
+                />
+                <Button
+                  label="Отменить"
+                  icon="pi pi-times"
+                  size="small"
+                  text
+                  :disabled="!editorStore.isDirty || saving"
+                  class="app-view__discard-btn"
+                  @click="handleDiscard"
+                />
+              </template>
+              <Button
+                v-if="appStore.myRole === 'owner'"
+                :icon="editorStore.isEditMode ? 'pi pi-comments' : 'pi pi-pencil'"
+                text
+                rounded
+                :title="editorStore.isEditMode ? 'Switch to chat' : 'Switch to editor'"
+                class="app-view__mode-btn"
+                @click="toggleEditMode"
+              />
+              <Button
+                v-if="appStore.myRole === 'owner'"
+                icon="pi pi-users"
+                text
+                rounded
+                title="Участники"
+                class="app-view__members-btn"
+                @click="showMembersPanel = true"
+              />
+              <Button
+                icon="pi pi-refresh"
+                text
+                rounded
+                :loading="refreshing"
+                title="Refresh data"
+                class="app-view__refresh-btn"
+                @click="handleRefresh"
+              />
+            </div>
           </header>
 
           <!-- Page tabs (multi-page apps) -->
-          <div v-if="pages && pages.length >= 1" class="app-view__page-tabs">
+          <div v-if="pages && pages.length >= 1 && !editorStore.isEditMode" class="app-view__page-tabs">
             <Tabs :value="activePageId" @update:value="(id) => onPageChange(id as string)">
               <TabList>
                 <Tab v-for="page in pages" :key="page.id" :value="page.id">
@@ -76,8 +118,9 @@
 
           <!-- Scrollable app content -->
           <div class="app-view__content">
+            <AppEditor v-if="editorStore.isEditMode" />
             <AppRenderer
-              v-if="currentComponents.length > 0"
+              v-else-if="currentComponents.length > 0"
               :ui-config="currentComponents"
               :app-data="appDataMap"
               :hash="hash"
@@ -88,55 +131,89 @@
           </div>
         </div>
 
-        <!-- Right column: Smailo + chat -->
+        <!-- Right column: Smailo + chat / editor panel -->
         <div class="app-view__right">
-          <div class="app-view__smailo-wrap">
-            <Smailo :mood="smailoMood" :size="80" />
-          </div>
-
-          <!-- Chat messages -->
-          <div class="app-view__messages" ref="messagesRef">
-            <div v-if="chatMessages.length === 0" class="app-view__welcome">
-              <p>Привет! Могу помочь изменить приложение.</p>
-            </div>
-
-            <div
-              v-for="(msg, i) in chatMessages"
-              :key="i"
-              class="app-view__bubble-row"
-              :class="msg.role === 'user' ? 'app-view__bubble-row--user' : 'app-view__bubble-row--assistant'"
-            >
-              <div
-                v-if="msg.role === 'assistant'"
-                class="app-view__bubble"
-                v-html="renderMd(msg.content)"
-              />
-              <div v-else class="app-view__bubble">{{ msg.content }}</div>
-            </div>
-
-            <!-- Typing indicator -->
-            <div v-if="chatLoading" class="app-view__bubble-row app-view__bubble-row--assistant">
-              <div class="app-view__bubble app-view__bubble--typing">
-                <span class="app-view__dot" />
-                <span class="app-view__dot" />
-                <span class="app-view__dot" />
+          <!-- Editor mode: right panel -->
+          <template v-if="editorStore.isEditMode">
+            <div class="app-view__editor-panel">
+              <div class="app-view__editor-panel-section">
+                <div class="app-view__editor-panel-header">Компоненты</div>
+                <ComponentPalette />
+              </div>
+              <div class="app-view__editor-panel-section app-view__editor-panel-section--props">
+                <PropertyEditor />
               </div>
             </div>
-          </div>
+          </template>
 
-          <!-- Input bar -->
-          <div class="app-view__input-wrapper">
-            <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading" @submit="handleChatSubmit" />
+          <!-- View mode: chat -->
+          <template v-else>
+            <div class="app-view__smailo-wrap">
+              <Smailo :mood="smailoMood" :size="80" />
+            </div>
+
+            <!-- Chat messages -->
+            <div class="app-view__messages" ref="messagesRef">
+              <div v-if="chatMessages.length === 0" class="app-view__welcome">
+                <p>Привет! Могу помочь изменить приложение.</p>
+              </div>
+
+              <div
+                v-for="(msg, i) in chatMessages"
+                :key="i"
+                class="app-view__bubble-row"
+                :class="msg.role === 'user' ? 'app-view__bubble-row--user' : 'app-view__bubble-row--assistant'"
+              >
+                <div
+                  v-if="msg.role === 'assistant'"
+                  class="app-view__bubble"
+                  v-html="renderMd(msg.content)"
+                />
+                <div v-else class="app-view__bubble">{{ msg.content }}</div>
+              </div>
+
+              <!-- Typing indicator -->
+              <div v-if="chatLoading" class="app-view__bubble-row app-view__bubble-row--assistant">
+                <div class="app-view__bubble app-view__bubble--typing">
+                  <span class="app-view__dot" />
+                  <span class="app-view__dot" />
+                  <span class="app-view__dot" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Input bar -->
+            <div class="app-view__input-wrapper">
+              <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading || !appStore.myRole || appStore.myRole === 'viewer'" @submit="handleChatSubmit" />
+            </div>
+          </template>
+        </div>
+
+        <!-- Unsaved changes warning dialog -->
+        <div v-if="showUnsavedWarning" class="app-view__overlay" @click.self="cancelDiscardChanges">
+          <div class="app-view__dialog">
+            <p class="app-view__dialog-text">У вас есть несохранённые изменения. Отменить их?</p>
+            <div class="app-view__dialog-actions">
+              <Button label="Остаться" text @click="cancelDiscardChanges" />
+              <Button label="Отменить изменения" severity="danger" @click="confirmDiscardChanges" />
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- Members panel dialog -->
+      <MembersPanel
+        v-if="showMembersPanel"
+        :hash="hash"
+        @close="showMembersPanel = false"
+      />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
 import Tabs from 'primevue/tabs'
@@ -145,7 +222,12 @@ import Tab from 'primevue/tab'
 import Smailo from '../components/Smailo.vue'
 import InputBar from '../components/InputBar.vue'
 import AppRenderer from '../components/AppRenderer.vue'
+import AppEditor from '../components/editor/AppEditor.vue'
+import ComponentPalette from '../components/editor/ComponentPalette.vue'
+import PropertyEditor from '../components/editor/PropertyEditor.vue'
+import MembersPanel from '../components/MembersPanel.vue'
 import { useAppStore } from '../stores/app'
+import { useEditorStore } from '../stores/editor'
 import type { ChatMessage } from '../stores/chat'
 import { renderMd } from '../utils/markdown'
 import type { Mood } from '../types'
@@ -154,8 +236,15 @@ import api from '../api'
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+const editorStore = useEditorStore()
 const hash = computed(() => route.params.hash as string)
 const userId = computed(() => route.params.userId as string | undefined)
+
+// Provide table schemas to PropertyEditor for dataSource dropdown
+const editorTables = computed(() =>
+  appStore.tableSchemas.map(t => ({ id: t.id, name: t.name }))
+)
+provide('editorTables', editorTables)
 
 const loading = ref(true)
 const loadError = ref('')
@@ -168,6 +257,10 @@ const smailoMood = ref<Mood>('idle')
 const refreshing = ref(false)
 const chatLoading = ref(false)
 const messagesRef = ref<HTMLElement | null>(null)
+
+const showUnsavedWarning = ref(false)
+const showMembersPanel = ref(false)
+const saving = ref(false)
 
 const chatMessages = ref<ChatMessage[]>([])
 
@@ -252,6 +345,59 @@ watch(
     }
   },
 )
+
+function toggleEditMode() {
+  if (editorStore.isEditMode) {
+    if (editorStore.isDirty) {
+      showUnsavedWarning.value = true
+      return
+    }
+    editorStore.exitEditMode()
+  } else {
+    if (appStore.appConfig) {
+      editorStore.enterEditMode(appStore.appConfig)
+    }
+  }
+}
+
+function confirmDiscardChanges() {
+  showUnsavedWarning.value = false
+  editorStore.exitEditMode()
+}
+
+function cancelDiscardChanges() {
+  showUnsavedWarning.value = false
+}
+
+async function handleSave() {
+  if (!editorStore.isDirty || saving.value) return
+  saving.value = true
+  try {
+    const result = await editorStore.saveConfig(hash.value)
+    // Update appStore with the saved config so view mode shows the latest
+    if (result?.config) {
+      appStore.appConfig = result.config
+    }
+  } catch {
+    // Save failed — stay dirty so user can retry
+  } finally {
+    saving.value = false
+  }
+}
+
+function handleDiscard() {
+  if (!editorStore.isDirty) return
+  if (appStore.appConfig) {
+    editorStore.discardChanges(appStore.appConfig)
+  }
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's' && editorStore.isEditMode) {
+    e.preventDefault()
+    handleSave()
+  }
+}
 
 function onPageChange(pageId: string) {
   if (userId.value) {
@@ -398,11 +544,25 @@ watch(
 // Clear per-app local state and reload whenever the hash param changes.
 watch(hash, () => {
   chatMessages.value = []
+  editorStore.exitEditMode()
   loadApp()
+})
+
+onBeforeRouteLeave(() => {
+  if (editorStore.isEditMode && editorStore.isDirty) {
+    const leave = window.confirm('У вас есть несохранённые изменения в редакторе. Уйти без сохранения?')
+    if (!leave) return false
+    editorStore.exitEditMode()
+  }
 })
 
 onMounted(() => {
   loadApp()
+  window.addEventListener('keydown', onKeyDown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown)
 })
 </script>
 
@@ -520,7 +680,50 @@ onMounted(() => {
   color: #111827;
 }
 
+.app-view__role-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 1rem;
+  white-space: nowrap;
+}
+
+.app-view__role-badge--editor {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.app-view__role-badge--viewer {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.app-view__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.app-view__members-btn {
+  color: #6b7280 !important;
+}
+
+.app-view__mode-btn {
+  color: #6b7280 !important;
+}
+
 .app-view__refresh-btn {
+  color: #6b7280 !important;
+}
+
+.app-view__save-btn {
+  font-size: 0.8rem;
+}
+
+.app-view__discard-btn {
+  font-size: 0.8rem;
   color: #6b7280 !important;
 }
 
@@ -661,6 +864,67 @@ onMounted(() => {
 /* ── Input bar wrapper ─────────────────────────── */
 .app-view__input-wrapper {
   flex-shrink: 0;
+}
+
+/* ── Editor panel (right side in edit mode) ─────── */
+.app-view__editor-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.app-view__editor-panel-section {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.app-view__editor-panel-section--props {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: none;
+}
+
+.app-view__editor-panel-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 0.75rem 0;
+}
+
+/* ── Unsaved changes dialog ────────────────────── */
+.app-view__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.app-view__dialog {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.app-view__dialog-text {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.app-view__dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 /* ── Mobile: single column ─────────────────────── */

@@ -21,6 +21,7 @@ export interface TableSchema {
   id: number
   name: string
   columns: TableColumn[]
+  rlsEnabled?: boolean
   createdAt: string
 }
 
@@ -51,11 +52,20 @@ export function buildTableCacheKey(tableId: number, filter?: FilterCondition | F
   return `${tableId}:${JSON.stringify(normalized)}`
 }
 
+export type UserRole = 'owner' | 'editor' | 'viewer' | null
+
+export interface MemberInfo {
+  userId: string
+  role: string
+}
+
 export const useAppStore = defineStore('app', () => {
   const appConfig = ref<Record<string, any> | null>(null)
   const appName = ref<string>('')
   const appData = ref<Record<string, any>[]>([])
   const isAuthenticated = ref(false)
+  const myRole = ref<UserRole>(null)
+  const members = ref<MemberInfo[]>([])
 
   // Table data: schemas from fetchApp(), rows fetched on demand per table
   const tableSchemas = ref<TableSchema[]>([])
@@ -70,6 +80,8 @@ export const useAppStore = defineStore('app', () => {
     appName.value = res.data.appName || ''
     appData.value = res.data.appData || []
     isAuthenticated.value = true
+    myRole.value = res.data.myRole ?? null
+    members.value = res.data.members ?? []
 
     // Populate table schemas and clear cached row/computed data
     tableSchemas.value = res.data.tables || []
@@ -115,6 +127,7 @@ export const useAppStore = defineStore('app', () => {
       id: res.data.id,
       name: res.data.name,
       columns: res.data.columns,
+      rlsEnabled: res.data.rlsEnabled,
       createdAt: res.data.createdAt,
     }
     const rows: TableRow[] = res.data.rows || []
@@ -162,10 +175,43 @@ export const useAppStore = defineStore('app', () => {
     return cfg.pages as PageConfig[]
   })
 
+  async function fetchMembers(hash: string) {
+    const res = await api.get(`/app/${hash}/members`)
+    members.value = res.data
+    return res.data as MemberInfo[]
+  }
+
+  async function createInvite(hash: string, role: 'editor' | 'viewer') {
+    const res = await api.post(`/app/${hash}/members/invite`, { role })
+    return res.data as { token: string; inviteUrl: string; expiresAt: string }
+  }
+
+  async function changeMemberRole(hash: string, userId: string, role: 'editor' | 'viewer') {
+    const res = await api.put(`/app/${hash}/members/${userId}`, { role })
+    return res.data
+  }
+
+  async function removeMember(hash: string, userId: string) {
+    const res = await api.delete(`/app/${hash}/members/${userId}`)
+    return res.data
+  }
+
+  async function toggleTableRls(hash: string, tableId: number, rlsEnabled: boolean) {
+    const res = await api.put(`/app/${hash}/tables/${tableId}`, { rlsEnabled })
+    // Update local tableSchemas
+    const schema = tableSchemas.value.find(t => t.id === tableId)
+    if (schema) {
+      schema.rlsEnabled = rlsEnabled
+    }
+    return res.data
+  }
+
   return {
     appConfig, appName, appData, isAuthenticated,
+    myRole, members,
     tableSchemas, tableData, computedValues, pages,
     fetchApp, verifyPassword, fetchData, chatWithApp,
     fetchTableRows, getTableData, refreshTable, invalidateTableCache, clearTableCache,
+    fetchMembers, createInvite, changeMemberRole, removeMember, toggleTableRls,
   }
 })
