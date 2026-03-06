@@ -1,11 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from '../views/HomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/',
-      component: () => import('../views/HomeView.vue'),
+      component: HomeView,
     },
     {
       // Legacy URL — userId not known, works without user context

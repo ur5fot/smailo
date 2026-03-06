@@ -47,14 +47,14 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 2: Route-based code splitting
-- [ ] Обновить `client/src/router/index.ts`: lazy import для тяжёлых views:
+- [x] Обновить `client/src/router/index.ts`: lazy import для тяжёлых views:
   - `AppView`: `() => import('../views/AppView.vue')`
   - `UserView`: `() => import('../views/UserView.vue')`
   - `InviteView`: `() => import('../views/InviteView.vue')`
   - `HomeView` оставить eager (landing page, должна грузиться мгновенно)
-- [ ] Проверить что роутинг работает (dev mode, navigate между views)
-- [ ] Запустить `npm run build` — проверить что chunk split произошёл (AppView больше не 782 KB в main chunk)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Проверить что роутинг работает (dev mode, navigate между views)
+- [x] Запустить `npm run build` — проверить что chunk split произошёл (AppView больше не 782 KB в main chunk)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3: Тесты для client formula engine
 - [ ] Создать `client/src/utils/formula/__tests__/tokenizer.test.ts`:
