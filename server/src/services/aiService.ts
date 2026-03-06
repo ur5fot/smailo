@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { parse as parseFormula } from '../utils/formula/parser.js';
 import { isValidCondition as isValidFilterCondition } from '../utils/filterRows.js';
 import { logger } from '../utils/logger.js';
+import { captureException } from '../utils/sentry.js';
 
 export type ClaudePhase = 'brainstorm' | 'confirm' | 'created' | 'chat';
 
@@ -1314,6 +1315,7 @@ export async function chatWithAI(
   if (retryResult) return retryResult;
 
   logger.error('Retry also failed, returning fallback response');
+  captureException(new Error('AI response parse failed after retry'), { phase });
   return {
     mood: 'confused' as const,
     message: 'Кажется, я запутался. Можешь повторить?',

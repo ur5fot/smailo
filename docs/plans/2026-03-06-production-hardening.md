@@ -125,20 +125,20 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 6: Sentry error tracking
-- [ ] Установить `@sentry/node` — `npm install @sentry/node --workspace=server`
-- [ ] Создать `server/src/utils/sentry.ts`:
+- [x] Установить `@sentry/node` — `npm install @sentry/node --workspace=server`
+- [x] Создать `server/src/utils/sentry.ts`:
   - Init Sentry только если `SENTRY_DSN` задан (опционален в dev)
   - `environment`: из NODE_ENV
   - `release`: из package.json version
   - Проверить актуальный API `@sentry/node` (v8+) — `setupExpressErrorHandler` может быть deprecated
-- [ ] Интегрировать с Express: Sentry error handler перед custom error handler
-- [ ] Добавить Sentry middleware для context enrichment: `appHash`, `userId`, `requestId` в каждый event
-- [ ] Обновить `errorHandler.ts`: `Sentry.captureException(err)` перед ответом клиенту
-- [ ] Обновить `process.on('uncaughtException')`: `Sentry.captureException()` + `await Sentry.flush(2000)` ПЕРЕД `process.exit(1)` — без flush event потеряется
-- [ ] Добавить `Sentry.captureException()` в `cronManager.ts` runJob catch block — фоновые ошибки не проходят через Express middleware
-- [ ] Добавить `Sentry.captureException()` в `aiService.ts` parseResponse failure — AI parse failures критичны
-- [ ] Написать тесты: Sentry не крашится если DSN не задан, init вызывается при наличии DSN, captureException вызывается в cron/AI catch
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Интегрировать с Express: Sentry error handler перед custom error handler
+- [x] Добавить Sentry middleware для context enrichment: `appHash`, `userId`, `requestId` в каждый event
+- [x] Обновить `errorHandler.ts`: `Sentry.captureException(err)` перед ответом клиенту
+- [x] Обновить `process.on('uncaughtException')`: `Sentry.captureException()` + `await Sentry.flush(2000)` ПЕРЕД `process.exit(1)` — без flush event потеряется
+- [x] Добавить `Sentry.captureException()` в `cronManager.ts` runJob catch block — фоновые ошибки не проходят через Express middleware
+- [x] Добавить `Sentry.captureException()` в `aiService.ts` parseResponse failure — AI parse failures критичны
+- [x] Написать тесты: Sentry не крашится если DSN не задан, init вызывается при наличии DSN, captureException вызывается в cron/AI catch
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7: Static asset serving в production
 - [ ] Обновить `server/src/index.ts`: в production (`NODE_ENV=production`) сервить `client/dist` через `express.static`

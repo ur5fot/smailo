@@ -7,6 +7,7 @@ import { getLatestAppData } from '../db/queries.js';
 import type { CronJobConfig } from './aiService.js';
 import { fetchSafe, extractDataPath } from '../utils/fetchProxy.js';
 import { logger } from '../utils/logger.js';
+import { captureException } from '../utils/sentry.js';
 
 type CronJobsInsert = typeof cronJobs.$inferInsert;
 type AppDataInsert = typeof appData.$inferInsert;
@@ -239,6 +240,7 @@ class CronManager {
         .where(eq(cronJobs.id, jobId));
     } catch (error) {
       logger.error({ jobId, err: error }, 'Job failed');
+      captureException(error, { jobId: String(jobId), appId: String(appId), action });
     }
   }
 

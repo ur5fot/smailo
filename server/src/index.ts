@@ -2,6 +2,10 @@ import { loadEnvConfig } from './utils/env.js';
 
 const envConfig = loadEnvConfig();
 
+import { initSentry, captureException, flushSentry, setupExpressErrorHandler } from './utils/sentry.js';
+
+initSentry(envConfig.sentryDsn);
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -57,6 +61,9 @@ app.use('/api/app/:hash/tables', tablesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/app/:hash/members', membersRouter);
 
+// Sentry error handler — captures exceptions before our custom handler
+setupExpressErrorHandler(app);
+
 // Global error handler — must be last middleware
 app.use(errorHandler);
 
@@ -85,8 +92,10 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 // Process-level error handlers
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', async (err) => {
   logger.fatal({ err }, 'Uncaught exception — exiting');
+  captureException(err);
+  await flushSentry(2000);
   process.exit(1);
 });
 
