@@ -30,6 +30,16 @@ npx vue-tsc --workspace=client
 
 Server tests use vitest (`npm test --workspace=server`). Client tests use vitest (`npm test --workspace=client`). There is no linter configured.
 
+### Client testing patterns
+
+Client tests are logic-only — no `@vue/test-utils` or DOM rendering. Tests live in `__tests__/` directories co-located with source files. Test files are excluded from `vue-tsc` build via `client/tsconfig.json` `exclude` field.
+
+Common setup for component/store tests:
+- Mock `../../api` with `vi.mock()` (default export with `get`/`post`/`put`/`delete` as `vi.fn()`)
+- Initialize Pinia per test: `setActivePinia(createPinia())` in `beforeEach`
+- For components with actions: mock `../../utils/actionExecutor` → `executeActions`
+- Test behavioral logic by calling store actions / simulating handler logic directly
+
 ## Architecture
 
 ### Monorepo structure
