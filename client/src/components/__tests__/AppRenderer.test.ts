@@ -43,7 +43,8 @@ function resolvedProps(
   item: UiConfigItem,
   index: number,
   appData: Record<string, any>,
-  computedValues: Record<number, unknown> = {}
+  computedValues?: Record<number, unknown>,
+  storeComputedValues: Record<number, unknown> = {}
 ): Record<string, any> {
   const safeProps = Object.fromEntries(
     Object.entries(item.props ?? {}).filter(([key]) => isSafeProp(key))
@@ -54,7 +55,8 @@ function resolvedProps(
   if (item.dataSource) {
     // dataSource takes priority — data fetching handled by wrapper components
   } else if (item.computedValue) {
-    if (index in computedValues) data = computedValues[index]
+    const cvMap = computedValues ?? storeComputedValues
+    if (index in cvMap) data = cvMap[index]
   } else if (item.dataKey !== undefined) {
     data = resolveDataKey(appData, item.dataKey)
   }
@@ -90,16 +92,6 @@ function shouldShow(item: UiConfigItem, formulaContext: Record<string, unknown>)
 // --- Tests ---
 
 describe('AppRenderer — rendering decisions', () => {
-  it('Card is rendered for component type "Card"', () => {
-    const item: UiConfigItem = { component: 'Card', props: { header: 'Test' } }
-    expect(item.component === 'Card').toBe(true)
-  })
-
-  it('DataTable is rendered for component type "DataTable"', () => {
-    const item: UiConfigItem = { component: 'DataTable', props: {} }
-    expect(item.component === 'DataTable').toBe(true)
-  })
-
   it('Button requires actions or action to render as AppButton', () => {
     const withActions: UiConfigItem = { component: 'Button', props: { label: 'Go' }, actions: [{ type: 'writeData', key: 'x', value: 1 }] }
     const withAction: UiConfigItem = { component: 'Button', props: { label: 'Go' }, action: { key: 'x', value: 1 } }
@@ -143,17 +135,6 @@ describe('AppRenderer — rendering decisions', () => {
     expect(!!(noChildren.condition && noChildren.children)).toBe(false)
   })
 
-  it('unknown component type falls through to componentMap lookup', () => {
-    const knownInMap = ['Timeline', 'Knob', 'Tag', 'ProgressBar', 'Calendar', 'Chip', 'Badge', 'Slider', 'Rating', 'Image', 'MeterGroup']
-    const unknownType = 'NonExistentWidget'
-    expect(knownInMap.includes(unknownType)).toBe(false)
-  })
-
-  it('Calendar is aliased to DatePicker in componentMap', () => {
-    // The componentMap maps 'Calendar' to PrimeVue's DatePicker
-    const componentMap: Record<string, string> = { Calendar: 'DatePicker' }
-    expect(componentMap['Calendar']).toBe('DatePicker')
-  })
 })
 
 describe('AppRenderer — resolvedProps', () => {
@@ -271,6 +252,26 @@ describe('AppRenderer — resolvedProps', () => {
       // Index 0 not in computedValues, so computedValue branch runs but data stays undefined
       const result = resolvedProps(item, 0, { fallback: 'test' }, {})
       expect(result.value).toBeUndefined()
+    })
+
+    it('computedValue falls back to store values when prop is undefined', () => {
+      const item: UiConfigItem = {
+        component: 'Card', props: {},
+        computedValue: '= SUM(expenses.amount)'
+      }
+      // props.computedValues is undefined, storeComputedValues has the value
+      const result = resolvedProps(item, 0, {}, undefined, { 0: 100 })
+      expect(result.value).toBe(100)
+    })
+
+    it('computedValue prefers prop over store values', () => {
+      const item: UiConfigItem = {
+        component: 'Card', props: {},
+        computedValue: '= SUM(expenses.amount)'
+      }
+      // Both prop and store have values — prop wins
+      const result = resolvedProps(item, 0, {}, { 0: 42 }, { 0: 100 })
+      expect(result.value).toBe(42)
     })
 
     it('dataKey used when no dataSource or computedValue', () => {
