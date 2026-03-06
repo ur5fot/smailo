@@ -136,7 +136,7 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 8: Тесты для AppRenderer
-- [ ] Создать `client/src/components/__tests__/AppRenderer.test.ts`:
+- [x] Создать `client/src/components/__tests__/AppRenderer.test.ts`:
   - Renders components from uiConfig array
   - CSS Grid layout: col, colSpan applied correctly
   - Default full-width when no layout
@@ -147,7 +147,7 @@
   - computedValue takes priority over dataKey
   - Unknown component type handled gracefully
   - on* props stripped from resolved props
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 9: Verify acceptance criteria
 - [ ] Verify: `npm audit` показывает 0 high vulnerabilities (или документировано почему приемлемо)
