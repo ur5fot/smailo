@@ -203,16 +203,16 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 12: Verify acceptance criteria
-- [ ] Verify: `npm run build` проходит без ошибок (client + server)
-- [ ] Verify: Docker build проходит и контейнер стартует
-- [ ] Verify: /api/health отвечает 200 с корректным payload
-- [ ] Verify: graceful shutdown работает (SIGTERM → сервер завершается чисто)
-- [ ] Verify: structured logging выводит JSON в production
-- [ ] Verify: ошибка в route → 500 без stack trace в production
-- [ ] Verify: static assets раздаются в production mode
-- [ ] Verify: CI workflow проходит все шаги
-- [ ] Verify: `console.log/warn/error` не осталось в server/src (кроме тестов)
-- [ ] Run full test suite (server + client)
+- [x] Verify: `npm run build` проходит без ошибок (client + server)
+- [x] Verify: Docker build проходит и контейнер стартует
+- [x] Verify: /api/health отвечает 200 с корректным payload
+- [x] Verify: graceful shutdown работает (SIGTERM → сервер завершается чисто)
+- [x] Verify: structured logging выводит JSON в production
+- [x] Verify: ошибка в route → 500 без stack trace в production
+- [x] Verify: static assets раздаются в production mode
+- [x] Verify: CI workflow проходит все шаги
+- [x] Verify: `console.log/warn/error` не осталось в server/src (кроме тестов)
+- [x] Run full test suite (server + client)
 
 ### Task 13: [Final] Update documentation
 - [ ] Обновить `README.md` — секция Deployment (Docker, Railway, env vars)
