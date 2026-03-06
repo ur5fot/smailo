@@ -16,6 +16,7 @@ import { migrateOwnerRecords } from './db/migrateOwners.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { sqlite } from './db/index.js';
 import { setupGracefulShutdown } from './utils/shutdown.js';
+import { httpLogger } from './utils/logger.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -36,6 +37,18 @@ app.use(helmet({
 }));
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json({ limit: '50kb' }));
+
+// Structured logging middleware
+app.use(httpLogger);
+
+// Return request ID to client for log correlation
+app.use((req, res, next) => {
+  const reqId = req.id;
+  if (reqId) {
+    res.setHeader('X-Request-Id', String(reqId));
+  }
+  next();
+});
 
 app.use('/api/health', healthRouter);
 app.use('/api/chat', chatRouter);

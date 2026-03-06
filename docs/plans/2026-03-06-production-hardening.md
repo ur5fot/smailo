@@ -94,21 +94,21 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5a: Structured logging — logger + middleware
-- [ ] Установить `pino` + `pino-http` + `pino-pretty` (dev) — `npm install pino pino-http --workspace=server` и `npm install -D pino-pretty --workspace=server`
-- [ ] Создать `server/src/utils/logger.ts`:
+- [x] Установить `pino` + `pino-http` + `pino-pretty` (dev) — `npm install pino pino-http --workspace=server` и `npm install -D pino-pretty --workspace=server`
+- [x] Создать `server/src/utils/logger.ts`:
   - Production: JSON output (для Railway log drain)
   - Development: pretty print через pino-pretty (transport)
   - Log levels: по NODE_ENV (development=debug, production=info)
-- [ ] Настроить `pino-http` middleware:
+- [x] Настроить `pino-http` middleware:
   - `customProps`: извлекать `userId` (из `X-User-Id` header), `appHash` (из `req.params.hash`)
   - `redact`: `['req.headers.authorization', 'req.headers.cookie']` — не логировать JWT/cookies
   - `autoLogging.ignore`: пропускать `/api/health` и static assets (`/assets/*`, `.js`, `.css`)
   - `genReqId`: предпочитать входящий `X-Request-Id`, fallback на `crypto.randomUUID()`
-- [ ] Добавить response header `X-Request-Id` — возвращать request ID клиенту для корреляции
-- [ ] Подключить pino-http middleware в Express pipeline
-- [ ] Написать тесты для logger creation (correct level by env, JSON output в production)
-- [ ] Написать тесты для request ID (incoming header preserved, fallback generated)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Добавить response header `X-Request-Id` — возвращать request ID клиенту для корреляции
+- [x] Подключить pino-http middleware в Express pipeline
+- [x] Написать тесты для logger creation (correct level by env, JSON output в production)
+- [x] Написать тесты для request ID (incoming header preserved, fallback generated)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5b: Migrate console.* to Pino (76 occurrences, 11 files)
 - [ ] Заменить `console.log/warn/error` → Pino во всех серверных файлах:
