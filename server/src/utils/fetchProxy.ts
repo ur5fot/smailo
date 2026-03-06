@@ -118,6 +118,11 @@ export async function fetchSafe(url: string): Promise<{ body: string; contentTyp
           done({ ok: false, reason: 'redirect' });
           return;
         }
+        if (res.statusCode !== undefined && (res.statusCode < 200 || res.statusCode >= 300)) {
+          res.destroy();
+          done({ ok: false, reason: 'error', detail: new Error(`HTTP ${res.statusCode}`) });
+          return;
+        }
         const cl = res.headers['content-length'];
         if (cl && parseInt(cl as string, 10) > MAX_BODY_BYTES) {
           res.destroy();

@@ -1,6 +1,19 @@
 import * as Sentry from '@sentry/node';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 let initialized = false;
+
+function getVersion(): string {
+  try {
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const pkg = JSON.parse(readFileSync(resolve(dir, '../../..', 'package.json'), 'utf-8'));
+    return pkg.version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 
 /**
  * Initialize Sentry error tracking.
@@ -12,7 +25,7 @@ export function initSentry(dsn: string | undefined): void {
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV || 'development',
-    release: `smailo@${process.env.npm_package_version || '0.0.0'}`,
+    release: `smailo@${getVersion()}`,
   });
   initialized = true;
 }

@@ -243,25 +243,33 @@ membersRouter.post(
         return;
       }
 
-      // Atomically claim the invite: conditional UPDATE ensures only one request succeeds
-      const claimed = await db
-        .update(appInvites)
-        .set({ acceptedByUserId: userId })
-        .where(and(eq(appInvites.id, invite.id), isNull(appInvites.acceptedByUserId)))
-        .returning({ id: appInvites.id });
+      // Atomically claim invite + add member in a single transaction
+      const result = db.transaction((tx) => {
+        const claimed = tx
+          .update(appInvites)
+          .set({ acceptedByUserId: userId })
+          .where(and(eq(appInvites.id, invite.id), isNull(appInvites.acceptedByUserId)))
+          .returning({ id: appInvites.id })
+          .all();
 
-      if (claimed.length === 0) {
+        if (claimed.length === 0) {
+          return { ok: false as const };
+        }
+
+        tx.insert(appMembers).values({
+          appId: appRow.id,
+          userId,
+          role: invite.role,
+          joinedAt: new Date().toISOString(),
+        }).run();
+
+        return { ok: true as const };
+      });
+
+      if (!result.ok) {
         res.status(410).json({ error: 'Invite has already been used' });
         return;
       }
-
-      // Add member
-      await db.insert(appMembers).values({
-        appId: appRow.id,
-        userId,
-        role: invite.role,
-        joinedAt: new Date().toISOString(),
-      });
 
       res.json({ appHash: appRow.hash, role: invite.role });
     } catch (error) {
