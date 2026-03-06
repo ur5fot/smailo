@@ -1,0 +1,17 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 10
+restartPolicyType = "ON_FAILURE"
+
+# ⚠️ Railway Volume Configuration (set up in Railway Dashboard, not here):
+#
+# Mount a persistent volume to /data for SQLite persistence.
+# Without a volume, data is lost on every redeploy!
+#
+# Required environment variables in Railway:
+#   DATABASE_PATH=/data/smailo.sqlite
+#   BACKUP_DIR=/data/backups

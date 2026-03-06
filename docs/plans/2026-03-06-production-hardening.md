@@ -185,7 +185,7 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 11: Railway deployment config
-- [ ] Создать `railway.toml`:
+- [x] Создать `railway.toml`:
   ```toml
   [build]
   builder = "DOCKERFILE"
@@ -196,11 +196,11 @@
   healthcheckTimeout = 10
   restartPolicyType = "ON_FAILURE"
   ```
-- [ ] ⚠️ Railway Volume: настроить persistent volume mounted to `/data` для SQLite:
+- [x] ⚠️ Railway Volume: настроить persistent volume mounted to `/data` для SQLite:
   - `DATABASE_PATH=/data/smailo.sqlite`
   - `BACKUP_DIR=/data/backups`
   - Без Volume данные теряются при redeploy!
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 12: Verify acceptance criteria
 - [ ] Verify: `npm run build` проходит без ошибок (client + server)
