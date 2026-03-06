@@ -6,6 +6,10 @@ vi.mock('../services/cronManager.js', () => ({
   cronManager: { stopAll: mockStopAll },
 }))
 
+vi.mock('../utils/sentry.js', () => ({
+  flushSentry: vi.fn().mockResolvedValue(undefined),
+}))
+
 describe('setupGracefulShutdown', () => {
   let processListeners: Map<string, Function>
   let originalOn: typeof process.on
@@ -53,6 +57,9 @@ describe('setupGracefulShutdown', () => {
     vi.doMock('../services/cronManager.js', () => ({
       cronManager: { stopAll: mockStopAllFresh },
     }))
+    vi.doMock('../utils/sentry.js', () => ({
+      flushSentry: vi.fn().mockResolvedValue(undefined),
+    }))
 
     const { setupGracefulShutdown } = await import('../utils/shutdown.js')
     const closeCb = vi.fn()
@@ -70,10 +77,14 @@ describe('setupGracefulShutdown', () => {
     const sigterm = processListeners.get('SIGTERM')!
     sigterm()
 
+    // Wait for async callback (flushSentry) to complete
+    await vi.waitFor(() => {
+      expect(process.exit).toHaveBeenCalledWith(0)
+    })
+
     expect(mockServer.close).toHaveBeenCalledOnce()
     expect(mockStopAllFresh).toHaveBeenCalledOnce()
     expect(mockSqlite.close).toHaveBeenCalledOnce()
-    expect(process.exit).toHaveBeenCalledWith(0)
   })
 
   it('only runs shutdown once even if signal received twice', async () => {
@@ -82,6 +93,9 @@ describe('setupGracefulShutdown', () => {
     const mockStopAllFresh = vi.fn()
     vi.doMock('../services/cronManager.js', () => ({
       cronManager: { stopAll: mockStopAllFresh },
+    }))
+    vi.doMock('../utils/sentry.js', () => ({
+      flushSentry: vi.fn().mockResolvedValue(undefined),
     }))
 
     const { setupGracefulShutdown } = await import('../utils/shutdown.js')
@@ -106,6 +120,9 @@ describe('setupGracefulShutdown', () => {
     vi.doMock('../services/cronManager.js', () => ({
       cronManager: { stopAll: mockStopAllFresh },
     }))
+    vi.doMock('../utils/sentry.js', () => ({
+      flushSentry: vi.fn().mockResolvedValue(undefined),
+    }))
 
     const { setupGracefulShutdown } = await import('../utils/shutdown.js')
     const mockServer = {
@@ -121,7 +138,9 @@ describe('setupGracefulShutdown', () => {
 
     // DB close should still be called even if cron stop fails
     expect(mockSqlite.close).toHaveBeenCalledOnce()
-    expect(process.exit).toHaveBeenCalledWith(0)
+    await vi.waitFor(() => {
+      expect(process.exit).toHaveBeenCalledWith(0)
+    })
   })
 
   it('handles errors in sqlite close without crashing', async () => {
@@ -130,6 +149,9 @@ describe('setupGracefulShutdown', () => {
     const mockStopAllFresh = vi.fn()
     vi.doMock('../services/cronManager.js', () => ({
       cronManager: { stopAll: mockStopAllFresh },
+    }))
+    vi.doMock('../utils/sentry.js', () => ({
+      flushSentry: vi.fn().mockResolvedValue(undefined),
     }))
 
     const { setupGracefulShutdown } = await import('../utils/shutdown.js')
@@ -143,6 +165,8 @@ describe('setupGracefulShutdown', () => {
     const sigterm = processListeners.get('SIGTERM')!
     sigterm()
 
-    expect(process.exit).toHaveBeenCalledWith(0)
+    await vi.waitFor(() => {
+      expect(process.exit).toHaveBeenCalledWith(0)
+    })
   })
 })

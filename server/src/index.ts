@@ -103,15 +103,17 @@ setInterval(() => {
 // Daily database backup (if BACKUP_DIR is configured)
 if (envConfig.backupDir) {
   const backupDir = envConfig.backupDir;
-  // Run backup every 24 hours from startup
-  setInterval(async () => {
+  // Run initial backup shortly after startup, then every 24 hours
+  const runBackup = async () => {
     try {
       await backupDatabase(backupDir);
       cleanupOldBackups(backupDir);
     } catch (err) {
-      logger.error({ err }, 'Daily database backup failed');
+      logger.error({ err }, 'Database backup failed');
     }
-  }, 24 * 60 * 60 * 1000);
+  };
+  setTimeout(runBackup, 60_000);
+  setInterval(runBackup, 24 * 60 * 60 * 1000);
   logger.info({ backupDir }, 'Daily database backup enabled');
 }
 

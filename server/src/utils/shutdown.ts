@@ -2,6 +2,7 @@ import type { Server } from 'http';
 import type Database from 'better-sqlite3';
 import { cronManager } from '../services/cronManager.js';
 import { logger } from './logger.js';
+import { flushSentry } from './sentry.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -20,7 +21,7 @@ export function setupGracefulShutdown(server: Server, sqlite: Database.Database)
     }, SHUTDOWN_TIMEOUT_MS);
     forceTimer.unref();
 
-    server.close(() => {
+    server.close(async () => {
       logger.info('HTTP server closed');
 
       try {
@@ -38,6 +39,7 @@ export function setupGracefulShutdown(server: Server, sqlite: Database.Database)
       }
 
       clearTimeout(forceTimer);
+      await flushSentry(2000);
       process.exit(0);
     });
   };
