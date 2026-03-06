@@ -120,20 +120,20 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7: Тесты для display components (AppCard, AppDataTable, AppCardList)
-- [ ] Создать `client/src/components/__tests__/AppCard.test.ts`:
+- [x] Создать `client/src/components/__tests__/AppCard.test.ts`:
   - Renders value from dataKey
   - Renders computedValue
   - Handles undefined/null data gracefully
-- [ ] Создать `client/src/components/__tests__/AppDataTable.test.ts`:
+- [x] Создать `client/src/components/__tests__/AppDataTable.test.ts`:
   - Table mode: auto-generates columns from schema
   - Renders rows from table data
   - KV mode: renders from appData
-- [ ] Создать `client/src/components/__tests__/AppCardList.test.ts`:
+- [x] Создать `client/src/components/__tests__/AppCardList.test.ts`:
   - Table mode: renders cards from table rows
   - Delete button shown for owner/editor only (operator precedence fix verified)
   - Delete row calls correct API
   - KV mode: renders from appData array
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 8: Тесты для AppRenderer
 - [ ] Создать `client/src/components/__tests__/AppRenderer.test.ts`:
