@@ -111,7 +111,7 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 5b: Migrate console.* to Pino (76 occurrences, 11 files)
-- [ ] Заменить `console.log/warn/error` → Pino во всех серверных файлах:
+- [x] Заменить `console.log/warn/error` → Pino во всех серверных файлах:
   - **ВАЖНО**: конвертировать template literals в structured first-argument objects:
     - `console.error(\`Job ${jobId} failed:\`, err)` → `logger.error({ jobId, err }, 'Job failed')`
     - `console.warn(\`fetch_url failed for app ${appId}:\`, msg)` → `logger.warn({ appId }, 'fetch_url failed')`
@@ -120,9 +120,9 @@
     - `console.log` (per-execution, "Running job") → `logger.debug`
     - `console.warn` (bad config, missing data) → `logger.warn`
     - `console.error` (route failures, DB errors) → `logger.error`
-- [ ] Файлы: cronManager.ts (29), app.ts (14), tables.ts (8), index.ts (6), members.ts (5), chat.ts (4), aiService.ts (4), users.ts (3), auth.ts (1), computedValues.ts (1), formulaColumns.ts (1)
-- [ ] Написать тест-grep: проверить что `console.log/warn/error` не осталось в server/src (кроме тестов)
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Файлы: cronManager.ts (29), app.ts (14), tables.ts (8), index.ts (6), members.ts (5), chat.ts (4), aiService.ts (4), users.ts (3), auth.ts (1), computedValues.ts (1), formulaColumns.ts (1)
+- [x] Написать тест-grep: проверить что `console.log/warn/error` не осталось в server/src (кроме тестов)
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 6: Sentry error tracking
 - [ ] Установить `@sentry/node` — `npm install @sentry/node --workspace=server`

@@ -2,6 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Request, Response, NextFunction } from 'express'
 import { errorHandler } from '../middleware/errorHandler.js'
 
+// Mock the logger module
+vi.mock('../utils/logger.js', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}))
+
+import { logger } from '../utils/logger.js'
+
 function createMockReq(): Partial<Request> {
   return { method: 'GET', url: '/test' }
 }
@@ -27,7 +39,7 @@ describe('errorHandler middleware', () => {
   const next: NextFunction = vi.fn()
 
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
   })
 
   it('returns 500 with generic error message', () => {
@@ -45,7 +57,6 @@ describe('errorHandler middleware', () => {
     const originalEnv = process.env.NODE_ENV
     process.env.NODE_ENV = 'production'
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const req = createMockReq()
     const res = createMockRes()
     const err = new Error('Secret DB error')
@@ -53,8 +64,11 @@ describe('errorHandler middleware', () => {
 
     errorHandler(err, req as Request, res as unknown as Response, next)
 
-    // Should log message only, not the full stack
-    expect(consoleSpy).toHaveBeenCalledWith('[errorHandler]', 'Secret DB error')
+    // Should log message only, not the full error object with stack
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: { message: 'Secret DB error' } },
+      'Unhandled route error'
+    )
     // Response should not contain stack
     expect(res.body).toEqual({ error: 'Internal server error' })
     expect(JSON.stringify(res.body)).not.toContain('somefile')
@@ -62,11 +76,10 @@ describe('errorHandler middleware', () => {
     process.env.NODE_ENV = originalEnv
   })
 
-  it('logs stack trace in development', () => {
+  it('logs full error in development', () => {
     const originalEnv = process.env.NODE_ENV
     process.env.NODE_ENV = 'development'
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const req = createMockReq()
     const res = createMockRes()
     const err = new Error('Dev error')
@@ -74,7 +87,10 @@ describe('errorHandler middleware', () => {
 
     errorHandler(err, req as Request, res as unknown as Response, next)
 
-    expect(consoleSpy).toHaveBeenCalledWith('[errorHandler]', err.stack)
+    expect(logger.error).toHaveBeenCalledWith(
+      { err },
+      'Unhandled route error'
+    )
 
     process.env.NODE_ENV = originalEnv
   })
@@ -87,7 +103,6 @@ describe('errorHandler middleware', () => {
     res.status = statusSpy as unknown as typeof res.status
     const err = new Error('Late error')
 
-    vi.spyOn(console, 'error').mockImplementation(() => {})
     errorHandler(err, req as Request, res as unknown as Response, next)
 
     expect(statusSpy).not.toHaveBeenCalled()
@@ -97,7 +112,6 @@ describe('errorHandler middleware', () => {
     const originalEnv = process.env.NODE_ENV
     process.env.NODE_ENV = 'development'
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const req = createMockReq()
     const res = createMockRes()
     const err = new Error('No stack')
@@ -105,7 +119,11 @@ describe('errorHandler middleware', () => {
 
     errorHandler(err, req as Request, res as unknown as Response, next)
 
-    expect(consoleSpy).toHaveBeenCalledWith('[errorHandler]', 'No stack')
+    // In development, logs the full error object
+    expect(logger.error).toHaveBeenCalledWith(
+      { err },
+      'Unhandled route error'
+    )
     expect(res.statusCode).toBe(500)
 
     process.env.NODE_ENV = originalEnv

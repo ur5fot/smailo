@@ -7,6 +7,8 @@ import { apps, appMembers, chatHistory, users } from '../db/schema.js';
 import { chatWithAI, validateUiComponents, validatePages, validateTableDefs, type CronJobConfig, type TableDef } from '../services/aiService.js';
 import { cronManager } from '../services/cronManager.js';
 import { userTables } from '../db/schema.js';
+import { extractUserIdFromJwt } from '../middleware/auth.js';
+import { logger } from '../utils/logger.js';
 
 type AppsInsert = typeof apps.$inferInsert;
 type ChatHistoryInsert = typeof chatHistory.$inferInsert;
@@ -105,6 +107,11 @@ chatRouter.post('/', limiter, async (req, res) => {
       if (typeof userId !== 'string' || !/^[A-Za-z0-9]{1,50}$/.test(userId)) {
         return res.status(400).json({ error: 'Invalid userId format' });
       }
+      // Verify JWT matches the claimed userId — prevents impersonation
+      const jwtUserId = extractUserIdFromJwt(req);
+      if (!jwtUserId || jwtUserId !== userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
       // Prevent cross-user session injection: the home-chat sessionId is always derived
       // from userId on the client, so any mismatch is either a bug or an attack.
       if (sessionId !== `home-${userId}`) {
@@ -171,7 +178,7 @@ chatRouter.post('/', limiter, async (req, res) => {
     if (claudeResponse.phase === 'created' && claudeResponse.appConfig && (currentPhase as string) === 'confirm') {
       const appName = claudeResponse.appConfig.appName;
       if (!appName || typeof appName !== 'string' || appName.trim().length === 0) {
-        console.error('[/api/chat] AI returned created phase with missing appName');
+        logger.error('AI returned created phase with missing appName');
         return res.status(500).json({ error: 'Internal server error' });
       }
 
@@ -345,7 +352,7 @@ chatRouter.post('/', limiter, async (req, res) => {
           }
         }
       } catch (err) {
-        console.error('[/api/chat] Failed to create user tables:', err);
+        logger.error({ err }, 'Failed to create user tables');
       }
     }
 
@@ -361,7 +368,7 @@ chatRouter.post('/', limiter, async (req, res) => {
       creationToken: creationTokenResult,
     });
   } catch (error) {
-    console.error('[/api/chat] Error:', error);
+    logger.error({ err: error }, 'POST /api/chat failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -379,6 +386,11 @@ chatRouter.get('/', limiter, async (req, res) => {
   if (!userId || typeof userId !== 'string' || !/^[A-Za-z0-9]{1,50}$/.test(userId)) {
     return res.status(400).json({ error: 'userId is required' });
   }
+  // Verify JWT matches the claimed userId
+  const jwtUserId = extractUserIdFromJwt(req);
+  if (!jwtUserId || jwtUserId !== userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
   if (sessionId !== `home-${userId}`) {
     return res.status(403).json({ error: 'sessionId does not match userId' });
   }
@@ -395,7 +407,7 @@ chatRouter.get('/', limiter, async (req, res) => {
       history: rows.map((r) => ({ role: r.role, content: r.content, phase: r.phase })),
     });
   } catch (error) {
-    console.error('[GET /api/chat] Error:', error);
+    logger.error({ err: error }, 'GET /api/chat failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,6 +1,7 @@
 import type { Server } from 'http';
 import type Database from 'better-sqlite3';
 import { cronManager } from '../services/cronManager.js';
+import { logger } from './logger.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -11,29 +12,29 @@ export function setupGracefulShutdown(server: Server, sqlite: Database.Database)
     if (isShuttingDown) return;
     isShuttingDown = true;
 
-    console.log(`[shutdown] Received ${signal}, starting graceful shutdown...`);
+    logger.info({ signal }, 'Received signal, starting graceful shutdown');
 
     const forceTimer = setTimeout(() => {
-      console.error('[shutdown] Timeout exceeded, forcing exit');
+      logger.error('Shutdown timeout exceeded, forcing exit');
       process.exit(1);
     }, SHUTDOWN_TIMEOUT_MS);
     forceTimer.unref();
 
     server.close(() => {
-      console.log('[shutdown] HTTP server closed');
+      logger.info('HTTP server closed');
 
       try {
         cronManager.stopAll();
-        console.log('[shutdown] Cron jobs stopped');
+        logger.info('Cron jobs stopped');
       } catch (err) {
-        console.error('[shutdown] Error stopping cron jobs:', err);
+        logger.error({ err }, 'Error stopping cron jobs');
       }
 
       try {
         sqlite.close();
-        console.log('[shutdown] Database connection closed');
+        logger.info('Database connection closed');
       } catch (err) {
-        console.error('[shutdown] Error closing database:', err);
+        logger.error({ err }, 'Error closing database');
       }
 
       clearTimeout(forceTimer);

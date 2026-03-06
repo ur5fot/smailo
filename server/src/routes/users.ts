@@ -6,6 +6,7 @@ import { eq, desc, and, ne } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { users, apps, appMembers } from '../db/schema.js';
 import { JWT_SECRET, extractUserIdFromJwt } from '../middleware/auth.js';
+import { logger } from '../utils/logger.js';
 
 export const usersRouter = Router();
 
@@ -45,7 +46,7 @@ usersRouter.post('/', async (req, res) => {
     const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ userId, token });
   } catch (err) {
-    console.error('[users] POST /api/users error:', err);
+    logger.error({ err }, 'POST /api/users failed');
     res.status(500).json({ error: 'Failed to create user' });
   }
 });
@@ -65,29 +66,8 @@ usersRouter.get('/:userId', async (req, res) => {
     }
     res.json({ userId: row.userId, createdAt: row.createdAt });
   } catch (err) {
-    console.error('[users] GET /api/users/:userId error:', err);
+    logger.error({ err }, 'GET /api/users/:userId failed');
     res.status(500).json({ error: 'Failed to get user' });
-  }
-});
-
-// POST /api/users/:userId/token — issue a JWT for an existing user (userId is the credential)
-usersRouter.post('/:userId/token', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    if (!/^[A-Za-z0-9]{1,50}$/.test(userId)) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-    const [row] = await db.select().from(users).where(eq(users.userId, userId));
-    if (!row) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ userId: row.userId, token });
-  } catch (err) {
-    console.error('[users] POST /api/users/:userId/token error:', err);
-    res.status(500).json({ error: 'Failed to issue token' });
   }
 });
 
@@ -149,7 +129,7 @@ usersRouter.get('/:userId/apps', async (req, res) => {
       sharedApps,
     });
   } catch (err) {
-    console.error('[users] GET /api/users/:userId/apps error:', err);
+    logger.error({ err }, 'GET /api/users/:userId/apps failed');
     res.status(500).json({ error: 'Failed to get user apps' });
   }
 });

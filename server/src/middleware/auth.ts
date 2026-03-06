@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appMembers } from '../db/schema.js';
 import { getEnvConfig } from '../utils/env.js';
+import { logger } from '../utils/logger.js';
 
 export type AppRow = typeof apps.$inferSelect;
 export type UserRole = 'owner' | 'editor' | 'viewer' | 'anonymous';
@@ -145,7 +146,7 @@ export async function resolveUserAndRole(
     authReq.userRole = 'anonymous';
     next();
   } catch (error) {
-    console.error('[resolveUserAndRole] Error:', error);
+    logger.error({ err: error }, 'resolveUserAndRole failed');
     res.status(500).json({ error: 'Internal server error' });
   }
 }

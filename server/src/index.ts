@@ -16,7 +16,7 @@ import { migrateOwnerRecords } from './db/migrateOwners.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { sqlite } from './db/index.js';
 import { setupGracefulShutdown } from './utils/shutdown.js';
-import { httpLogger } from './utils/logger.js';
+import { httpLogger, logger } from './utils/logger.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -64,38 +64,38 @@ app.use(errorHandler);
 try {
   const migrated = migrateOwnerRecords();
   if (migrated > 0) {
-    console.log(`[migrateOwners] Created owner records for ${migrated} apps`);
+    logger.info({ migrated }, 'Created owner records for apps');
   }
 } catch (err) {
-  console.error('[migrateOwners] Migration failed:', err);
+  logger.error({ err }, 'migrateOwners migration failed');
 }
 
 cronManager.loadAll().catch((err) => {
-  console.error('[cronManager] Failed to load jobs on startup:', err);
+  logger.error({ err }, 'Failed to load cron jobs on startup');
 });
 
 // Prune old app_data rows on startup and then hourly
 pruneOldAppData().catch((err) => {
-  console.error('[pruneOldAppData] Startup prune failed:', err);
+  logger.error({ err }, 'Startup prune of old app data failed');
 });
 setInterval(() => {
   pruneOldAppData().catch((err) => {
-    console.error('[pruneOldAppData] Hourly prune failed:', err);
+    logger.error({ err }, 'Hourly prune of old app data failed');
   });
 }, 60 * 60 * 1000);
 
 // Process-level error handlers
 process.on('uncaughtException', (err) => {
-  console.error('[uncaughtException] Fatal error:', err);
+  logger.fatal({ err }, 'Uncaught exception — exiting');
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[unhandledRejection]', reason);
+  logger.error({ err: reason }, 'Unhandled rejection');
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`[server] Listening on port ${PORT}`);
+  logger.info({ port: PORT }, 'Server listening');
 });
 
 setupGracefulShutdown(server, sqlite);

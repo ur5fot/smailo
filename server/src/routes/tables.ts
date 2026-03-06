@@ -8,6 +8,7 @@ import { isValidColumnDef, validateRowData } from '../utils/tableValidation.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
 import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
 import { applyFilter, parseFilterParam } from '../utils/filterRows.js';
+import { logger } from '../utils/logger.js';
 
 export const tablesRouter = Router({ mergeParams: true });
 
@@ -78,7 +79,7 @@ tablesRouter.post('/', limiter, resolveUserAndRole, requireRole('owner'), async 
 
     return res.json({ id: inserted[0].id, name: trimmedName, columns: cleanedColumns });
   } catch (error) {
-    console.error('[POST /tables] Error:', error);
+    logger.error({ err: error }, 'POST /tables failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -99,7 +100,7 @@ tablesRouter.get('/', resolveUserAndRole, async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error('[GET /tables] Error:', error);
+    logger.error({ err: error }, 'GET /tables failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -160,7 +161,7 @@ tablesRouter.get('/:tableId', resolveUserAndRole, async (req, res) => {
       rows: filteredRows,
     });
   } catch (error) {
-    console.error('[GET /tables/:tableId] Error:', error);
+    logger.error({ err: error }, 'GET /tables/:tableId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -235,7 +236,7 @@ tablesRouter.put('/:tableId', limiter, resolveUserAndRole, requireRole('owner'),
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[PUT /tables/:tableId] Error:', error);
+    logger.error({ err: error }, 'PUT /tables/:tableId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -261,7 +262,7 @@ tablesRouter.delete('/:tableId', limiter, resolveUserAndRole, requireRole('owner
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[DELETE /tables/:tableId] Error:', error);
+    logger.error({ err: error }, 'DELETE /tables/:tableId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -304,7 +305,7 @@ tablesRouter.post('/:tableId/rows', limiter, resolveUserAndRole, requireRole('ed
 
     return res.json({ id: inserted[0].id, data: result.cleaned, createdAt: inserted[0].createdAt });
   } catch (error) {
-    console.error('[POST /tables/:tableId/rows] Error:', error);
+    logger.error({ err: error }, 'POST /tables/:tableId/rows failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -360,7 +361,7 @@ tablesRouter.put('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requireRo
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[PUT /tables/:tableId/rows/:rowId] Error:', error);
+    logger.error({ err: error }, 'PUT /tables/:tableId/rows/:rowId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -410,7 +411,7 @@ tablesRouter.delete('/:tableId/rows/:rowId', limiter, resolveUserAndRole, requir
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[DELETE /tables/:tableId/rows/:rowId] Error:', error);
+    logger.error({ err: error }, 'DELETE /tables/:tableId/rows/:rowId failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

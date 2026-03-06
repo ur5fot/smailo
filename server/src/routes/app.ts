@@ -15,6 +15,7 @@ import { extractReferencedTableNames, evaluateComputedValues, getGlobalComponent
 import { evaluateFormulaColumns } from '../utils/formulaColumns.js';
 import type { ColumnDef } from '../utils/tableValidation.js';
 import { fetchSafe, extractDataPath } from '../utils/fetchProxy.js';
+import { logger } from '../utils/logger.js';
 
 type AppDataInsert = typeof appData.$inferInsert;
 type ChatHistoryInsert = typeof chatHistory.$inferInsert;
@@ -104,7 +105,7 @@ appRouter.get('/:hash', resolveUserAndRole, async (req, res) => {
       ...(members ? { members } : {}),
     });
   } catch (error) {
-    console.error('[GET /api/app/:hash] Error:', error);
+    logger.error({ err: error }, 'GET /api/app/:hash failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -167,7 +168,7 @@ appRouter.post('/:hash/set-password', verifyLimiter, resolveUserAndRole, require
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[POST /api/app/:hash/set-password] Error:', error);
+    logger.error({ err: error }, 'POST /api/app/:hash/set-password failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -235,7 +236,7 @@ appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: strin
     );
     return res.json({ token });
   } catch (error) {
-    console.error('[POST /api/app/:hash/verify] Error:', error);
+    logger.error({ err: error }, 'POST /api/app/:hash/verify failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -307,7 +308,7 @@ appRouter.get('/:hash/data', resolveUserAndRole, async (req, res) => {
           computedValues = evaluateComputedValues(allComponents, {});
         }
       } catch (err) {
-        console.error('[GET /api/app/:hash/data] computedValues error:', err);
+        logger.error({ err }, 'GET /api/app/:hash/data computedValues error');
       }
     }
 
@@ -316,7 +317,7 @@ appRouter.get('/:hash/data', resolveUserAndRole, async (req, res) => {
       ...(computedValues && Object.keys(computedValues).length > 0 ? { computedValues } : {}),
     });
   } catch (error) {
-    console.error('[GET /api/app/:hash/data] Error:', error);
+    logger.error({ err: error }, 'GET /api/app/:hash/data failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -370,7 +371,7 @@ appRouter.put('/:hash/config', chatLimiter, resolveUserAndRole, requireRole('own
     await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
     return res.json({ ok: true, config: updatedConfig });
   } catch (error) {
-    console.error('[PUT /api/app/:hash/config] Error:', error);
+    logger.error({ err: error }, 'PUT /api/app/:hash/config failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -389,7 +390,7 @@ appRouter.get('/:hash/chat', resolveUserAndRole, async (req, res) => {
       history: [...rows].reverse().map((r) => ({ role: r.role, content: r.content })),
     });
   } catch (error) {
-    console.error('[GET /api/app/:hash/chat] Error:', error);
+    logger.error({ err: error }, 'GET /api/app/:hash/chat failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -513,12 +514,12 @@ appRouter.post('/:hash/data', chatLimiter, resolveUserAndRole, requireRole('edit
       cronManager.runTriggeredJobs(row.id, key),
       new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
     ]).catch((err) => {
-      console.error('[POST /api/app/:hash/data] runTriggeredJobs error:', err);
+      logger.error({ err }, 'POST /api/app/:hash/data runTriggeredJobs error');
     });
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[POST /api/app/:hash/data] Error:', error);
+    logger.error({ err: error }, 'POST /api/app/:hash/data failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -543,7 +544,7 @@ appRouter.post('/:hash/actions/fetch-url', chatLimiter, resolveUserAndRole, requ
     try {
       result = await fetchSafe(url);
     } catch (err) {
-      console.warn('[POST /api/app/:hash/actions/fetch-url] fetchSafe error:', (err as Error).message);
+      logger.warn({ err: (err as Error).message }, 'fetch-url action fetchSafe error');
       return res.status(502).json({ error: 'Failed to fetch URL' });
     }
 
@@ -576,7 +577,7 @@ appRouter.post('/:hash/actions/fetch-url', chatLimiter, resolveUserAndRole, requ
 
     return res.json({ ok: true, value });
   } catch (error) {
-    console.error('[POST /api/app/:hash/actions/fetch-url] Error:', error);
+    logger.error({ err: error }, 'POST /api/app/:hash/actions/fetch-url failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -677,7 +678,7 @@ appRouter.post('/:hash/chat', chatLimiter, resolveUserAndRole, requireRole('edit
         const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), uiComponents: validUiItems };
         await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
       } else {
-        console.warn(`[POST /api/app/:hash/chat] uiUpdate had no valid components for app ${row.id}`);
+        logger.warn({ appId: row.id }, 'uiUpdate had no valid components');
       }
     } else if (isOwner && claudeResponse.pagesUpdate && Array.isArray(claudeResponse.pagesUpdate)) {
       // pagesUpdate replaces the entire config.pages array.
@@ -692,7 +693,7 @@ appRouter.post('/:hash/chat', chatLimiter, resolveUserAndRole, requireRole('edit
           const updatedConfig = { ...(row.config as Record<string, unknown> ?? {}), pages: validPages };
           await db.update(apps).set({ config: updatedConfig }).where(eq(apps.id, row.id));
         } else {
-          console.warn(`[POST /api/app/:hash/chat] pagesUpdate had no valid pages for app ${row.id}`);
+          logger.warn({ appId: row.id }, 'pagesUpdate had no valid pages');
         }
       }
     }
@@ -715,7 +716,7 @@ appRouter.post('/:hash/chat', chatLimiter, resolveUserAndRole, requireRole('edit
       pagesUpdate: revertedToSinglePage ? [] : (validPages && validPages.length > 0 ? validPages : undefined),
     });
   } catch (error) {
-    console.error('[POST /api/app/:hash/chat] Error:', error);
+    logger.error({ err: error }, 'POST /api/app/:hash/chat failed');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

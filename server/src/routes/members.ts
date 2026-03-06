@@ -5,6 +5,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appMembers, appInvites } from '../db/schema.js';
 import { resolveUserAndRole, requireRole, extractUserIdFromJwt, type AuthenticatedRequest } from '../middleware/auth.js';
+import { logger } from '../utils/logger.js';
 
 export const membersRouter = Router({ mergeParams: true });
 
@@ -50,7 +51,7 @@ membersRouter.post(
         expiresAt: expiresAt.toISOString(),
       });
     } catch (error) {
-      console.error('[members/invite] Error:', error);
+      logger.error({ err: error }, 'members/invite failed');
       res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -78,7 +79,7 @@ membersRouter.get(
 
       res.json(members);
     } catch (error) {
-      console.error('[members/list] Error:', error);
+      logger.error({ err: error }, 'members/list failed');
       res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -132,7 +133,7 @@ membersRouter.put(
 
       res.json({ ok: true, userId: targetUserId, role });
     } catch (error) {
-      console.error('[members/changeRole] Error:', error);
+      logger.error({ err: error }, 'members/changeRole failed');
       res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -179,7 +180,7 @@ membersRouter.delete(
 
       res.json({ ok: true });
     } catch (error) {
-      console.error('[members/remove] Error:', error);
+      logger.error({ err: error }, 'members/remove failed');
       res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -264,7 +265,7 @@ membersRouter.post(
 
       res.json({ appHash: appRow.hash, role: invite.role });
     } catch (error) {
-      console.error('[members/invite/accept] Error:', error);
+      logger.error({ err: error }, 'members/invite/accept failed');
       res.status(500).json({ error: 'Internal server error' });
     }
   }

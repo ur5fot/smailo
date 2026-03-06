@@ -6,6 +6,7 @@ import { cronJobs, appData } from '../db/schema.js';
 import { getLatestAppData } from '../db/queries.js';
 import type { CronJobConfig } from './aiService.js';
 import { fetchSafe, extractDataPath } from '../utils/fetchProxy.js';
+import { logger } from '../utils/logger.js';
 
 type CronJobsInsert = typeof cronJobs.$inferInsert;
 type AppDataInsert = typeof appData.$inferInsert;
@@ -122,7 +123,7 @@ class CronManager {
       this.scheduleJob(job.id, job.appId, job.schedule, job.action, (job.config ?? {}) as ActionConfig);
     }
 
-    console.log(`[CronManager] Loaded ${activeJobs.length} active cron jobs`);
+    logger.info({ count: activeJobs.length }, 'Loaded active cron jobs');
   }
 
   private static readonly MAX_JOBS_PER_APP = 5;
@@ -135,21 +136,21 @@ class CronManager {
       // Validate action and schedule before inserting so we never persist inert jobs that
       // would waste a slot and generate re-warnings on every server restart.
       if (!CronManager.ALLOWED_ACTIONS.has(job.action)) {
-        console.warn(`[CronManager] Skipping job "${job.name}" with unknown action: ${job.action}`);
+        logger.warn({ jobName: job.name, action: job.action }, 'Skipping job with unknown action');
         continue;
       }
       if (!validate(job.schedule)) {
-        console.warn(`[CronManager] Skipping job "${job.name}" with invalid cron expression: ${job.schedule}`);
+        logger.warn({ jobName: job.name, schedule: job.schedule }, 'Skipping job with invalid cron expression');
         continue;
       }
       const expressionParts = job.schedule.trim().split(/\s+/);
       if (expressionParts.length !== 5) {
-        console.warn(`[CronManager] Skipping non-5-field cron expression for job "${job.name}": ${job.schedule}`);
+        logger.warn({ jobName: job.name, schedule: job.schedule }, 'Skipping non-5-field cron expression');
         continue;
       }
       const minuteField = expressionParts[0];
       if (minMinuteInterval(minuteField) < 5) {
-        console.warn(`[CronManager] Skipping over-frequent cron expression for job "${job.name}": ${job.schedule}`);
+        logger.warn({ jobName: job.name, schedule: job.schedule }, 'Skipping over-frequent cron expression');
         continue;
       }
 
@@ -180,7 +181,7 @@ class CronManager {
     config: ActionConfig
   ): void {
     if (!validate(expression)) {
-      console.warn(`[CronManager] Invalid cron expression for job ${jobId}: ${expression}`);
+      logger.warn({ jobId, expression }, 'Invalid cron expression');
       return;
     }
 
@@ -189,7 +190,7 @@ class CronManager {
     // which would cause the minute-field guard below to operate on the seconds field.
     const expressionParts = expression.trim().split(/\s+/);
     if (expressionParts.length !== 5) {
-      console.warn(`[CronManager] Rejecting non-5-field cron expression for job ${jobId}: ${expression}`);
+      logger.warn({ jobId, expression }, 'Rejecting non-5-field cron expression');
       return;
     }
 
@@ -198,7 +199,7 @@ class CronManager {
     // so expressions like "0,1 * * * *" are correctly caught, not just "*/N" forms.
     const minuteField = expressionParts[0];
     if (minMinuteInterval(minuteField) < 5) {
-      console.warn(`[CronManager] Rejecting over-frequent cron expression for job ${jobId}: ${expression}`);
+      logger.warn({ jobId, expression }, 'Rejecting over-frequent cron expression');
       return;
     }
 
@@ -208,7 +209,7 @@ class CronManager {
       db.update(cronJobs)
         .set({ nextRun })
         .where(eq(cronJobs.id, jobId))
-        .catch((err) => console.error(`[CronManager] Failed to set nextRun for job ${jobId}:`, err));
+        .catch((err) => logger.error({ jobId, err }, 'Failed to set nextRun'));
     }
 
     const task = schedule(expression, async () => {
@@ -226,7 +227,7 @@ class CronManager {
     expression?: string
   ): Promise<void> {
     const now = new Date().toISOString();
-    console.log(`[CronManager] Running job ${jobId} (action: ${action})`);
+    logger.debug({ jobId, action }, 'Running job');
 
     try {
       await this.executeAction(jobId, appId, action, config);
@@ -237,7 +238,7 @@ class CronManager {
         .set({ lastRun: now, ...(nextRun ? { nextRun } : {}) })
         .where(eq(cronJobs.id, jobId));
     } catch (error) {
-      console.error(`[CronManager] Job ${jobId} failed:`, error);
+      logger.error({ jobId, err: error }, 'Job failed');
     }
   }
 
@@ -264,7 +265,7 @@ class CronManager {
         await this.handleCompute(appId, config);
         break;
       default:
-        console.warn(`[CronManager] Unknown action type: ${action}`);
+        logger.warn({ action }, 'Unknown action type');
     }
   }
 
@@ -284,7 +285,7 @@ class CronManager {
       : `log_entry_${jobId}`;
     const storageKey = CRON_KEY_REGEX.test(rawLogKey) ? rawLogKey : `log_entry_${jobId}`;
     if (Buffer.byteLength(JSON.stringify(entry), 'utf8') > CRON_VALUE_MAX_BYTES) {
-      console.warn(`[CronManager] log_entry value too large for job ${jobId}, skipping`);
+      logger.warn({ jobId }, 'log_entry value too large, skipping');
       return;
     }
     await db.insert(appData).values({ appId, key: storageKey, value: entry } satisfies AppDataInsert);
@@ -293,7 +294,7 @@ class CronManager {
   private async handleFetchUrl(jobId: number, appId: number, config: ActionConfig): Promise<void> {
     let url = config.url as string;
     if (!url) {
-      console.warn('[CronManager] fetch_url action missing url config');
+      logger.warn('fetch_url action missing url config');
       return;
     }
 
@@ -304,7 +305,7 @@ class CronManager {
       url = url.replace(/\{([a-zA-Z0-9_]{1,100})\}/g, (_match, key: string) => {
         const val = dataMap.get(key);
         if (val === undefined || val === null || val === '') {
-          console.warn(`[CronManager] fetch_url: placeholder {${key}} has no value — skipping fetch for app ${appId}`);
+          logger.warn({ appId, placeholder: key }, 'fetch_url: placeholder has no value, skipping fetch');
           hasUnresolved = true;
           return '';
         }
@@ -317,7 +318,7 @@ class CronManager {
     try {
       result = await fetchSafe(url);
     } catch (err) {
-      console.warn(`[CronManager] fetch_url failed for app ${appId}:`, (err as Error).message);
+      logger.warn({ appId, err: (err as Error).message }, 'fetch_url failed');
       return;
     }
 
@@ -325,7 +326,7 @@ class CronManager {
     const value = extractDataPath(result.body, dataPath);
 
     if (dataPath && value === undefined) {
-      console.warn(`[CronManager] fetch_url dataPath "${dataPath}" not found in response for app ${appId}, skipping storage. Response: ${result.body.slice(0, 300)}`);
+      logger.warn({ appId, dataPath, responsePreview: result.body.slice(0, 300) }, 'fetch_url dataPath not found in response, skipping storage');
       return;
     }
 
@@ -335,7 +336,7 @@ class CronManager {
       : `fetch_url_${jobId}`;
     const fetchStorageKey = CRON_KEY_REGEX.test(rawFetchKey) ? rawFetchKey : `fetch_url_${jobId}`;
     if (Buffer.byteLength(JSON.stringify(value), 'utf8') > CRON_VALUE_MAX_BYTES) {
-      console.warn(`[CronManager] fetch_url extracted value too large (>${CRON_VALUE_MAX_BYTES} bytes) for app ${appId}, skipping`);
+      logger.warn({ appId, maxBytes: CRON_VALUE_MAX_BYTES }, 'fetch_url extracted value too large, skipping');
       return;
     }
     await db.insert(appData).values({ appId, key: fetchStorageKey, value } satisfies AppDataInsert);
@@ -372,11 +373,11 @@ class CronManager {
       : 7;
 
     if (!dataKey) {
-      console.warn('[CronManager] aggregate_data action missing dataKey config');
+      logger.warn('aggregate_data action missing dataKey config');
       return;
     }
     if (outputKey === dataKey) {
-      console.warn(`[CronManager] aggregate_data: outputKey and dataKey are both "${dataKey}" for app ${appId} — would cause compounding corruption, skipping`);
+      logger.warn({ appId, dataKey }, 'aggregate_data: outputKey and dataKey are the same, would cause compounding corruption, skipping');
       return;
     }
 
@@ -410,7 +411,7 @@ class CronManager {
       .filter((v): v is number => v !== null);
 
     if (numbers.length === 0) {
-      console.warn(`[CronManager] aggregate_data: no numeric values found for key "${dataKey}" in app ${appId}`);
+      logger.warn({ appId, dataKey }, 'aggregate_data: no numeric values found');
       return;
     }
 
@@ -432,7 +433,7 @@ class CronManager {
         result = Math.min(...numbers);
         break;
       default:
-        console.warn(`[CronManager] aggregate_data: unknown operation "${operation}" for app ${appId}`);
+        logger.warn({ appId, operation }, 'aggregate_data: unknown operation');
         return;
     }
 
@@ -441,7 +442,7 @@ class CronManager {
     // (A number serializes to at most a few bytes, so the size check will always pass,
     // but it is kept here for consistency with the other handlers.)
     if (Buffer.byteLength(JSON.stringify(result), 'utf8') > CRON_VALUE_MAX_BYTES) {
-      console.warn(`[CronManager] aggregate_data result too large for app ${appId}, skipping`);
+      logger.warn({ appId }, 'aggregate_data result too large, skipping');
       return;
     }
     await db.insert(appData).values({ appId, key: outputKey, value: result } satisfies AppDataInsert);
@@ -452,27 +453,27 @@ class CronManager {
     const rawOutputKey = ((config.outputKey as string) ?? '').slice(0, 100);
     const outputKey = CRON_KEY_REGEX.test(rawOutputKey) ? rawOutputKey : null;
     if (!outputKey) {
-      console.warn(`[CronManager] compute: missing or invalid outputKey for app ${appId}`);
+      logger.warn({ appId }, 'compute: missing or invalid outputKey');
       return;
     }
 
     if (operation === 'date_diff') {
       const inputKeys = config.inputKeys as string[] | undefined;
       if (!Array.isArray(inputKeys) || inputKeys.length < 2) {
-        console.warn(`[CronManager] compute date_diff: requires inputKeys array with 2 keys for app ${appId}`);
+        logger.warn({ appId }, 'compute date_diff: requires inputKeys array with 2 keys');
         return;
       }
       const dataMap = await this.getLatestDataMap(appId);
       const rawA = dataMap.get(inputKeys[0]);
       const rawB = dataMap.get(inputKeys[1]);
       if (!rawA || !rawB) {
-        console.warn(`[CronManager] compute date_diff: one or both input keys not found for app ${appId}`);
+        logger.warn({ appId }, 'compute date_diff: one or both input keys not found');
         return;
       }
       const dateA = new Date(typeof rawA === 'string' ? rawA : String(rawA));
       const dateB = new Date(typeof rawB === 'string' ? rawB : String(rawB));
       if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
-        console.warn(`[CronManager] compute date_diff: invalid date values for app ${appId}`);
+        logger.warn({ appId }, 'compute date_diff: invalid date values');
         return;
       }
       const [earlier, later] = dateA <= dateB ? [dateA, dateB] : [dateB, dateA];
@@ -485,7 +486,7 @@ class CronManager {
       const result = { totalDays, years, months, days };
       await db.insert(appData).values({ appId, key: outputKey, value: result } satisfies AppDataInsert);
     } else {
-      console.warn(`[CronManager] compute: unknown operation "${operation}" for app ${appId}`);
+      logger.warn({ appId, operation }, 'compute: unknown operation');
     }
   }
 
@@ -511,7 +512,7 @@ class CronManager {
     for (const job of jobs) {
       const config = (job.config ?? {}) as ActionConfig;
       if (config.triggerOnKey === triggerKey) {
-        console.log(`[CronManager] Triggered job ${job.id} "${job.name}" on key "${triggerKey}"`);
+        logger.debug({ jobId: job.id, jobName: job.name, triggerKey }, 'Triggered job');
         await this.runJob(job.id, appId, job.action, config);
       }
     }

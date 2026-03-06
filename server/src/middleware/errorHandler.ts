@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '../utils/logger.js';
 
 /**
  * Global Express error-handling middleware.
@@ -16,9 +17,9 @@ export function errorHandler(
   const isProduction = process.env.NODE_ENV === 'production';
 
   if (isProduction) {
-    console.error('[errorHandler]', err.message);
+    logger.error({ err: { message: err.message } }, 'Unhandled route error');
   } else {
-    console.error('[errorHandler]', err.stack || err.message);
+    logger.error({ err }, 'Unhandled route error');
   }
 
   if (!res.headersSent) {

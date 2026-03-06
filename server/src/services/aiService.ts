@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { parse as parseFormula } from '../utils/formula/parser.js';
 import { isValidCondition as isValidFilterCondition } from '../utils/filterRows.js';
+import { logger } from '../utils/logger.js';
 
 export type ClaudePhase = 'brainstorm' | 'confirm' | 'created' | 'chat';
 
@@ -1201,8 +1202,7 @@ function parseResponse(rawText: string, phase: ClaudePhase): ClaudeResponse | nu
 
     return parsed;
   } catch (err) {
-    console.error('[parseResponse] Failed to parse AI response. Raw text (first 500 chars):', rawText.slice(0, 500));
-    console.error('[parseResponse] Parse error:', err instanceof Error ? err.message : err);
+    logger.error({ rawPreview: rawText.slice(0, 500), err: err instanceof Error ? err.message : err }, 'Failed to parse AI response');
     return null;
   }
 }
@@ -1303,7 +1303,7 @@ export async function chatWithAI(
   if (result) return result;
 
   // Retry: send the broken response back and ask AI to fix the JSON format
-  console.warn('[chatWithAI] Retrying after invalid JSON response');
+  logger.warn('Retrying after invalid JSON response');
   const retryMessages: ChatMessage[] = [
     ...messages,
     { role: 'assistant', content: rawText },
@@ -1313,7 +1313,7 @@ export async function chatWithAI(
   const retryResult = parseResponse(retryText, phase);
   if (retryResult) return retryResult;
 
-  console.error('[chatWithAI] Retry also failed. Returning fallback.');
+  logger.error('Retry also failed, returning fallback response');
   return {
     mood: 'confused' as const,
     message: 'Кажется, я запутался. Можешь повторить?',

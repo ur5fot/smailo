@@ -1,6 +1,7 @@
 import { evaluateFormula } from './formula/index.js';
 import type { FormulaContext } from './formula/index.js';
 import type { UiComponent, AppConfig } from '../services/aiService.js';
+import { logger } from './logger.js';
 
 /**
  * Get all UI components across all pages (for multi-page apps) or the top-level
@@ -64,7 +65,7 @@ export function evaluateComputedValues(
     try {
       result[i] = evaluateFormula(comp.computedValue, context);
     } catch (err) {
-      console.warn(`[formula] Failed to evaluate computedValue "${comp.computedValue}" for component ${i}:`, err);
+      logger.warn({ componentIndex: i, computedValue: comp.computedValue, err }, 'Failed to evaluate computedValue');
       result[i] = null;
     }
   }
