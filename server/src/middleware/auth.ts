@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apps, appMembers } from '../db/schema.js';
+import { getEnvConfig } from '../utils/env.js';
 
 export type AppRow = typeof apps.$inferSelect;
 export type UserRole = 'owner' | 'editor' | 'viewer' | 'anonymous';
@@ -13,11 +14,7 @@ export interface AuthenticatedRequest extends Request {
   userRole?: UserRole;
 }
 
-export const JWT_SECRET: string = (() => {
-  const v = process.env.JWT_SECRET;
-  if (!v) throw new Error('JWT_SECRET env var is not set');
-  return v;
-})();
+export const JWT_SECRET: string = getEnvConfig().jwtSecret;
 
 /**
  * Extract userId from global JWT (Authorization: Bearer <token>).
