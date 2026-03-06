@@ -149,20 +149,20 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 8: Dockerfile (multi-stage build)
-- [ ] Обновить root `package.json` build script: `"build": "npm run build --workspace=client && npm run build --workspace=server"` (сейчас строит только client!)
-- [ ] Создать `Dockerfile` в корне проекта:
+- [x] Обновить root `package.json` build script: `"build": "npm run build --workspace=client && npm run build --workspace=server"` (сейчас строит только client!)
+- [x] Создать `Dockerfile` в корне проекта:
   - Stage 1 (build): `node:20-alpine`, установить build-зависимости: `python3 make g++` (нужны для better-sqlite3 native compilation), `npm ci`, `npm run build`
   - Stage 2 (runtime): `node:20-alpine`, установить `libstdc++` (runtime dep для better-sqlite3), copy только `server/dist`, `client/dist`, `node_modules` (production only), `package.json`, `server/package.json`
   - `EXPOSE 3000`, `CMD ["node", "server/dist/index.js"]`
   - `HEALTHCHECK CMD wget -qO- http://localhost:3000/api/health || exit 1` (curl не установлен в Alpine!)
-  - `ENV DATABASE_PATH=/data/smailo.sqlite` — default path для Volume mount
-- [ ] Создать `.dockerignore`: `node_modules`, `.git`, `*.sqlite*` (glob для WAL/SHM), `.env`, `dist/`
-- [ ] Создать `docker-compose.yml` для локальной разработки:
+  - `ENV DATABASE_URL=/data/smailo.sqlite` — default path для Volume mount
+- [x] Создать `.dockerignore`: `node_modules`, `.git`, `*.sqlite*` (glob для WAL/SHM), `.env`, `dist/`
+- [x] Создать `docker-compose.yml` для локальной разработки:
   - Сервис `app`: build context, port mapping, volume для SQLite data, env_file
   - Named volume `smailo-data` mounted to `/data`
-- [ ] Проверить что Docker build проходит: `docker build -t smailo .`
-- [ ] Проверить что контейнер стартует и /api/health отвечает
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Проверить что Docker build проходит: `docker build -t smailo .`
+- [x] Проверить что контейнер стартует и /api/health отвечает
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 9: GitHub Actions CI
 - [ ] Создать `.github/workflows/ci.yml`:

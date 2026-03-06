@@ -1,0 +1,7 @@
+node_modules
+.git
+*.sqlite*
+.env
+dist/
+.ralphex
+docs/

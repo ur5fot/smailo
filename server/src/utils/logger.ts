@@ -1,5 +1,6 @@
 import pino from 'pino';
-import pinoHttp from 'pino-http';
+import pinoHttp, { type Options } from 'pino-http';
+import type { IncomingMessage, ServerResponse } from 'http';
 import crypto from 'crypto';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -11,19 +12,19 @@ export const logger = pino({
     : { transport: { target: 'pino-pretty' } }),
 });
 
-export const httpLogger = pinoHttp({
+const httpOptions: Options<IncomingMessage, ServerResponse> = {
   logger,
-  genReqId: (req) => {
+  genReqId: (req: IncomingMessage) => {
     const incoming = req.headers['x-request-id'];
     return (typeof incoming === 'string' && incoming) ? incoming : crypto.randomUUID();
   },
-  customProps: (req) => ({
+  customProps: (req: IncomingMessage) => ({
     userId: req.headers['x-user-id'] || null,
     appHash: (req as any).params?.hash || null,
   }),
   redact: ['req.headers.authorization', 'req.headers.cookie'],
   autoLogging: {
-    ignore: (req) => {
+    ignore: (req: IncomingMessage) => {
       const url = req.url || '';
       return url === '/api/health'
         || url.startsWith('/assets/')
@@ -31,4 +32,6 @@ export const httpLogger = pinoHttp({
         || url.endsWith('.css');
     },
   },
-});
+};
+
+export const httpLogger = (pinoHttp as any)(httpOptions);
