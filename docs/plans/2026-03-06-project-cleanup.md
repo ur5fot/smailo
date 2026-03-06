@@ -57,22 +57,22 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 3: Тесты для client formula engine
-- [ ] Создать `client/src/utils/formula/__tests__/tokenizer.test.ts`:
+- [x] Создать `client/src/utils/formula/__tests__/tokenizer.test.ts`:
   - Tokenize numbers, strings, identifiers, operators
   - Tokenize function calls, member access
   - Edge cases: Cyrillic identifiers, empty input, max length
-- [ ] Создать `client/src/utils/formula/__tests__/parser.test.ts`:
+- [x] Создать `client/src/utils/formula/__tests__/parser.test.ts`:
   - Parse arithmetic, comparisons, logic operators
   - Parse function calls, member access
   - Error cases: invalid syntax, max depth
-- [ ] Создать `client/src/utils/formula/__tests__/evaluator.test.ts`:
+- [x] Создать `client/src/utils/formula/__tests__/evaluator.test.ts`:
   - Arithmetic: +, -, *, /, %
   - Comparisons: ==, !=, <, >, <=, >=
   - Logic: &&, ||, !
   - Built-in functions: IF, ABS, ROUND, UPPER, LOWER, CONCAT, LEN
   - Error handling: division by zero → null, missing refs → null
   - Edge cases: type coercion, nested expressions, max depth
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 4: Тесты для chat.ts store
 - [ ] Создать `client/src/stores/__tests__/chat.test.ts`:
