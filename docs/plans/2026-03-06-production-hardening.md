@@ -141,12 +141,12 @@
 - [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 7: Static asset serving в production
-- [ ] Обновить `server/src/index.ts`: в production (`NODE_ENV=production`) сервить `client/dist` через `express.static`
-- [ ] SPA fallback: все не-`/api` GET запросы → `client/dist/index.html` (для Vue Router HTML5 history mode)
-- [ ] Cache headers: `max-age=31536000` для assets с хешем в имени (js, css), `no-cache` для index.html
-- [ ] Обновить `npm run start` script в root package.json: `NODE_ENV=production node server/dist/index.js`
-- [ ] Написать тесты: static middleware подключается в production, не подключается в development
-- [ ] Запустить тесты — должны проходить перед следующим таском
+- [x] Обновить `server/src/index.ts`: в production (`NODE_ENV=production`) сервить `client/dist` через `express.static`
+- [x] SPA fallback: все не-`/api` GET запросы → `client/dist/index.html` (для Vue Router HTML5 history mode)
+- [x] Cache headers: `max-age=31536000` для assets с хешем в имени (js, css), `no-cache` для index.html
+- [x] Обновить `npm run start` script в root package.json: `NODE_ENV=production node server/dist/index.js`
+- [x] Написать тесты: static middleware подключается в production, не подключается в development
+- [x] Запустить тесты — должны проходить перед следующим таском
 
 ### Task 8: Dockerfile (multi-stage build)
 - [ ] Обновить root `package.json` build script: `"build": "npm run build --workspace=client && npm run build --workspace=server"` (сейчас строит только client!)

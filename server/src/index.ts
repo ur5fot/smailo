@@ -21,6 +21,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { sqlite } from './db/index.js';
 import { setupGracefulShutdown } from './utils/shutdown.js';
 import { httpLogger, logger } from './utils/logger.js';
+import { setupStaticServing } from './utils/staticServing.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -60,6 +61,11 @@ app.use('/api/app', appRouter);
 app.use('/api/app/:hash/tables', tablesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/app/:hash/members', membersRouter);
+
+// In production, serve client/dist as static assets with SPA fallback
+if (envConfig.nodeEnv === 'production') {
+  setupStaticServing(app);
+}
 
 // Sentry error handler — captures exceptions before our custom handler
 setupExpressErrorHandler(app);
