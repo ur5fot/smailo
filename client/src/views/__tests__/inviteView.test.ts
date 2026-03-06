@@ -37,6 +37,34 @@ import { useUserStore } from '../../stores/user'
 const mockPost = api.post as Mock
 const mockGet = api.get as Mock
 
+// Helper: create a fake JWT with given payload (header.payload.signature)
+function fakeJwt(payload: Record<string, unknown>): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256' }))
+  const body = btoa(JSON.stringify(payload))
+  return `${header}.${body}.fakesig`
+}
+
+// Replicate the hasUser logic from InviteView for unit testing
+function hasUser(store: ReturnType<typeof useUserStore>): boolean {
+  const stored = localStorage.getItem('smailo_user_id')
+  const token = localStorage.getItem('smailo_token')
+  if (stored && token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload.userId !== stored) {
+        localStorage.removeItem('smailo_token')
+        return false
+      }
+    } catch {
+      localStorage.removeItem('smailo_token')
+      return false
+    }
+    store.userId = stored
+    return true
+  }
+  return false
+}
+
 // We test the logic functions extracted from InviteView
 // Since InviteView uses onMounted + Vue components that need full DOM,
 // we test the core logic: ensureUser behavior and accept invite handling
@@ -48,19 +76,45 @@ describe('InviteView — ensureUser logic', () => {
     localStorageMock.clear()
   })
 
-  it('uses existing user when userId and token present in localStorage', async () => {
+  it('uses existing user when userId and token match', () => {
+    const token = fakeJwt({ userId: 'existUser1' })
     localStorageMock.setItem('smailo_user_id', 'existUser1')
-    localStorageMock.setItem('smailo_token', 'existing-jwt')
+    localStorageMock.setItem('smailo_token', token)
 
     const store = useUserStore()
-    // Simulate ensureUser logic
-    const stored = localStorage.getItem('smailo_user_id')
-    const hasToken = !!localStorage.getItem('smailo_token')
+    expect(hasUser(store)).toBe(true)
+    expect(store.userId).toBe('existUser1')
+    // Token should remain intact
+    expect(localStorageMock.getItem('smailo_token')).toBe(token)
+  })
 
-    expect(stored).toBe('existUser1')
-    expect(hasToken).toBe(true)
-    // Should NOT call createUser
-    expect(mockPost).not.toHaveBeenCalled()
+  it('rejects when JWT userId does not match stored userId (identity desync)', () => {
+    const token = fakeJwt({ userId: 'otherUser' })
+    localStorageMock.setItem('smailo_user_id', 'existUser1')
+    localStorageMock.setItem('smailo_token', token)
+
+    const store = useUserStore()
+    expect(hasUser(store)).toBe(false)
+    // Stale token should be removed
+    expect(localStorageMock.getItem('smailo_token')).toBeNull()
+    // userId should NOT be set on the store
+    expect(store.userId).toBeNull()
+  })
+
+  it('rejects when token has invalid base64 payload', () => {
+    localStorageMock.setItem('smailo_user_id', 'existUser1')
+    localStorageMock.setItem('smailo_token', 'bad.!!!invalid-base64.sig')
+
+    const store = useUserStore()
+    expect(hasUser(store)).toBe(false)
+    expect(localStorageMock.getItem('smailo_token')).toBeNull()
+  })
+
+  it('returns false when no token present', () => {
+    localStorageMock.setItem('smailo_user_id', 'existUser1')
+
+    const store = useUserStore()
+    expect(hasUser(store)).toBe(false)
   })
 
   it('creates new user when no userId in localStorage', async () => {
@@ -81,12 +135,8 @@ describe('InviteView — ensureUser logic', () => {
     localStorageMock.setItem('smailo_user_id', 'oldUser')
     // No smailo_token
 
-    const stored = localStorage.getItem('smailo_user_id')
-    const hasToken = !!localStorage.getItem('smailo_token')
-
-    // ensureUser should create new user because hasToken is false
-    expect(stored).toBe('oldUser')
-    expect(hasToken).toBe(false)
+    const store = useUserStore()
+    expect(hasUser(store)).toBe(false)
   })
 })
 

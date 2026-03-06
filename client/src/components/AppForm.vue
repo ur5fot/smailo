@@ -92,7 +92,7 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 const userStore = useUserStore()
-const isReadOnly = computed(() => appStore.myRole === 'viewer' || appStore.myRole === 'anonymous' || appStore.myRole === null)
+const isReadOnly = computed(() => appStore.myRole === 'viewer' || !appStore.myRole)
 
 const isTableMode = computed(() => props.dataSource?.type === 'table')
 

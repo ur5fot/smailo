@@ -31,7 +31,7 @@
         </div>
 
         <button
-          v-if="hash && appStore.myRole === 'owner' || appStore.myRole === 'editor'"
+          v-if="hash && (appStore.myRole === 'owner' || appStore.myRole === 'editor')"
           class="app-card-list__delete"
           :disabled="deletingId === row.id"
           :aria-label="'Удалить'"
@@ -73,7 +73,7 @@
         </div>
 
         <button
-          v-if="hash && appStore.myRole === 'owner' || appStore.myRole === 'editor'"
+          v-if="hash && (appStore.myRole === 'owner' || appStore.myRole === 'editor')"
           class="app-card-list__delete"
           :disabled="deletingIndex === index"
           :aria-label="'Удалить'"

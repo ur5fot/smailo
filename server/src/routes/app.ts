@@ -214,18 +214,15 @@ appRouter.post('/:hash/verify', verifyLimiter, async (req: Request<{ hash: strin
       }
     }
 
-    // Auto-add verified user as viewer (idempotent — skip if already a member)
+    // Auto-add verified user as viewer (idempotent — upsert avoids TOCTOU race
+    // where concurrent verify requests could both pass the existence check)
     if (verifyUserId) {
-      const [existing] = await db.select({ id: appMembers.id }).from(appMembers)
-        .where(and(eq(appMembers.appId, row.id), eq(appMembers.userId, verifyUserId)));
-      if (!existing) {
-        await db.insert(appMembers).values({
-          appId: row.id,
-          userId: verifyUserId,
-          role: 'viewer',
-          joinedAt: new Date().toISOString(),
-        });
-      }
+      await db.insert(appMembers).values({
+        appId: row.id,
+        userId: verifyUserId,
+        role: 'viewer',
+        joinedAt: new Date().toISOString(),
+      }).onConflictDoNothing();
     }
 
     // Per-app JWT includes userId and passwordVersion for revocation support

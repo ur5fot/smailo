@@ -4,7 +4,12 @@
       <Smailo mood="idle" :size="160" />
       <h1 class="invite__title">Приглашение в приложение</h1>
 
-      <div v-if="status === 'loading'" class="invite__status">
+      <div v-if="status === 'needAccount'" class="invite__status">
+        <p>Для принятия приглашения нужен аккаунт.</p>
+        <Button label="Создать аккаунт и принять" :loading="creatingUser" @click="handleCreateAndAccept" />
+      </div>
+
+      <div v-else-if="status === 'loading'" class="invite__status">
         <ProgressSpinner style="width: 40px; height: 40px" />
         <p>Принимаем приглашение...</p>
       </div>
@@ -37,44 +42,45 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const status = ref<'loading' | 'success' | 'error'>('loading')
+const status = ref<'loading' | 'needAccount' | 'success' | 'error'>('loading')
 const errorMsg = ref('')
 const acceptedRole = ref('')
+const creatingUser = ref(false)
 
-async function ensureUser(): Promise<string> {
+function hasUser(): boolean {
   const stored = localStorage.getItem('smailo_user_id')
-  const hasToken = !!localStorage.getItem('smailo_token')
-
-  if (stored && hasToken) {
+  const token = localStorage.getItem('smailo_token')
+  if (stored && token) {
+    // Verify JWT userId matches stored userId to prevent identity desync
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload.userId !== stored) {
+        // Token belongs to a different user — clear stale token
+        localStorage.removeItem('smailo_token')
+        return false
+      }
+    } catch {
+      localStorage.removeItem('smailo_token')
+      return false
+    }
     userStore.userId = stored
-    return stored
+    return true
   }
-
-  // Create a new user automatically
-  const userId = await userStore.createUser()
-  return userId
+  return false
 }
 
-async function acceptInvite() {
+async function doAccept() {
   const hash = route.params.hash as string
   const token = route.params.token as string
 
-  if (!hash || !token) {
-    status.value = 'error'
-    errorMsg.value = 'Некорректная ссылка приглашения.'
-    return
-  }
-
+  status.value = 'loading'
   try {
-    const userId = await ensureUser()
-
     const res = await api.post(`/app/${hash}/members/invite/${token}/accept`)
     acceptedRole.value = res.data.role
     status.value = 'success'
 
-    // Redirect to the app after a short delay
     setTimeout(() => {
-      router.replace(`/${userId}/${hash}`)
+      router.replace(`/${userStore.userId}/${hash}`)
     }, 1500)
   } catch (err: any) {
     status.value = 'error'
@@ -95,6 +101,37 @@ async function acceptInvite() {
       errorMsg.value = 'Не удалось принять приглашение. Попробуйте позже.'
     }
   }
+}
+
+async function handleCreateAndAccept() {
+  creatingUser.value = true
+  try {
+    await userStore.createUser()
+    await doAccept()
+  } catch {
+    status.value = 'error'
+    errorMsg.value = 'Не удалось создать аккаунт. Попробуйте позже.'
+  } finally {
+    creatingUser.value = false
+  }
+}
+
+async function acceptInvite() {
+  const hash = route.params.hash as string
+  const token = route.params.token as string
+
+  if (!hash || !token) {
+    status.value = 'error'
+    errorMsg.value = 'Некорректная ссылка приглашения.'
+    return
+  }
+
+  if (!hasUser()) {
+    status.value = 'needAccount'
+    return
+  }
+
+  await doAccept()
 }
 
 function goHome() {

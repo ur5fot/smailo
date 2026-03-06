@@ -50,8 +50,8 @@
                 <i class="pi pi-arrow-left" />
               </router-link>
               <h1 class="app-view__title">{{ appStore.appName || 'My App' }}</h1>
-              <span v-if="appStore.myRole === 'editor'" class="app-view__role-badge app-view__role-badge--editor">editor</span>
-              <span v-else-if="appStore.myRole === 'viewer'" class="app-view__role-badge app-view__role-badge--viewer">viewer</span>
+              <span v-if="appStore.myRole === 'editor'" class="app-view__role-badge app-view__role-badge--editor">редактор</span>
+              <span v-else-if="appStore.myRole === 'viewer'" class="app-view__role-badge app-view__role-badge--viewer">просмотр</span>
             </div>
             <div class="app-view__header-actions">
               <template v-if="editorStore.isEditMode">
@@ -184,7 +184,7 @@
 
             <!-- Input bar -->
             <div class="app-view__input-wrapper">
-              <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading || !appStore.myRole || appStore.myRole === 'viewer' || appStore.myRole === 'anonymous'" @submit="handleChatSubmit" />
+              <InputBar :last-assistant-message="lastAssistantMessage" :disabled="chatLoading || !appStore.myRole || appStore.myRole === 'viewer'" @submit="handleChatSubmit" />
             </div>
           </template>
         </div>

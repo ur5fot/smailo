@@ -143,6 +143,9 @@ export async function resolveUserAndRole(
     }
 
     // Unprotected app: anonymous access allowed (read-only enforced by requireRole)
+    // Clear userId for anonymous users so RLS filters don't leak rows
+    // to non-members who happen to have a valid global JWT
+    authReq.userId = undefined;
     authReq.userRole = 'anonymous';
     next();
   } catch (error) {

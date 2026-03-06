@@ -12,8 +12,8 @@
       <div class="members-panel__invite">
         <div class="members-panel__invite-row">
           <select v-model="inviteRole" class="members-panel__select">
-            <option value="editor">Editor</option>
-            <option value="viewer">Viewer</option>
+            <option value="editor">Редактор</option>
+            <option value="viewer">Просмотр</option>
           </select>
           <Button
             label="Пригласить"
@@ -71,11 +71,12 @@
               <option value="viewer">Viewer</option>
             </select>
             <Button
-              icon="pi pi-trash"
+              :icon="confirmingRemove === member.userId ? 'pi pi-exclamation-triangle' : 'pi pi-trash'"
               size="small"
               text
-              severity="danger"
-              title="Удалить"
+              :severity="confirmingRemove === member.userId ? 'warn' : 'danger'"
+              :title="confirmingRemove === member.userId ? 'Нажмите ещё раз для подтверждения' : 'Удалить'"
+              :label="confirmingRemove === member.userId ? 'Точно?' : undefined"
               @click="handleRemove(member.userId)"
             />
           </div>

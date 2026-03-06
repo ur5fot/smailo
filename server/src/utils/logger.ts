@@ -18,7 +18,7 @@ const httpOptions: Options<IncomingMessage, ServerResponse> = {
     const incoming = req.headers['x-request-id'];
     return (typeof incoming === 'string' && incoming) ? incoming : crypto.randomUUID();
   },
-  redact: ['req.headers.authorization', 'req.headers.cookie'],
+  redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["x-app-token"]'],
   autoLogging: {
     ignore: (req: IncomingMessage) => {
       const url = req.url || '';

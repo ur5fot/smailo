@@ -1,4 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+// Force JWT_SECRET before auth module initializes (chat.ts imports auth.ts)
+vi.mock('../middleware/auth.js', async (importOriginal) => {
+  process.env.JWT_SECRET = 'test-secret-for-cron-compat'
+  const original = await importOriginal() as any
+  return original
+})
+
 import { isValidCronJobConfig } from '../routes/chat.js'
 import { buildSystemPrompt } from '../services/aiService.js'
 
